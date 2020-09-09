@@ -128,6 +128,7 @@ int Monitor(struct mddev_dev *devlist,
 	char *mailfrom;
 	struct alert_info info;
 	struct mddev_ident *mdlist;
+	int delay_for_event = c->delay;
 
 	if (!mailaddr) {
 		mailaddr = conf_get_mailaddr();
@@ -249,7 +250,18 @@ int Monitor(struct mddev_dev *devlist,
 				break;
 			}
 			else {
-				mdstat_wait(c->delay);
+				int wait_result = mdstat_wait(delay_for_event);
+
+				/*
+				 * If mdmonitor is awaken by event, set small delay once
+				 * to deal with udev and mdadm.
+				 */
+				if (wait_result != 0) {
+					if (c->delay > 5)
+						delay_for_event = 5;
+				} else
+					delay_for_event = c->delay;
+
 				mdstat_close();
 			}
 		}

@@ -302,7 +302,17 @@ void mdstat_close(void)
 	mdstat_fd = -1;
 }
 
-void mdstat_wait(int seconds)
+/*
+ * function: mdstat_wait
+ * Description: Function waits for event on mdstat.
+ * Parameters:
+ *		seconds - timeout for waiting
+ * Returns:
+ *		> 0 - detected event
+ *		0 - timeout
+ *		< 0 - detected error
+ */
+int mdstat_wait(int seconds)
 {
 	fd_set fds;
 	struct timeval tm;
@@ -312,10 +322,12 @@ void mdstat_wait(int seconds)
 		FD_SET(mdstat_fd, &fds);
 		maxfd = mdstat_fd;
 	} else
-		return;
+		return -1;
+
 	tm.tv_sec = seconds;
 	tm.tv_usec = 0;
-	select(maxfd + 1, NULL, NULL, &fds, &tm);
+
+	return select(maxfd + 1, NULL, NULL, &fds, &tm);
 }
 
 void mdstat_wait_fd(int fd, const sigset_t *sigmask)
