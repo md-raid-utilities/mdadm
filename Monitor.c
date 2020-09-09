@@ -63,6 +63,7 @@ struct alert_info {
 };
 static int make_daemon(char *pidfile);
 static int check_one_sharer(int scan);
+static void write_autorebuild_pid(void);
 static void alert(char *event, char *dev, char *disc, struct alert_info *info);
 static int check_array(struct state *st, struct mdstat_ent *mdstat,
 		       int test, struct alert_info *info,
@@ -153,6 +154,11 @@ int Monitor(struct mddev_dev *devlist,
 	info.mailfrom = mailfrom;
 	info.dosyslog = dosyslog;
 
+	if (share){
+		if (check_one_sharer(c->scan))
+			return 1;
+	}
+
 	if (daemonise) {
 		int rv = make_daemon(pidfile);
 		if (rv >= 0)
@@ -160,8 +166,7 @@ int Monitor(struct mddev_dev *devlist,
 	}
 
 	if (share)
-		if (check_one_sharer(c->scan))
-			return 1;
+		write_autorebuild_pid();
 
 	if (devlist == NULL) {
 		mdlist = conf_get_ident(NULL);
@@ -328,8 +333,8 @@ static int check_one_sharer(int scan)
 	int pid;
 	FILE *comm_fp;
 	FILE *fp;
-	char comm_path[100];
-	char path[100];
+	char comm_path[PATH_MAX];
+	char path[PATH_MAX];
 	char comm[20];
 
 	sprintf(path, "%s/autorebuild.pid", MDMON_DIR);
@@ -356,21 +361,28 @@ static int check_one_sharer(int scan)
 		}
 		fclose(fp);
 	}
-	if (scan) {
-		if (mkdir(MDMON_DIR, S_IRWXU) < 0 && errno != EEXIST) {
+	return 0;
+}
+
+static void write_autorebuild_pid()
+{
+	char path[PATH_MAX];
+	int pid;
+	FILE *fp;
+	sprintf(path, "%s/autorebuild.pid", MDMON_DIR);
+
+	if (mkdir(MDMON_DIR, S_IRWXU) < 0 && errno != EEXIST) {
+		pr_err("Can't create autorebuild.pid file\n");
+	} else {
+		fp = fopen(path, "w");
+		if (!fp)
 			pr_err("Can't create autorebuild.pid file\n");
-		} else {
-			fp = fopen(path, "w");
-			if (!fp)
-				pr_err("Cannot create autorebuild.pidfile\n");
-			else {
-				pid = getpid();
-				fprintf(fp, "%d\n", pid);
-				fclose(fp);
-			}
+		else {
+			pid = getpid();
+			fprintf(fp, "%d\n", pid);
+			fclose(fp);
 		}
 	}
-	return 0;
 }
 
 static void alert(char *event, char *dev, char *disc, struct alert_info *info)
