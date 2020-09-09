@@ -135,7 +135,6 @@ struct mdstat_ent *mdstat_read(int hold, int start)
 	if (hold && mdstat_fd != -1) {
 		off_t offset = lseek(mdstat_fd, 0L, 0);
 		if (offset == (off_t)-1) {
-			mdstat_close();
 			return NULL;
 		}
 		fd = dup(mdstat_fd);
@@ -312,7 +311,8 @@ void mdstat_wait(int seconds)
 	if (mdstat_fd >= 0) {
 		FD_SET(mdstat_fd, &fds);
 		maxfd = mdstat_fd;
-	}
+	} else
+		return;
 	tm.tv_sec = seconds;
 	tm.tv_usec = 0;
 	select(maxfd + 1, NULL, NULL, &fds, &tm);

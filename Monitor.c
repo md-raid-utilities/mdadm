@@ -216,8 +216,6 @@ int Monitor(struct mddev_dev *devlist,
 		if (mdstat)
 			free_mdstat(mdstat);
 		mdstat = mdstat_read(oneshot ? 0 : 1, 0);
-		if (!mdstat)
-			mdstat_close();
 
 		for (st = statelist; st; st = st->next)
 			if (check_array(st, mdstat, c->test, &info,
@@ -238,8 +236,10 @@ int Monitor(struct mddev_dev *devlist,
 		if (!new_found) {
 			if (oneshot)
 				break;
-			else
+			else {
 				mdstat_wait(c->delay);
+				mdstat_close();
+			}
 		}
 		c->test = 0;
 
