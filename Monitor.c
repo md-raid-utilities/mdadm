@@ -212,15 +212,24 @@ int Monitor(struct mddev_dev *devlist,
 		int new_found = 0;
 		struct state *st, **stp;
 		int anydegraded = 0;
+		int anyredundant = 0;
 
 		if (mdstat)
 			free_mdstat(mdstat);
 		mdstat = mdstat_read(oneshot ? 0 : 1, 0);
 
-		for (st = statelist; st; st = st->next)
+		for (st = statelist; st; st = st->next) {
 			if (check_array(st, mdstat, c->test, &info,
 					increments, c->prefer))
 				anydegraded = 1;
+			/* for external arrays, metadata is filled for
+			 * containers only
+			 */
+			if (st->metadata && st->metadata->ss->external)
+				continue;
+			if (st->err == 0 && !anyredundant)
+				anyredundant = 1;
+		}
 
 		/* now check if there are any new devices found in mdstat */
 		if (c->scan)
@@ -236,6 +245,9 @@ int Monitor(struct mddev_dev *devlist,
 		if (!new_found) {
 			if (oneshot)
 				break;
+			else if (!anyredundant) {
+				break;
+			}
 			else {
 				mdstat_wait(c->delay);
 				mdstat_close();
@@ -542,7 +554,8 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 		st->err = 0;
 		st->percent = RESYNC_NONE;
 		new_array = 1;
-		alert("NewArray", st->devname, NULL, ainfo);
+		if (!is_container)
+			alert("NewArray", st->devname, NULL, ainfo);
 	}
 
 	if (st->utime == array.utime && st->failed == sra->array.failed_disks &&
@@ -676,7 +689,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	return retval;
 
  disappeared:
-	if (!st->err)
+	if (!st->err && !is_container)
 		alert("DeviceDisappeared", dev, NULL, ainfo);
 	st->err++;
 	goto out;
