@@ -224,7 +224,10 @@ int Detail(char *dev, struct context *c)
 	}
 
 	/* Ok, we have some info to print... */
-	str = map_num(pers, array.level);
+	if (inactive)
+		str = map_num(pers, info->array.level);
+	else
+		str = map_num(pers, array.level);
 
 	if (c->export) {
 		if (array.raid_disks) {
