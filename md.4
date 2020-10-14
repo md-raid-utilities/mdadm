@@ -215,6 +215,19 @@ option or the
 .B "--update=layout-alternate"
 option.
 
+Once you have updated the layout you will not be able to mount the array
+on an older kernel.  If you need to revert to an older kernel, the
+layout information can be erased with the
+.B "--update=layout-unspecificed"
+option.  If you use this option to 
+.B --assemble
+while running a newer kernel, the array will NOT assemble, but the
+metadata will be update so that it can be assembled on an older kernel.
+
+No that setting the layout to "unspecified" removes protections against
+this bug, and you must be sure that the kernel you use matches the
+layout of the array.
+
 .SS RAID1
 
 A RAID1 array is also known as a mirrored set (though mirrors tend to

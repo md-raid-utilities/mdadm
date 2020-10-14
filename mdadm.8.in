@@ -1213,6 +1213,7 @@ argument given to this flag can be one of
 .BR no\-ppl ,
 .BR layout\-original ,
 .BR layout\-alternate ,
+.BR layout\-unspecified ,
 .BR metadata ,
 or
 .BR super\-minor .
@@ -1368,8 +1369,9 @@ The
 .B layout\-original
 and
 .B layout\-alternate
-options are for RAID0 arrays in use before Linux 5.4.  If the array was being
-used with Linux 3.13 or earlier, then to assemble the array on a new kernel,
+options are for RAID0 arrays with non-uniform devices size that were in
+use before Linux 5.4.  If the array was being used with Linux 3.13 or
+earlier, then to assemble the array on a new kernel, 
 .B \-\-update=layout\-original
 must be given.  If the array was created and used with a kernel from Linux 3.14 to
 Linux 5.3, then
@@ -1378,6 +1380,15 @@ must be given.  This only needs to be given once.  Subsequent assembly of the ar
 will happen normally.
 For more information, see
 .IR md (4).
+
+The
+.B layout\-unspecified
+option reverts the effect of
+.B layout\-orignal
+or
+.B layout\-alternate
+and allows the array to be again used on a kernel prior to Linux 5.3.
+This option should be used with great caution.
 
 .TP
 .BR \-\-freeze\-reshape

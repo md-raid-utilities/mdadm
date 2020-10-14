@@ -796,7 +796,8 @@ int main(int argc, char *argv[])
 			if (strcmp(c.update, "revert-reshape") == 0)
 				continue;
 			if (strcmp(c.update, "layout-original") == 0 ||
-			    strcmp(c.update, "layout-alternate") == 0)
+			    strcmp(c.update, "layout-alternate") == 0 ||
+			    strcmp(c.update, "layout-unspecified") == 0)
 				continue;
 			if (strcmp(c.update, "byteorder") == 0) {
 				if (ss) {
@@ -828,7 +829,7 @@ int main(int argc, char *argv[])
 		"     'summaries', 'homehost', 'home-cluster', 'byteorder', 'devicesize',\n"
 		"     'no-bitmap', 'metadata', 'revert-reshape'\n"
 		"     'bbl', 'no-bbl', 'force-no-bbl', 'ppl', 'no-ppl'\n"
-		"     'layout-original', 'layout-alternate'\n"
+		"     'layout-original', 'layout-alternate', 'layout-unspecified'\n"
 				);
 			exit(outf == stdout ? 0 : 2);
 
