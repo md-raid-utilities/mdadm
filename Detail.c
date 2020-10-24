@@ -498,8 +498,26 @@ int Detail(char *dev, struct context *c)
 							  sra->array_state);
 				else
 					arrayst = "clean";
-			} else
+			} else {
 				arrayst = "active";
+				if (array.state & (1<<MD_SB_CLUSTERED)) {
+					for (d = 0; d < max_disks * 2; d++) {
+						char *dv;
+						mdu_disk_info_t disk = disks[d];
+
+						/* only check first valid disk in cluster env */
+						if ((disk.state & (MD_DISK_SYNC | MD_DISK_ACTIVE))
+							&& (disk.major | disk.minor)) {
+							dv = map_dev_preferred(disk.major, disk.minor, 0,
+									c->prefer);
+							if (!dv)
+								continue;
+							arrayst = IsBitmapDirty(dv) ? "active" : "clean";
+							break;
+						}
+					}
+				}
+			}
 
 			printf("             State : %s%s%s%s%s%s%s \n",
 			       arrayst, st,
