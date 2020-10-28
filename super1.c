@@ -2582,8 +2582,9 @@ add_internal_bitmap1(struct supertype *st,
 
 static int locate_bitmap1(struct supertype *st, int fd, int node_num)
 {
-	unsigned long long offset;
+	unsigned long long offset, bm_sectors_per_node;
 	struct mdp_superblock_1 *sb;
+	bitmap_super_t *bms;
 	int mustfree = 0;
 	int ret;
 
@@ -2598,8 +2599,13 @@ static int locate_bitmap1(struct supertype *st, int fd, int node_num)
 		ret = 0;
 	else
 		ret = -1;
-	offset = __le64_to_cpu(sb->super_offset);
-	offset += (int32_t) __le32_to_cpu(sb->bitmap_offset) * (node_num + 1);
+
+	offset = __le64_to_cpu(sb->super_offset) + __le32_to_cpu(sb->bitmap_offset);
+	if (node_num) {
+		bms = (bitmap_super_t*)(((char*)sb)+MAX_SB_SIZE);
+		bm_sectors_per_node = calc_bitmap_size(bms, 4096) >> 9;
+		offset += bm_sectors_per_node * node_num;
+	}
 	if (mustfree)
 		free(sb);
 	lseek64(fd, offset<<9, 0);
