@@ -2982,47 +2982,6 @@ static void catch_term(int sig)
 	sigterm = 1;
 }
 
-static int continue_via_systemd(char *devnm)
-{
-	int skipped, i, pid, status;
-	char pathbuf[1024];
-	/* In a systemd/udev world, it is best to get systemd to
-	 * run "mdadm --grow --continue" rather than running in the
-	 * background.
-	 */
-	switch(fork()) {
-	case  0:
-		/* FIXME yuk. CLOSE_EXEC?? */
-		skipped = 0;
-		for (i = 3; skipped < 20; i++)
-			if (close(i) < 0)
-				skipped++;
-			else
-				skipped = 0;
-
-		/* Don't want to see error messages from
-		 * systemctl.  If the service doesn't exist,
-		 * we fork ourselves.
-		 */
-		close(2);
-		open("/dev/null", O_WRONLY);
-		snprintf(pathbuf, sizeof(pathbuf),
-			 "mdadm-grow-continue@%s.service", devnm);
-		status = execl("/usr/bin/systemctl", "systemctl", "restart",
-			       pathbuf, NULL);
-		status = execl("/bin/systemctl", "systemctl", "restart",
-			       pathbuf, NULL);
-		exit(1);
-	case -1: /* Just do it ourselves. */
-		break;
-	default: /* parent - good */
-		pid = wait(&status);
-		if (pid >= 0 && status == 0)
-			return 1;
-	}
-	return 0;
-}
-
 static int reshape_array(char *container, int fd, char *devname,
 			 struct supertype *st, struct mdinfo *info,
 			 int force, struct mddev_dev *devlist,
@@ -3401,6 +3360,7 @@ static int reshape_array(char *container, int fd, char *devname,
 		default: /* parent */
 			return 0;
 		case 0:
+			manage_fork_fds(0);
 			map_fork();
 			break;
 		}
@@ -3509,8 +3469,9 @@ started:
 		return 1;
 	}
 
-	if (!forked && !check_env("MDADM_NO_SYSTEMCTL"))
-		if (continue_via_systemd(container ?: sra->sys_name)) {
+	if (!forked)
+		if (continue_via_systemd(container ?: sra->sys_name,
+					 GROW_SERVICE)) {
 			free(fdlist);
 			free(offsets);
 			sysfs_free(sra);
@@ -3704,8 +3665,8 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked && !freeze_reshape && !check_env("MDADM_NO_SYSTEMCTL"))
-		if (continue_via_systemd(container))
+	if (!forked && !freeze_reshape)
+		if (continue_via_systemd(container, GROW_SERVICE))
 			return 0;
 
 	switch (forked ? 0 : fork()) {
@@ -3718,6 +3679,7 @@ int reshape_container(char *container, char *devname,
 			printf("%s: multi-array reshape continues in background\n", Name);
 		return 0;
 	case 0: /* child */
+		manage_fork_fds(0);
 		map_fork();
 		break;
 	}

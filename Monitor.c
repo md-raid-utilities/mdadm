@@ -323,10 +323,7 @@ static int make_daemon(char *pidfile)
 		perror("daemonise");
 		return 1;
 	}
-	close(0);
-	open("/dev/null", O_RDWR);
-	dup2(0, 1);
-	dup2(0, 2);
+	manage_fork_fds(0);
 	setsid();
 	return -1;
 }

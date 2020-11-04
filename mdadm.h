@@ -129,6 +129,14 @@ struct dlm_lksb {
 #define FAILED_SLOTS_DIR "/run/mdadm/failed-slots"
 #endif /* FAILED_SLOTS */
 
+#ifndef MDMON_SERVICE
+#define MDMON_SERVICE "mdmon"
+#endif /* MDMON_SERVICE */
+
+#ifndef GROW_SERVICE
+#define GROW_SERVICE "mdadm-grow-continue"
+#endif /* GROW_SERVICE */
+
 #include	"md_u.h"
 #include	"md_p.h"
 #include	"bitmap.h"
@@ -1497,6 +1505,8 @@ extern int is_standard(char *dev, int *nump);
 extern int same_dev(char *one, char *two);
 extern int compare_paths (char* path1,char* path2);
 extern void enable_fds(int devices);
+extern void manage_fork_fds(int close_all);
+extern int continue_via_systemd(char *devnm, char *service_name);
 
 extern int parse_auto(char *str, char *msg, int config);
 extern struct mddev_ident *conf_get_ident(char *dev);

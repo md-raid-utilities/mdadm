@@ -1915,7 +1915,7 @@ int mdmon_running(char *devnm)
 
 int start_mdmon(char *devnm)
 {
-	int i, skipped;
+	int i;
 	int len;
 	pid_t pid;
 	int status;
@@ -1929,7 +1929,10 @@ int start_mdmon(char *devnm)
 
 	if (check_env("MDADM_NO_MDMON"))
 		return 0;
+	if (continue_via_systemd(devnm, MDMON_SERVICE))
+		return 0;
 
+	/* That failed, try running mdmon directly */
 	len = readlink("/proc/self/exe", pathbuf, sizeof(pathbuf)-1);
 	if (len > 0) {
 		char *sl;
@@ -1943,51 +1946,9 @@ int start_mdmon(char *devnm)
 	} else
 		pathbuf[0] = '\0';
 
-	/* First try to run systemctl */
-	if (!check_env("MDADM_NO_SYSTEMCTL"))
-		switch(fork()) {
-		case 0:
-			/* FIXME yuk. CLOSE_EXEC?? */
-			skipped = 0;
-			for (i = 3; skipped < 20; i++)
-				if (close(i) < 0)
-					skipped++;
-				else
-					skipped = 0;
-
-			/* Don't want to see error messages from
-			 * systemctl.  If the service doesn't exist,
-			 * we start mdmon ourselves.
-			 */
-			close(2);
-			open("/dev/null", O_WRONLY);
-			snprintf(pathbuf, sizeof(pathbuf), "mdmon@%s.service",
-				 devnm);
-			status = execl("/usr/bin/systemctl", "systemctl",
-				       "start",
-				       pathbuf, NULL);
-			status = execl("/bin/systemctl", "systemctl", "start",
-				       pathbuf, NULL);
-			exit(1);
-		case -1: pr_err("cannot run mdmon. Array remains readonly\n");
-			return -1;
-		default: /* parent - good */
-			pid = wait(&status);
-			if (pid >= 0 && status == 0)
-				return 0;
-		}
-
-	/* That failed, try running mdmon directly */
 	switch(fork()) {
 	case 0:
-		/* FIXME yuk. CLOSE_EXEC?? */
-		skipped = 0;
-		for (i = 3; skipped < 20; i++)
-			if (close(i) < 0)
-				skipped++;
-			else
-				skipped = 0;
-
+		manage_fork_fds(1);
 		for (i = 0; paths[i]; i++)
 			if (paths[i][0]) {
 				execl(paths[i], paths[i],
@@ -2190,6 +2151,81 @@ void enable_fds(int devices)
 		lim.rlim_max = fds;
 	lim.rlim_cur = fds;
 	setrlimit(RLIMIT_NOFILE, &lim);
+}
+
+/* Close all opened descriptors if needed and redirect
+ * streams to /dev/null.
+ * For debug purposed, leave STDOUT and STDERR untouched
+ * Returns:
+ *	1- if any error occurred
+ *	0- otherwise
+ */
+void manage_fork_fds(int close_all)
+{
+	DIR *dir;
+	struct dirent *dirent;
+
+	close(0);
+	open("/dev/null", O_RDWR);
+
+#ifndef DEBUG
+	dup2(0, 1);
+	dup2(0, 2);
+#endif
+
+	if (close_all == 0)
+		return;
+
+	dir = opendir("/proc/self/fd");
+	if (!dir) {
+		pr_err("Cannot open /proc/self/fd directory.\n");
+		return;
+	}
+	for (dirent = readdir(dir); dirent; dirent = readdir(dir)) {
+		int fd = -1;
+
+		if ((strcmp(dirent->d_name, ".") == 0) ||
+		    (strcmp(dirent->d_name, "..")) == 0)
+			continue;
+
+		fd = strtol(dirent->d_name, NULL, 10);
+		if (fd > 2)
+			close(fd);
+	}
+}
+
+/* In a systemd/udev world, it is best to get systemd to
+ * run daemon rather than running in the background.
+ * Returns:
+ *	1- if systemd service has been started
+ *	0- otherwise
+ */
+int continue_via_systemd(char *devnm, char *service_name)
+{
+	int pid, status;
+	char pathbuf[1024];
+
+	/* Simply return that service cannot be started */
+	if (check_env("MDADM_NO_SYSTEMCTL"))
+		return 0;
+	switch (fork()) {
+	case  0:
+		manage_fork_fds(1);
+		snprintf(pathbuf, sizeof(pathbuf),
+			 "%s@%s.service", service_name, devnm);
+		status = execl("/usr/bin/systemctl", "systemctl", "restart",
+			       pathbuf, NULL);
+		status = execl("/bin/systemctl", "systemctl", "restart",
+			       pathbuf, NULL);
+		exit(1);
+	case -1: /* Just do it ourselves. */
+		break;
+	default: /* parent - good */
+		pid = wait(&status);
+		if (pid >= 0 && status == 0)
+			return 1;
+	}
+	return 0;
 }
 
 int in_initrd(void)

@@ -546,14 +546,7 @@ static int mdmon(char *devnm, int must_fork, int takeover)
 	}
 
 	setsid();
-	close(0);
-	open("/dev/null", O_RDWR);
-	close(1);
-	ignore = dup(0);
-#ifndef DEBUG
-	close(2);
-	ignore = dup(0);
-#endif
+	manage_fork_fds(0);
 
 	/* This silliness is to stop the compiler complaining
 	 * that we ignore 'ignore'
