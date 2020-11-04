@@ -766,3 +766,34 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 	closedir(dir);
 	return NULL;
 }
+/* Verify that NVMe drive is supported by IMSM
+ * Returns:
+ *	0 - not supported
+ *	1 - supported
+ */
+int imsm_is_nvme_supported(int disk_fd, int verbose)
+{
+	char nsid_path[PATH_MAX];
+	char buf[PATH_MAX];
+	struct stat stb;
+
+	if (disk_fd < 0)
+		return 0;
+
+	if (fstat(disk_fd, &stb))
+		return 0;
+
+	snprintf(nsid_path, PATH_MAX-1, "/sys/dev/block/%d:%d/nsid",
+		 major(stb.st_rdev), minor(stb.st_rdev));
+
+	if (load_sys(nsid_path, buf, sizeof(buf))) {
+		pr_err("Cannot read %s, rejecting drive\n", nsid_path);
+		return 0;
+	}
+	if (strtoll(buf, NULL, 10) != 1) {
+		if (verbose)
+			pr_err("Only first namespace is supported by IMSM, aborting\n");
+		return 0;
+	}
+	return 1;
+}

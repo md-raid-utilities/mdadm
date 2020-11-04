@@ -251,4 +251,5 @@ const struct orom_entry *get_orom_entry_by_device_id(__u16 dev_id);
 const struct imsm_orom *get_orom_by_device_id(__u16 device_id);
 struct sys_dev *device_by_id(__u16 device_id);
 struct sys_dev *device_by_id_and_path(__u16 device_id, const char *path);
+int imsm_is_nvme_supported(int disk_fd, int verbose);
 char *vmd_domain_to_controller(struct sys_dev *hba, char *buf);

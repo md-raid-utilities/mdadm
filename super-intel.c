@@ -2364,7 +2364,9 @@ static int print_nvme_info(struct sys_dev *hba)
 				continue;
 			if (path_attached_to_hba(rp, hba->path)) {
 				fd = open_dev(ent->d_name);
-				if (fd < 0) {
+				if (!imsm_is_nvme_supported(fd, 0)) {
+					if (fd >= 0)
+						close(fd);
 					free(rp);
 					continue;
 				}
@@ -5867,6 +5869,13 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 
 		snprintf(controller_path, PATH_MAX-1, "%s/device", devpath);
 		free(devpath);
+
+		if (!imsm_is_nvme_supported(dd->fd, 1)) {
+			if (dd->devname)
+				free(dd->devname);
+			free(dd);
+			return 1;
+		}
 
 		if (devpath_to_vendor(controller_path) == 0x8086) {
 			/*
