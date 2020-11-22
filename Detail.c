@@ -224,7 +224,7 @@ int Detail(char *dev, struct context *c)
 	}
 
 	/* Ok, we have some info to print... */
-	if (inactive)
+	if (inactive && info)
 		str = map_num(pers, info->array.level);
 	else
 		str = map_num(pers, array.level);
