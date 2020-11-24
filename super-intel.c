@@ -3453,7 +3453,6 @@ static void getinfo_super_imsm_volume(struct supertype *st, struct mdinfo *info,
 			__u64 blocks_per_unit = blocks_per_migr_unit(super,
 								     dev);
 			__u64 units = current_migr_unit(migr_rec);
-			unsigned long long array_blocks;
 			int used_disks;
 
 			if (__le32_to_cpu(migr_rec->ascending_migr) &&
@@ -3472,12 +3471,8 @@ static void getinfo_super_imsm_volume(struct supertype *st, struct mdinfo *info,
 
 			used_disks = imsm_num_data_members(prev_map);
 			if (used_disks > 0) {
-				array_blocks = per_dev_array_size(map) *
+				info->custom_array_size = per_dev_array_size(map) *
 					used_disks;
-				info->custom_array_size =
-					round_size_to_mb(array_blocks,
-							 used_disks);
-
 			}
 		}
 		case MIGR_VERIFY:
@@ -11682,6 +11677,68 @@ int imsm_takeover(struct supertype *st, struct geo_params *geo)
 	return 0;
 }
 
+/* Flush size update if size calculated by num_data_stripes is higher than
+ * imsm_dev_size to eliminate differences during reshape.
+ * Mdmon will recalculate them correctly.
+ * If subarray index is not set then check whole container.
+ * Returns:
+ *	0 - no error occurred
+ *	1 - error detected
+ */
+static int imsm_fix_size_mismatch(struct supertype *st, int subarray_index)
+{
+	struct intel_super *super = st->sb;
+	int tmp = super->current_vol;
+	int ret_val = 1;
+	int i;
+
+	for (i = 0; i < super->anchor->num_raid_devs; i++) {
+		if (subarray_index >= 0 && i != subarray_index)
+			continue;
+		super->current_vol = i;
+		struct imsm_dev *dev = get_imsm_dev(super, super->current_vol);
+		struct imsm_map *map = get_imsm_map(dev, MAP_0);
+		unsigned int disc_count = imsm_num_data_members(map);
+		struct geo_params geo;
+		struct imsm_update_size_change *update;
+		unsigned long long calc_size = per_dev_array_size(map) * disc_count;
+		unsigned long long d_size = imsm_dev_size(dev);
+		int u_size;
+
+		if (calc_size == d_size || dev->vol.migr_type == MIGR_GEN_MIGR)
+			continue;
+
+		/* There is a difference, verify that imsm_dev_size is
+		 * rounded correctly and push update.
+		 */
+		if (d_size != round_size_to_mb(d_size, disc_count)) {
+			dprintf("imsm: Size of volume %d is not rounded correctly\n",
+				 i);
+			goto exit;
+		}
+		memset(&geo, 0, sizeof(struct geo_params));
+		geo.size = d_size;
+		u_size = imsm_create_metadata_update_for_size_change(st, &geo,
+								     &update);
+		if (u_size < 1) {
+			dprintf("imsm: Cannot prepare size change update\n");
+			goto exit;
+		}
+		imsm_update_metadata_locally(st, update, u_size);
+		if (st->update_tail) {
+			append_metadata_update(st, update, u_size);
+			flush_metadata_updates(st);
+			st->update_tail = &st->updates;
+		} else {
+			imsm_sync_metadata(st);
+		}
+	}
+	ret_val = 0;
+exit:
+	super->current_vol = tmp;
+	return ret_val;
+}
+
 static int imsm_reshape_super(struct supertype *st, unsigned long long size,
 			      int level,
 			      int layout, int chunksize, int raid_disks,
@@ -11717,6 +11774,11 @@ static int imsm_reshape_super(struct supertype *st, unsigned long long size,
 			    st, &geo, &old_raid_disks, direction)) {
 			struct imsm_update_reshape *u = NULL;
 			int len;
+
+			if (imsm_fix_size_mismatch(st, -1)) {
+				dprintf("imsm: Cannot fix size mismatch\n");
+				goto exit_imsm_reshape_super;
+			}
 
 			len = imsm_create_metadata_update_for_reshape(
 				st, &geo, old_raid_disks, &u);
@@ -12020,6 +12082,7 @@ static int imsm_manage_reshape(
 	unsigned long long start_buf_shift; /* [bytes] */
 	int degraded = 0;
 	int source_layout = 0;
+	int subarray_index = -1;
 
 	if (!sra)
 		return ret_val;
@@ -12033,6 +12096,7 @@ static int imsm_manage_reshape(
 		    dv->dev->vol.migr_state == 1) {
 			dev = dv->dev;
 			migr_vol_qan++;
+			subarray_index = dv->index;
 		}
 	}
 	/* Only one volume can migrate at the same time */
@@ -12217,6 +12281,14 @@ static int imsm_manage_reshape(
 
 	/* return '1' if done */
 	ret_val = 1;
+
+	/* After the reshape eliminate size mismatch in metadata.
+	 * Don't update md/component_size here, volume hasn't
+	 * to take whole space. It is allowed by kernel.
+	 * md/component_size will be set propoperly after next assembly.
+	 */
+	imsm_fix_size_mismatch(st, subarray_index);
+
 abort:
 	free(buf);
 	/* See Grow.c: abort_reshape() for further explanation */
