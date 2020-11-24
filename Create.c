@@ -1083,12 +1083,9 @@ int Create(struct supertype *st, char *mddev,
 	} else {
 		pr_err("not starting array - not enough devices.\n");
 	}
-	close(mdfd);
-	/* Give udev a moment to process the Change event caused
-	 * by the close.
-	 */
-	usleep(100*1000);
 	udev_unblock();
+	close(mdfd);
+	sysfs_uevent(&info, "change");
 	return 0;
 
  abort:
