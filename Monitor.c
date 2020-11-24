@@ -305,8 +305,11 @@ static int make_daemon(char *pidfile)
 		if (!pidfile)
 			printf("%d\n", pid);
 		else {
-			FILE *pid_file;
-			pid_file=fopen(pidfile, "w");
+			FILE *pid_file = NULL;
+			int fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC,
+				      0644);
+			if (fd >= 0)
+				pid_file = fdopen(fd, "w");
 			if (!pid_file)
 				perror("cannot create pid file");
 			else {
@@ -368,13 +371,17 @@ static void write_autorebuild_pid()
 {
 	char path[PATH_MAX];
 	int pid;
-	FILE *fp;
+	FILE *fp = NULL;
 	sprintf(path, "%s/autorebuild.pid", MDMON_DIR);
 
-	if (mkdir(MDMON_DIR, S_IRWXU) < 0 && errno != EEXIST) {
+	if (mkdir(MDMON_DIR, 0700) < 0 && errno != EEXIST) {
 		pr_err("Can't create autorebuild.pid file\n");
 	} else {
-		fp = fopen(path, "w");
+		int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+
+		if (fd >= 0)
+			fp = fdopen(fd, "w");
+
 		if (!fp)
 			pr_err("Can't create autorebuild.pid file\n");
 		else {
