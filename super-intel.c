@@ -8598,7 +8598,6 @@ static void imsm_set_disk(struct active_array *a, int n, int state)
 				break;
 			}
 			end_migration(dev, super, map_state);
-			map = get_imsm_map(dev, MAP_0);
 			map->failed_disk_num = ~0;
 			super->updates_pending++;
 			a->last_checkpoint = 0;
@@ -8610,7 +8609,6 @@ static void imsm_set_disk(struct active_array *a, int n, int state)
 				end_migration(dev, super, map_state);
 			else
 				map->map_state = map_state;
-			map = get_imsm_map(dev, MAP_0);
 			map->failed_disk_num = ~0;
 			super->updates_pending++;
 			break;
