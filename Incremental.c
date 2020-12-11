@@ -1460,12 +1460,6 @@ static int Incremental_container(struct supertype *st, char *devname,
 	int trustworthy;
 	struct mddev_ident *match;
 	int rv = 0;
-	struct domainlist *domains;
-	struct map_ent *smp;
-	int suuid[4];
-	int sfd;
-	int ra_blocked = 0;
-	int ra_all = 0;
 	int result = 0;
 
 	st->ss->getinfo_super(st, &info, NULL);
@@ -1509,12 +1503,10 @@ static int Incremental_container(struct supertype *st, char *devname,
 		struct map_ent *mp;
 		struct mddev_ident *match = NULL;
 
-		ra_all++;
 		/* do not activate arrays blocked by metadata handler */
 		if (ra->array.state & (1 << MD_SB_BLOCK_VOLUME)) {
 			pr_err("Cannot activate array %s in %s.\n",
 				ra->text_version, devname);
-			ra_blocked++;
 			continue;
 		}
 		mp = map_by_uuid(&map, ra->uuid);
@@ -1617,60 +1609,6 @@ static int Incremental_container(struct supertype *st, char *devname,
 		}
 		printf("\n");
 	}
-
-	/* don't move spares to container with volume being activated
-	   when all volumes are blocked */
-	if (ra_all == ra_blocked)
-		return 0;
-
-	/* Now move all suitable spares from spare container */
-	domains = domain_from_array(list, st->ss->name);
-	memcpy(suuid, uuid_zero, sizeof(int[4]));
-	if (domains &&
-	    (smp = map_by_uuid(&map, suuid)) != NULL &&
-	    (sfd = open(smp->path, O_RDONLY)) >= 0) {
-		/* spare container found */
-		struct supertype *sst =
-			super_imsm.match_metadata_desc("imsm");
-		struct mdinfo *sinfo;
-
-		if (!sst->ss->load_container(sst, sfd, NULL)) {
-			struct spare_criteria sc = {0, 0};
-
-			if (st->ss->get_spare_criteria)
-				st->ss->get_spare_criteria(st, &sc);
-
-			close(sfd);
-			sinfo = container_choose_spares(sst, &sc,
-							domains, NULL,
-							st->ss->name, 0);
-			sst->ss->free_super(sst);
-			if (sinfo){
-				int count = 0;
-				struct mdinfo *disks = sinfo->devs;
-				while (disks) {
-					/* move spare from spare
-					 * container to currently
-					 * assembled one
-					 */
-					if (move_spare(
-						    smp->path,
-						    devname,
-						    makedev(disks->disk.major,
-							    disks->disk.minor)))
-						count++;
-					disks = disks->next;
-				}
-				if (count)
-					pr_err("Added %d spare%s to %s\n",
-					       count, count>1?"s":"", devname);
-			}
-			sysfs_free(sinfo);
-		} else
-			close(sfd);
-	}
-	domain_free(domains);
-	map_free(map);
 	return 0;
 }
 
