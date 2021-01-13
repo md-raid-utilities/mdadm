@@ -3055,15 +3055,13 @@ static struct imsm_dev *imsm_get_device_during_migration(
  *		sector of disk)
  * Parameters:
  *	super	: imsm internal array info
- *	info	: general array info
  * Returns:
  *	 0 : success
  *	-1 : fail
  *	-2 : no migration in progress
  ******************************************************************************/
-static int load_imsm_migr_rec(struct intel_super *super, struct mdinfo *info)
+static int load_imsm_migr_rec(struct intel_super *super)
 {
-	struct mdinfo *sd;
 	struct dl *dl;
 	char nm[30];
 	int retval = -1;
@@ -3071,6 +3069,7 @@ static int load_imsm_migr_rec(struct intel_super *super, struct mdinfo *info)
 	struct imsm_dev *dev;
 	struct imsm_map *map;
 	int slot = -1;
+	int keep_fd = 1;
 
 	/* find map under migration */
 	dev = imsm_get_device_during_migration(super);
@@ -3079,44 +3078,40 @@ static int load_imsm_migr_rec(struct intel_super *super, struct mdinfo *info)
 	if (dev == NULL)
 		return -2;
 
-	if (info) {
-		for (sd = info->devs ; sd ; sd = sd->next) {
-			/* read only from one of the first two slots */
-			if ((sd->disk.raid_disk < 0) ||
-			    (sd->disk.raid_disk > 1))
-				continue;
+	map = get_imsm_map(dev, MAP_0);
+	if (!map)
+		return -1;
 
-			sprintf(nm, "%d:%d", sd->disk.major, sd->disk.minor);
-			fd = dev_open(nm, O_RDONLY);
-			if (fd >= 0)
-				break;
-		}
-	}
-	if (fd < 0) {
-		map = get_imsm_map(dev, MAP_0);
-		for (dl = super->disks; dl; dl = dl->next) {
-			/* skip spare and failed disks
-			*/
-			if (dl->index < 0)
-				continue;
-			/* read only from one of the first two slots */
-			if (map)
-				slot = get_imsm_disk_slot(map, dl->index);
-			if (map == NULL || slot > 1 || slot < 0)
-				continue;
+	for (dl = super->disks; dl; dl = dl->next) {
+		/* skip spare and failed disks
+		 */
+		if (dl->index < 0)
+			continue;
+		/* read only from one of the first two slots
+		 */
+		slot = get_imsm_disk_slot(map, dl->index);
+		if (slot > 1 || slot < 0)
+			continue;
+
+		if (dl->fd < 0) {
 			sprintf(nm, "%d:%d", dl->major, dl->minor);
 			fd = dev_open(nm, O_RDONLY);
-			if (fd >= 0)
+			if (fd >= 0) {
+				keep_fd = 0;
 				break;
+			}
+		} else {
+			fd = dl->fd;
+			break;
 		}
 	}
-	if (fd < 0)
-		goto out;
-	retval = read_imsm_migr_rec(fd, super);
 
-out:
-	if (fd >= 0)
+	if (fd < 0)
+		return retval;
+	retval = read_imsm_migr_rec(fd, super);
+	if (!keep_fd)
 		close(fd);
+
 	return retval;
 }
 
@@ -3177,8 +3172,6 @@ static int write_imsm_migr_rec(struct supertype *st)
 	struct intel_super *super = st->sb;
 	unsigned int sector_size = super->sector_size;
 	unsigned long long dsize;
-	char nm[30];
-	int fd = -1;
 	int retval = -1;
 	struct dl *sd;
 	int len;
@@ -3211,26 +3204,21 @@ static int write_imsm_migr_rec(struct supertype *st)
 		if (map == NULL || slot > 1 || slot < 0)
 			continue;
 
-		sprintf(nm, "%d:%d", sd->major, sd->minor);
-		fd = dev_open(nm, O_RDWR);
-		if (fd < 0)
-			continue;
-		get_dev_size(fd, NULL, &dsize);
-		if (lseek64(fd, dsize - (MIGR_REC_SECTOR_POSITION*sector_size),
+		get_dev_size(sd->fd, NULL, &dsize);
+		if (lseek64(sd->fd, dsize - (MIGR_REC_SECTOR_POSITION *
+		    sector_size),
 		    SEEK_SET) < 0) {
 			pr_err("Cannot seek to anchor block: %s\n",
 			       strerror(errno));
 			goto out;
 		}
-		if ((unsigned int)write(fd, super->migr_rec_buf,
+		if ((unsigned int)write(sd->fd, super->migr_rec_buf,
 		    MIGR_REC_BUF_SECTORS*sector_size) !=
 		    MIGR_REC_BUF_SECTORS*sector_size) {
 			pr_err("Cannot write migr record block: %s\n",
 			       strerror(errno));
 			goto out;
 		}
-		close(fd);
-		fd = -1;
 	}
 	if (sector_size == 4096)
 		convert_from_4k_imsm_migr_rec(super);
@@ -3256,8 +3244,6 @@ static int write_imsm_migr_rec(struct supertype *st)
 
 	retval = 0;
  out:
-	if (fd >= 0)
-		close(fd);
 	return retval;
 }
 
@@ -5011,7 +4997,7 @@ static int load_super_imsm_all(struct supertype *st, int fd, void **sbp,
 	}
 
 	/* load migration record */
-	err = load_imsm_migr_rec(super, NULL);
+	err = load_imsm_migr_rec(super);
 	if (err == -1) {
 		/* migration is in progress,
 		 * but migr_rec cannot be loaded,
@@ -5260,7 +5246,7 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 	}
 
 	/* load migration record */
-	if (load_imsm_migr_rec(super, NULL) == 0) {
+	if (load_imsm_migr_rec(super) == 0) {
 		/* Check for unsupported migration features */
 		if (check_mpb_migr_compatibility(super) != 0) {
 			pr_err("Unsupported migration detected");
@@ -10381,21 +10367,6 @@ static void imsm_delete(struct intel_super *super, struct dl **dlp, unsigned ind
 	}
 }
 
-static void close_targets(int *targets, int new_disks)
-{
-	int i;
-
-	if (!targets)
-		return;
-
-	for (i = 0; i < new_disks; i++) {
-		if (targets[i] >= 0) {
-			close(targets[i]);
-			targets[i] = -1;
-		}
-	}
-}
-
 static int imsm_get_allowed_degradation(int level, int raid_disks,
 					struct intel_super *super,
 					struct imsm_dev *dev)
@@ -10447,62 +10418,6 @@ static int imsm_get_allowed_degradation(int level, int raid_disks,
 	default:
 		return 0;
 	}
-}
-
-/*******************************************************************************
- * Function:	open_backup_targets
- * Description:	Function opens file descriptors for all devices given in
- *		info->devs
- * Parameters:
- *	info		: general array info
- *	raid_disks	: number of disks
- *	raid_fds	: table of device's file descriptors
- *	super		: intel super for raid10 degradation check
- *	dev		: intel device for raid10 degradation check
- * Returns:
- *	 0 : success
- *	-1 : fail
- ******************************************************************************/
-int open_backup_targets(struct mdinfo *info, int raid_disks, int *raid_fds,
-			struct intel_super *super, struct imsm_dev *dev)
-{
-	struct mdinfo *sd;
-	int i;
-	int opened = 0;
-
-	for (i = 0; i < raid_disks; i++)
-		raid_fds[i] = -1;
-
-	for (sd = info->devs ; sd ; sd = sd->next) {
-		char *dn;
-
-		if (sd->disk.state & (1<<MD_DISK_FAULTY)) {
-			dprintf("disk is faulty!!\n");
-			continue;
-		}
-
-		if (sd->disk.raid_disk >= raid_disks || sd->disk.raid_disk < 0)
-			continue;
-
-		dn = map_dev(sd->disk.major,
-			     sd->disk.minor, 1);
-		raid_fds[sd->disk.raid_disk] = dev_open(dn, O_RDWR);
-		if (raid_fds[sd->disk.raid_disk] < 0) {
-			pr_err("cannot open component\n");
-			continue;
-		}
-		opened++;
-	}
-	/* check if maximum array degradation level is not exceeded
-	*/
-	if ((raid_disks - opened) >
-	    imsm_get_allowed_degradation(info->new_level, raid_disks,
-					 super, dev)) {
-		pr_err("Not enough disks can be opened.\n");
-		close_targets(raid_fds, raid_disks);
-		return -2;
-	}
-	return 0;
 }
 
 /*******************************************************************************
@@ -10745,13 +10660,11 @@ void init_migr_record_imsm(struct supertype *st, struct imsm_dev *dev,
 	int new_data_disks;
 	unsigned long long dsize, dev_sectors;
 	long long unsigned min_dev_sectors = -1LLU;
-	struct mdinfo *sd;
-	char nm[30];
-	int fd;
 	struct imsm_map *map_dest = get_imsm_map(dev, MAP_0);
 	struct imsm_map *map_src = get_imsm_map(dev, MAP_1);
 	unsigned long long num_migr_units;
 	unsigned long long array_blocks;
+	struct dl *dl_disk = NULL;
 
 	memset(migr_rec, 0, sizeof(struct migr_record));
 	migr_rec->family_num = __cpu_to_le32(super->anchor->family_num);
@@ -10780,16 +10693,14 @@ void init_migr_record_imsm(struct supertype *st, struct imsm_dev *dev,
 	migr_rec->post_migr_vol_cap_hi = dev->size_high;
 
 	/* Find the smallest dev */
-	for (sd = info->devs ; sd ; sd = sd->next) {
-		sprintf(nm, "%d:%d", sd->disk.major, sd->disk.minor);
-		fd = dev_open(nm, O_RDONLY);
-		if (fd < 0)
+	for (dl_disk =  super->disks; dl_disk ; dl_disk = dl_disk->next) {
+		/* ignore spares in container */
+		if (dl_disk->index < 0)
 			continue;
-		get_dev_size(fd, NULL, &dsize);
+		get_dev_size(dl_disk->fd, NULL, &dsize);
 		dev_sectors = dsize / 512;
 		if (dev_sectors < min_dev_sectors)
 			min_dev_sectors = dev_sectors;
-		close(fd);
 	}
 	set_migr_chkp_area_pba(migr_rec, min_dev_sectors -
 					RAID_DISK_RESERVED_BLOCKS_IMSM_HI);
@@ -10835,8 +10746,11 @@ int save_backup_imsm(struct supertype *st,
 
 	targets = xmalloc(new_disks * sizeof(int));
 
-	for (i = 0; i < new_disks; i++)
-		targets[i] = -1;
+	for (i = 0; i < new_disks; i++) {
+		struct dl *dl_disk = get_imsm_dl_disk(super, i);
+
+		targets[i] = dl_disk->fd;
+	}
 
 	target_offsets = xcalloc(new_disks, sizeof(unsigned long long));
 
@@ -10848,10 +10762,6 @@ int save_backup_imsm(struct supertype *st,
 		 */
 		target_offsets[i] -= start/data_disks;
 	}
-
-	if (open_backup_targets(info, new_disks, targets,
-				super, dev))
-		goto abort;
 
 	dest_layout = imsm_level_to_layout(map_dest->raid_level);
 	dest_chunk = __le16_to_cpu(map_dest->blocks_per_strip) * 512;
@@ -10876,7 +10786,6 @@ int save_backup_imsm(struct supertype *st,
 
 abort:
 	if (targets) {
-		close_targets(targets, new_disks);
 		free(targets);
 	}
 	free(target_offsets);
@@ -10903,7 +10812,7 @@ int save_checkpoint_imsm(struct supertype *st, struct mdinfo *info, int state)
 	unsigned long long blocks_per_unit;
 	unsigned long long curr_migr_unit;
 
-	if (load_imsm_migr_rec(super, info) != 0) {
+	if (load_imsm_migr_rec(super) != 0) {
 		dprintf("imsm: ERROR: Cannot read migration record for checkpoint save.\n");
 		return 1;
 	}
@@ -10954,8 +10863,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 	unsigned long long read_offset;
 	unsigned long long write_offset;
 	unsigned unit_len;
-	int *targets = NULL;
-	int new_disks, i, err;
+	int new_disks, err;
 	char *buf = NULL;
 	int retval = 1;
 	unsigned int sector_size = super->sector_size;
@@ -10963,6 +10871,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 	unsigned long num_migr_units = get_num_migr_units(migr_rec);
 	char buffer[20];
 	int skipped_disks = 0;
+	struct dl *dl_disk;
 
 	err = sysfs_get_str(info, NULL, "array_state", (char *)buffer, 20);
 	if (err < 1)
@@ -10995,37 +10904,34 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 	unit_len = __le32_to_cpu(migr_rec->dest_depth_per_unit) * 512;
 	if (posix_memalign((void **)&buf, sector_size, unit_len) != 0)
 		goto abort;
-	targets = xcalloc(new_disks, sizeof(int));
 
-	if (open_backup_targets(info, new_disks, targets, super, id->dev)) {
-		pr_err("Cannot open some devices belonging to array.\n");
-		goto abort;
-	}
+	for (dl_disk = super->disks; dl_disk; dl_disk = dl_disk->next) {
+		if (dl_disk->index < 0)
+			continue;
 
-	for (i = 0; i < new_disks; i++) {
-		if (targets[i] < 0) {
+		if (dl_disk->fd < 0) {
 			skipped_disks++;
 			continue;
 		}
-		if (lseek64(targets[i], read_offset, SEEK_SET) < 0) {
+		if (lseek64(dl_disk->fd, read_offset, SEEK_SET) < 0) {
 			pr_err("Cannot seek to block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
 			continue;
 		}
-		if ((unsigned)read(targets[i], buf, unit_len) != unit_len) {
+		if (read(dl_disk->fd, buf, unit_len) != unit_len) {
 			pr_err("Cannot read copy area block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
 			continue;
 		}
-		if (lseek64(targets[i], write_offset, SEEK_SET) < 0) {
+		if (lseek64(dl_disk->fd, write_offset, SEEK_SET) < 0) {
 			pr_err("Cannot seek to block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
 			continue;
 		}
-		if ((unsigned)write(targets[i], buf, unit_len) != unit_len) {
+		if (write(dl_disk->fd, buf, unit_len) != unit_len) {
 			pr_err("Cannot restore block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
@@ -11049,12 +10955,6 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 		retval = 0;
 
 abort:
-	if (targets) {
-		for (i = 0; i < new_disks; i++)
-			if (targets[i])
-				close(targets[i]);
-		free(targets);
-	}
 	free(buf);
 	return retval;
 }
