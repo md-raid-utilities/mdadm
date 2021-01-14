@@ -219,7 +219,7 @@ Once you have updated the layout you will not be able to mount the array
 on an older kernel.  If you need to revert to an older kernel, the
 layout information can be erased with the
 .B "--update=layout-unspecificed"
-option.  If you use this option to 
+option.  If you use this option to
 .B --assemble
 while running a newer kernel, the array will NOT assemble, but the
 metadata will be update so that it can be assembled on an older kernel.
@@ -909,25 +909,39 @@ The list is particularly useful when recovering to a spare.  If a few blocks
 cannot be read from the other devices, the bulk of the recovery can
 complete and those few bad blocks will be recorded in the bad block list.
 
-.SS RAID456 WRITE JOURNAL
+.SS RAID WRITE HOLE
 
-Due to non-atomicity nature of RAID write operations, interruption of
-write operations (system crash, etc.) to RAID456 array can lead to
-inconsistent parity and data loss (so called RAID-5 write hole).
+Due to non-atomicity nature of RAID write operations,
+interruption of write operations (system crash, etc.) to RAID456
+array can lead to inconsistent parity and data loss (so called
+RAID-5 write hole).
+To plug the write hole md supports two mechanisms described below.
 
-To plug the write hole, from Linux 4.4 (to be confirmed),
-.I md
-supports write ahead journal for RAID456. When the array is created,
-an additional journal device can be added to the array through
-.IR write-journal
-option. The RAID write journal works similar to file system journals.
-Before writing to the data disks, md persists data AND parity of the
-stripe to the journal device. After crashes, md searches the journal
-device for incomplete write operations, and replay them to the data
-disks.
+.TP
+DIRTY STRIPE JOURNAL
+From Linux 4.4, md supports write ahead journal for RAID456.
+When the array is created, an additional journal device can be added to
+the array through write-journal option. The RAID write journal works
+similar to file system journals. Before writing to the data
+disks, md persists data AND parity of the stripe to the journal
+device. After crashes, md searches the journal device for
+incomplete write operations, and replay them to the data disks.
 
 When the journal device fails, the RAID array is forced to run in
 read-only mode.
+
+.TP
+PARTIAL PARITY LOG
+From Linux 4.12 md supports Partial Parity Log (PPL) for RAID5 arrays only.
+Partial parity for a write operation is the XOR of stripe data chunks not
+modified by the write. PPL is stored in the metadata region of RAID member drives,
+no additional journal drive is needed.
+After crashes, if one of the not modified data disks of
+the stripe is missing, this updated parity can be used to recover its
+data.
+
+This mechanism is documented more fully in the file
+Documentation/md/raid5-ppl.rst
 
 .SS WRITE-BEHIND
 
