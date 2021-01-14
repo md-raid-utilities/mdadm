@@ -29,6 +29,7 @@
 #include	<signal.h>
 #include	<limits.h>
 #include	<syslog.h>
+#include	<libudev.h>
 
 struct state {
 	char *devname;
@@ -72,6 +73,7 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist,
 			  int test, struct alert_info *info);
 static void try_spare_migration(struct state *statelist, struct alert_info *info);
 static void link_containers_with_subarrays(struct state *list);
+static int check_udev_activity(void);
 
 int Monitor(struct mddev_dev *devlist,
 	    char *mailaddr, char *alert_cmd,
@@ -129,7 +131,6 @@ int Monitor(struct mddev_dev *devlist,
 	char *mailfrom;
 	struct alert_info info;
 	struct mddev_ident *mdlist;
-	int delay_for_event = c->delay;
 
 	if (!mailaddr) {
 		mailaddr = conf_get_mailaddr();
@@ -244,7 +245,7 @@ int Monitor(struct mddev_dev *devlist,
 
 		/* If an array has active < raid && spare == 0 && spare_group != NULL
 		 * Look for another array with spare > 0 and active == raid and same spare_group
-		 *  if found, choose a device and hotremove/hotadd
+		 * if found, choose a device and hotremove/hotadd
 		 */
 		if (share && anydegraded)
 			try_spare_migration(statelist, &info);
@@ -255,17 +256,12 @@ int Monitor(struct mddev_dev *devlist,
 				break;
 			}
 			else {
-				int wait_result = mdstat_wait(delay_for_event);
-
 				/*
-				 * If mdmonitor is awaken by event, set small delay once
-				 * to deal with udev and mdadm.
+				 * If mdmonitor is awaken by event, check for udev activity
+				 * to wait for udev to finish new devices processing.
 				 */
-				if (wait_result != 0) {
-					if (c->delay > 5)
-						delay_for_event = 5;
-				} else
-					delay_for_event = c->delay;
+				if (mdstat_wait(c->delay) && check_udev_activity())
+					pr_err("Error while waiting for UDEV to complete new devices processing\n");
 
 				mdstat_close();
 			}
@@ -1035,6 +1031,63 @@ static void link_containers_with_subarrays(struct state *list)
 					cont->subarray = st;
 					break;
 				}
+}
+
+
+/* function: check_udev_activity
+ * Description: Function waits for udev to finish
+ * events processing.
+ * Returns:
+ *		1 - detected error while opening udev
+ *		2 - timeout
+ *		0 - successfull completion
+ */
+static int check_udev_activity(void)
+{
+	struct udev *udev = NULL;
+	struct udev_queue *udev_queue = NULL;
+	int timeout_cnt = 30;
+	int rc = 0;
+
+	/*
+	 * In rare cases systemd may not have udevm,
+	 * in such cases just exit with rc 0
+	 */
+	if (!use_udev())
+		goto out;
+
+	udev = udev_new();
+	if (!udev) {
+		rc = 1;
+		goto out;
+	}
+
+	udev_queue = udev_queue_new(udev);
+	if (!udev_queue) {
+		rc = 1;
+		goto out;
+	}
+
+	if (udev_queue_get_queue_is_empty(udev_queue))
+		goto out;
+
+	while (!udev_queue_get_queue_is_empty(udev_queue)) {
+		sleep(1);
+
+		if (timeout_cnt)
+			timeout_cnt--;
+		else {
+			rc = 2;
+			goto out;
+		}
+	}
+
+out:
+	if (udev_queue)
+		udev_queue_unref(udev_queue);
+	if (udev)
+		udev_unref(udev);
+	return rc;
 }
 
 /* Not really Monitor but ... */

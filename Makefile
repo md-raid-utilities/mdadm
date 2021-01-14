@@ -119,7 +119,7 @@ endif
 # If you want a static binary, you might uncomment these
 # LDFLAGS = -static
 # STRIP = -s
-LDLIBS=-ldl
+LDLIBS=-ldl -ludev
 
 INSTALL = /usr/bin/install
 DESTDIR =
