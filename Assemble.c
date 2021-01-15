@@ -2094,6 +2094,13 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		}
 	}
 
+	/*
+	 * Before activating the array, perform extra steps required
+	 * to configure the internal write-intent bitmap.
+	 */
+	if (content->consistency_policy == CONSISTENCY_POLICY_BITMAP &&
+	    st->ss->set_bitmap)
+		st->ss->set_bitmap(st, content);
 
 	if (start_reshape) {
 		int spare = content->array.raid_disks + expansion;

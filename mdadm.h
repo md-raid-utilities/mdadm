@@ -1007,6 +1007,9 @@ extern struct superswitch {
 	int (*add_internal_bitmap)(struct supertype *st, int *chunkp,
 				   int delay, int write_behind,
 				   unsigned long long size, int may_change, int major);
+	/* Perform additional setup required to activate a bitmap.
+	 */
+	int (*set_bitmap)(struct supertype *st, struct mdinfo *info);
 	/* Seek 'fd' to start of write-intent-bitmap.  Must be an
 	 * md-native format bitmap
 	 */

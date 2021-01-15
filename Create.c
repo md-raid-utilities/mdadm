@@ -989,6 +989,18 @@ int Create(struct supertype *st, char *mddev,
 				st->ss->free_super(st);
 				goto abort_locked;
 			}
+			/*
+			 * Before activating the array, perform extra steps
+			 * required to configure the internal write-intent
+			 * bitmap.
+			 */
+			if (info_new.consistency_policy ==
+				    CONSISTENCY_POLICY_BITMAP &&
+			    st->ss->set_bitmap &&
+			    st->ss->set_bitmap(st, &info)) {
+				st->ss->free_super(st);
+				goto abort_locked;
+			}
 
 			/* update parent container uuid */
 			if (me) {
