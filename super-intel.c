@@ -7772,6 +7772,19 @@ static int kill_subarray_imsm(struct supertype *st, char *subarray_id)
 	return 0;
 }
 
+static int get_rwh_policy_from_update(char *update)
+{
+	if (strcmp(update, "ppl") == 0)
+		return RWH_MULTIPLE_DISTRIBUTED;
+	else if (strcmp(update, "no-ppl") == 0)
+		return RWH_MULTIPLE_OFF;
+	else if (strcmp(update, "bitmap") == 0)
+		return RWH_BITMAP;
+	else if (strcmp(update, "no-bitmap") == 0)
+		return RWH_OFF;
+	return -1;
+}
+
 static int update_subarray_imsm(struct supertype *st, char *subarray,
 				char *update, struct mddev_ident *ident)
 {
@@ -7818,8 +7831,7 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 			}
 			super->updates_pending++;
 		}
-	} else if (strcmp(update, "ppl") == 0 ||
-		   strcmp(update, "no-ppl") == 0) {
+	} else if (get_rwh_policy_from_update(update) != -1) {
 		int new_policy;
 		char *ep;
 		int vol = strtoul(subarray, &ep, 10);
@@ -7827,10 +7839,7 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 		if (*ep != '\0' || vol >= super->anchor->num_raid_devs)
 			return 2;
 
-		if (strcmp(update, "ppl") == 0)
-			new_policy = RWH_MULTIPLE_DISTRIBUTED;
-		else
-			new_policy = RWH_MULTIPLE_OFF;
+		new_policy = get_rwh_policy_from_update(update);
 
 		if (st->update_tail) {
 			struct imsm_update_rwh_policy *u = xmalloc(sizeof(*u));
@@ -7846,6 +7855,8 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 			dev->rwh_policy = new_policy;
 			super->updates_pending++;
 		}
+		if (new_policy == RWH_BITMAP)
+			return write_init_bitmap_imsm_vol(st, vol);
 	} else
 		return 2;
 
