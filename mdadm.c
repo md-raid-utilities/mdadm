@@ -779,6 +779,8 @@ int main(int argc, char *argv[])
 				continue;
 			if (strcmp(c.update, "devicesize") == 0)
 				continue;
+			if (strcmp(c.update, "bitmap") == 0)
+				continue;
 			if (strcmp(c.update, "no-bitmap") == 0)
 				continue;
 			if (strcmp(c.update, "bbl") == 0)
@@ -827,7 +829,7 @@ int main(int argc, char *argv[])
 			fprintf(outf, "Valid --update options are:\n"
 		"     'sparc2.2', 'super-minor', 'uuid', 'name', 'nodes', 'resync',\n"
 		"     'summaries', 'homehost', 'home-cluster', 'byteorder', 'devicesize',\n"
-		"     'no-bitmap', 'metadata', 'revert-reshape'\n"
+		"     'bitmap', 'no-bitmap', 'metadata', 'revert-reshape'\n"
 		"     'bbl', 'no-bbl', 'force-no-bbl', 'ppl', 'no-ppl'\n"
 		"     'layout-original', 'layout-alternate', 'layout-unspecified'\n"
 				);

@@ -2408,9 +2408,11 @@ or
 .B \-\-update=
 option. The supported options are
 .BR name ,
-.B ppl
+.BR ppl ,
+.BR no\-ppl ,
+.BR bitmap
 and
-.BR no\-ppl .
+.BR no\-bitmap .
 
 The
 .B name
@@ -2426,6 +2428,13 @@ The
 and
 .B no\-ppl
 options enable and disable PPL in the metadata. Currently supported only for
+IMSM subarrays.
+
+The
+.B bitmap
+and
+.B no\-bitmap
+options enable and disable write-intent bitmap in the metadata. Currently supported only for
 IMSM subarrays.
 
 .TP
