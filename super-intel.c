@@ -9526,6 +9526,39 @@ static int apply_size_change_update(struct imsm_update_size_change *u,
 	return ret_val;
 }
 
+static int prepare_spare_to_activate(struct supertype *st,
+				     struct imsm_update_activate_spare *u)
+{
+	struct intel_super *super = st->sb;
+	int prev_current_vol = super->current_vol;
+	struct active_array *a;
+	int ret = 1;
+
+	for (a = st->arrays; a; a = a->next)
+		/*
+		 * Additional initialization (adding bitmap header, filling
+		 * the bitmap area with '1's to force initial rebuild for a whole
+		 * data-area) is required when adding the spare to the volume
+		 * with write-intent bitmap.
+		 */
+		if (a->info.container_member == u->array &&
+		    a->info.consistency_policy == CONSISTENCY_POLICY_BITMAP) {
+			struct dl *dl;
+
+			for (dl = super->disks; dl; dl = dl->next)
+				if (dl == u->dl)
+					break;
+			if (!dl)
+				break;
+
+			super->current_vol = u->array;
+			if (st->ss->write_bitmap(st, dl->fd, NoUpdate))
+				ret = 0;
+			super->current_vol = prev_current_vol;
+		}
+	return ret;
+}
+
 static int apply_update_activate_spare(struct imsm_update_activate_spare *u,
 				       struct intel_super *super,
 				       struct active_array *active_array)
@@ -9950,7 +9983,9 @@ static void imsm_process_update(struct supertype *st,
 	}
 	case update_activate_spare: {
 		struct imsm_update_activate_spare *u = (void *) update->buf;
-		if (apply_update_activate_spare(u, super, st->arrays))
+
+		if (prepare_spare_to_activate(st, u) &&
+		    apply_update_activate_spare(u, super, st->arrays))
 			super->updates_pending++;
 		break;
 	}
