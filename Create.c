@@ -540,6 +540,7 @@ int Create(struct supertype *st, char *mddev,
 	}
 
 	if (!s->bitmap_file &&
+	    !st->ss->external &&
 	    s->level >= 1 &&
 	    st->ss->add_internal_bitmap &&
 	    s->journaldisks == 0 &&
