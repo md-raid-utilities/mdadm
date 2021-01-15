@@ -1850,15 +1850,14 @@ int Grow_reshape(char *devname, int fd,
 		pr_err("Cannot increase raid-disks on this array beyond %d\n", st->max_devs);
 		return 1;
 	}
-	if (s->level == 0 &&
-	    (array.state & (1<<MD_SB_BITMAP_PRESENT)) &&
-	    !(array.state & (1<<MD_SB_CLUSTERED))) {
-                array.state &= ~(1<<MD_SB_BITMAP_PRESENT);
-                if (md_set_array_info(fd, &array)!= 0) {
-                        pr_err("failed to remove internal bitmap.\n");
-                        return 1;
-                }
-        }
+	if (s->level == 0 && (array.state & (1 << MD_SB_BITMAP_PRESENT)) &&
+		!(array.state & (1 << MD_SB_CLUSTERED)) && !st->ss->external) {
+		array.state &= ~(1 << MD_SB_BITMAP_PRESENT);
+		if (md_set_array_info(fd, &array) != 0) {
+			pr_err("failed to remove internal bitmap.\n");
+			return 1;
+		}
+	}
 
 	/* in the external case we need to check that the requested reshape is
 	 * supported, and perform an initial check that the container holds the
@@ -1918,6 +1917,13 @@ int Grow_reshape(char *devname, int fd,
 				if (content->consistency_policy ==
 				    CONSISTENCY_POLICY_PPL) {
 					pr_err("Operation not supported when ppl consistency policy is enabled\n");
+					sysfs_free(cc);
+					free(subarray);
+					return 1;
+				}
+				if (content->consistency_policy ==
+				    CONSISTENCY_POLICY_BITMAP) {
+					pr_err("Operation not supported when write-intent bitmap is enabled\n");
 					sysfs_free(cc);
 					free(subarray);
 					return 1;
