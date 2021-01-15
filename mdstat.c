@@ -191,6 +191,12 @@ struct mdstat_ent *mdstat_read(int hold, int start)
 			else if (strcmp(w, "inactive") == 0) {
 				ent->active = 0;
 				in_devs = 1;
+			} else if (strcmp(w, "bitmap:") == 0) {
+				/* We need to stop parsing here;
+				 * otherwise, ent->raid_disks will be
+				 * overwritten by the wrong value.
+				 */
+				break;
 			} else if (ent->active > 0 &&
 				 ent->level == NULL &&
 				 w[0] != '(' /*readonly*/) {
