@@ -2717,7 +2717,10 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 
 	init_afd(&afd, fd);
 
-	locate_bitmap1(st, fd, 0);
+	if (locate_bitmap1(st, fd, 0) < 0) {
+		pr_err("Error: Invalid bitmap\n");
+		return -EINVAL;
+	}
 
 	if (posix_memalign(&buf, 4096, 4096))
 		return -ENOMEM;
