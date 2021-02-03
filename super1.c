@@ -1346,6 +1346,8 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			memcpy(bms->uuid, sb->set_uuid, 16);
 	} else if (strcmp(update, "no-bitmap") == 0) {
 		sb->feature_map &= ~__cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
+		if (bms->version == BITMAP_MAJOR_CLUSTERED && !IsBitmapDirty(devname))
+			sb->resync_offset = MaxSector;
 	} else if (strcmp(update, "bbl") == 0) {
 		/* only possible if there is room after the bitmap, or if
 		 * there is no bitmap
