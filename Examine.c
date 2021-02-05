@@ -130,7 +130,7 @@ int Examine(struct mddev_dev *devlist,
 			char *d;
 			for (ap = arrays; ap; ap = ap->next) {
 				if (st->ss == ap->st->ss &&
-				    st->ss->compare_super(ap->st, st) == 0)
+				    st->ss->compare_super(ap->st, st, 0) == 0)
 					break;
 			}
 			if (!ap) {

@@ -435,7 +435,7 @@ static int select_devices(struct mddev_dev *devlist,
 
 			if (st->ss != tst->ss ||
 			    st->minor_version != tst->minor_version ||
-			    st->ss->compare_super(st, tst) != 0) {
+			    st->ss->compare_super(st, tst, 1) != 0) {
 				/* Some mismatch. If exactly one array matches this host,
 				 * we can resolve on that one.
 				 * Or, if we are auto assembling, we just ignore the second

@@ -926,7 +926,8 @@ static int write_init_super0(struct supertype *st)
 	return rv;
 }
 
-static int compare_super0(struct supertype *st, struct supertype *tst)
+static int compare_super0(struct supertype *st, struct supertype *tst,
+			  int verbose)
 {
 	/*
 	 * return:

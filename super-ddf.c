@@ -3914,7 +3914,8 @@ static int store_super_ddf(struct supertype *st, int fd)
 	return 0;
 }
 
-static int compare_super_ddf(struct supertype *st, struct supertype *tst)
+static int compare_super_ddf(struct supertype *st, struct supertype *tst,
+			     int verbose)
 {
 	/*
 	 * return:

@@ -3815,7 +3815,8 @@ static void imsm_copy_dev(struct imsm_dev *dest, struct imsm_dev *src)
 	memcpy(dest, src, sizeof_imsm_dev(src, 0));
 }
 
-static int compare_super_imsm(struct supertype *st, struct supertype *tst)
+static int compare_super_imsm(struct supertype *st, struct supertype *tst,
+			      int verbose)
 {
 	/*
 	 * return:
@@ -3838,18 +3839,20 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst)
 	 */
 	if (!check_env("IMSM_NO_PLATFORM") && first->hba && sec->hba) {
 		if (first->hba->type != sec->hba->type) {
-			fprintf(stderr,
-				"HBAs of devices do not match %s != %s\n",
-				get_sys_dev_type(first->hba->type),
-				get_sys_dev_type(sec->hba->type));
+			if (verbose)
+				pr_err("HBAs of devices do not match %s != %s\n",
+				       get_sys_dev_type(first->hba->type),
+				       get_sys_dev_type(sec->hba->type));
 			return 3;
 		}
+
 		if (first->orom != sec->orom) {
-			fprintf(stderr,
-				"HBAs of devices do not match %s != %s\n",
-				first->hba->pci_id, sec->hba->pci_id);
+			if (verbose)
+				pr_err("HBAs of devices do not match %s != %s\n",
+				       first->hba->pci_id, sec->hba->pci_id);
 			return 3;
 		}
+
 	}
 
 	/* if an anchor does not have num_raid_devs set then it is a free
@@ -6948,7 +6951,7 @@ count_volumes_list(struct md_list *devlist, char *homehost,
 
 			if (st->ss != tst->ss ||
 			    st->minor_version != tst->minor_version ||
-			    st->ss->compare_super(st, tst) != 0) {
+			    st->ss->compare_super(st, tst, 1) != 0) {
 				/* Some mismatch. If exactly one array matches this host,
 				 * we can resolve on that one.
 				 * Or, if we are auto assembling, we just ignore the second

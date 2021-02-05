@@ -966,7 +966,8 @@ extern struct superswitch {
 	 * moved in, otherwise the superblock in 'st' is compared with
 	 * 'tst'.
 	 */
-	int (*compare_super)(struct supertype *st, struct supertype *tst);
+	int (*compare_super)(struct supertype *st, struct supertype *tst,
+			     int verbose);
 	/* Load metadata from a single device.  If 'devname' is not NULL
 	 * print error messages as appropriate */
 	int (*load_super)(struct supertype *st, int fd, char *devname);

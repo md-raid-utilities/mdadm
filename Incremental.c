@@ -400,7 +400,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			}
 			st2 = dup_super(st);
 			if (st2->ss->load_super(st2, dfd2, NULL) ||
-			    st->ss->compare_super(st, st2) != 0) {
+			    st->ss->compare_super(st, st2, 1) != 0) {
 				pr_err("metadata mismatch between %s and chosen array %s\n",
 				       devname, chosen_name);
 				close(dfd2);

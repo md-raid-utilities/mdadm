@@ -2144,7 +2144,8 @@ out:
 	return rv;
 }
 
-static int compare_super1(struct supertype *st, struct supertype *tst)
+static int compare_super1(struct supertype *st, struct supertype *tst,
+			  int verbose)
 {
 	/*
 	 * return:
