@@ -330,6 +330,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	int layout;
 	unsigned long long sb_offset;
 	struct mdinfo info;
+	int inconsistent = 0;
 
 	printf("          Magic : %08x\n", __le32_to_cpu(sb->magic));
 	printf("        Version : 1");
@@ -576,14 +577,16 @@ static void examine_super1(struct supertype *st, char *homehost)
 			if (role == d)
 				cnt++;
 		}
-		if (cnt == 2)
+		if (cnt == 2 && __le32_to_cpu(sb->level) > 0)
 			printf("R");
 		else if (cnt == 1)
 			printf("A");
 		else if (cnt == 0)
 			printf(".");
-		else
+		else {
 			printf("?");
+			inconsistent = 1;
+		}
 	}
 #if 0
 	/* This is confusing too */
@@ -598,6 +601,21 @@ static void examine_super1(struct supertype *st, char *homehost)
 #endif
 	printf(" ('A' == active, '.' == missing, 'R' == replacing)");
 	printf("\n");
+	for (d = 0; d < __le32_to_cpu(sb->max_dev); d++) {
+		unsigned int r = __le16_to_cpu(sb->dev_roles[d]);
+		if (r <= MD_DISK_ROLE_MAX &&
+		    r > __le32_to_cpu(sb->raid_disks) + delta_extra)
+			inconsistent = 1;
+	}
+	if (inconsistent) {
+		printf("WARNING Array state is inconsistent - each number should appear only once\n");
+		for (d = 0; d < __le32_to_cpu(sb->max_dev); d++)
+			if (__le16_to_cpu(sb->dev_roles[d]) >= MD_DISK_ROLE_FAULTY)
+				printf(" %d:-", d);
+			else
+				printf(" %d:%d", d, __le16_to_cpu(sb->dev_roles[d]));
+		printf("\n");
+	}
 }
 
 static void brief_examine_super1(struct supertype *st, int verbose)
@@ -1264,19 +1282,25 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			rv = 1;
 		}
 	} else if (strcmp(update, "linear-grow-new") == 0) {
-		unsigned int i;
+		int i;
 		int fd;
-		unsigned int max = __le32_to_cpu(sb->max_dev);
+		int max = __le32_to_cpu(sb->max_dev);
+
+		if (max > MAX_DEVS)
+			return -2;
 
 		for (i = 0; i < max; i++)
 			if (__le16_to_cpu(sb->dev_roles[i]) >=
 			    MD_DISK_ROLE_FAULTY)
 				break;
+		if (i != info->disk.number)
+			return -2;
 		sb->dev_number = __cpu_to_le32(i);
-		info->disk.number = i;
-		if (i >= max) {
+
+		if (i == max)
 			sb->max_dev = __cpu_to_le32(max+1);
-		}
+		if (i > max)
+			return -2;
 
 		random_uuid(sb->device_uuid);
 
@@ -1302,10 +1326,14 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 		}
 	} else if (strcmp(update, "linear-grow-update") == 0) {
 		int max = __le32_to_cpu(sb->max_dev);
-		sb->raid_disks = __cpu_to_le32(info->array.raid_disks);
-		if (info->array.raid_disks > max) {
+		int i = info->disk.number;
+		if (max > MAX_DEVS || i > MAX_DEVS)
+			return -2;
+		if (i > max)
+			return -2;
+		if (i == max)
 			sb->max_dev = __cpu_to_le32(max+1);
-		}
+		sb->raid_disks = __cpu_to_le32(info->array.raid_disks);
 		sb->dev_roles[info->disk.number] =
 			__cpu_to_le16(info->disk.raid_disk);
 	} else if (strcmp(update, "resync") == 0) {

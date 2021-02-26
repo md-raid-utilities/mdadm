@@ -197,7 +197,12 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	info.disk.minor = minor(rdev);
 	info.disk.raid_disk = d;
 	info.disk.state = (1 << MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE);
-	st->ss->update_super(st, &info, "linear-grow-new", newdev, 0, 0, NULL);
+	if (st->ss->update_super(st, &info, "linear-grow-new", newdev,
+				 0, 0, NULL) != 0) {
+		pr_err("Preparing new metadata failed on %s\n", newdev);
+		close(nfd);
+		return 1;
+	}
 
 	if (st->ss->store_super(st, nfd)) {
 		pr_err("Cannot store new superblock on %s\n", newdev);
@@ -250,8 +255,12 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 		info.array.active_disks = nd+1;
 		info.array.working_disks = nd+1;
 
-		st->ss->update_super(st, &info, "linear-grow-update", dv,
-				     0, 0, NULL);
+		if (st->ss->update_super(st, &info, "linear-grow-update", dv,
+				     0, 0, NULL) != 0) {
+			pr_err("Updating metadata failed on %s\n", dv);
+			close(fd2);
+			return 1;
+		}
 
 		if (st->ss->store_super(st, fd2)) {
 			pr_err("Cannot store new superblock on %s\n", dv);
