@@ -236,6 +236,7 @@ static inline char *guid_str(char *buf, struct efi_guid guid)
 	return buf;
 }
 
+char *get_nvme_multipath_dev_hw_path(const char *dev_path);
 char *diskfd_to_devpath(int fd);
 __u16 devpath_to_vendor(const char *dev_path);
 struct sys_dev *find_driver_devices(const char *bus, const char *driver);
@@ -252,4 +253,5 @@ const struct imsm_orom *get_orom_by_device_id(__u16 device_id);
 struct sys_dev *device_by_id(__u16 device_id);
 struct sys_dev *device_by_id_and_path(__u16 device_id, const char *path);
 int imsm_is_nvme_supported(int disk_fd, int verbose);
+int is_multipath_nvme(int disk_fd);
 char *vmd_domain_to_controller(struct sys_dev *hba, char *buf);

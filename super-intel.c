@@ -2386,9 +2386,9 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 static int print_nvme_info(struct sys_dev *hba)
 {
 	char buf[1024];
+	char *device_path;
 	struct dirent *ent;
 	DIR *dir;
-	char *rp;
 	int fd;
 
 	dir = opendir("/sys/block/");
@@ -2397,19 +2397,23 @@ static int print_nvme_info(struct sys_dev *hba)
 
 	for (ent = readdir(dir); ent; ent = readdir(dir)) {
 		if (strstr(ent->d_name, "nvme")) {
-			sprintf(buf, "/sys/block/%s", ent->d_name);
-			rp = realpath(buf, NULL);
-			if (!rp)
+			fd = open_dev(ent->d_name);
+			if (fd < 0)
 				continue;
-			if (path_attached_to_hba(rp, hba->path)) {
-				fd = open_dev(ent->d_name);
-				if (!imsm_is_nvme_supported(fd, 0)) {
-					if (fd >= 0)
-						close(fd);
-					free(rp);
-					continue;
-				}
 
+			if (!imsm_is_nvme_supported(fd, 0)) {
+				if (fd >= 0)
+					close(fd);
+				continue;
+			}
+
+			device_path = diskfd_to_devpath(fd);
+			if (!device_path) {
+				close(fd);
+				continue;
+			}
+
+			if (path_attached_to_hba(device_path, hba->path)) {
 				fd2devname(fd, buf);
 				if (hba->type == SYS_DEV_VMD)
 					printf(" NVMe under VMD : %s", buf);
@@ -2420,9 +2424,9 @@ static int print_nvme_info(struct sys_dev *hba)
 					printf(" (%s)\n", buf);
 				else
 					printf("()\n");
-				close(fd);
 			}
-			free(rp);
+			free(device_path);
+			close(fd);
 		}
 	}
 
@@ -5938,6 +5942,7 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		int i;
 		char *devpath = diskfd_to_devpath(fd);
 		char controller_path[PATH_MAX];
+		char *controller_name;
 
 		if (!devpath) {
 			pr_err("failed to get devpath, aborting\n");
@@ -5948,6 +5953,11 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		}
 
 		snprintf(controller_path, PATH_MAX-1, "%s/device", devpath);
+
+		controller_name = basename(devpath);
+		if (is_multipath_nvme(fd))
+			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n", controller_name);
+
 		free(devpath);
 
 		if (!imsm_is_nvme_supported(dd->fd, 1)) {

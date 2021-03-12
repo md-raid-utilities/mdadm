@@ -30,6 +30,8 @@
 #include <sys/stat.h>
 #include <limits.h>
 
+#define NVME_SUBSYS_PATH "/sys/devices/virtual/nvme-subsystem/"
+
 static int devpath_to_ll(const char *dev_path, const char *entry,
 			 unsigned long long *val);
 
@@ -668,12 +670,63 @@ const struct imsm_orom *find_imsm_capability(struct sys_dev *hba)
 	return NULL;
 }
 
+/* Check whether the nvme device is represented by nvme subsytem,
+ * if yes virtual path should be changed to hardware device path,
+ * to allow IMSM capabilities detection.
+ * Returns:
+ *	hardware path to device - if the device is represented via
+ *		nvme virtual subsytem
+ *	NULL - if the device is not represented via nvme virtual subsytem
+ */
+char *get_nvme_multipath_dev_hw_path(const char *dev_path)
+{
+	DIR *dir;
+	struct dirent *ent;
+	char *rp = NULL;
+
+	if (strncmp(dev_path, NVME_SUBSYS_PATH, strlen(NVME_SUBSYS_PATH)) != 0)
+		return NULL;
+
+	dir = opendir(dev_path);
+	if (!dir)
+		return NULL;
+
+	for (ent = readdir(dir); ent; ent = readdir(dir)) {
+		char buf[strlen(dev_path) + strlen(ent->d_name) + 1];
+
+		/* Check if dir is a controller, ignore namespaces*/
+		if (!(strncmp(ent->d_name, "nvme", 4) == 0) ||
+		    (strrchr(ent->d_name, 'n') != &ent->d_name[0]))
+			continue;
+
+		sprintf(buf, "%s/%s", dev_path, ent->d_name);
+		rp = realpath(buf, NULL);
+		break;
+	}
+
+	closedir(dir);
+	return rp;
+}
+
 char *devt_to_devpath(dev_t dev)
 {
 	char device[46];
+	char *rp;
+	char *buf;
 
 	sprintf(device, "/sys/dev/block/%d:%d/device", major(dev), minor(dev));
-	return realpath(device, NULL);
+
+	rp = realpath(device, NULL);
+	if (!rp)
+		return NULL;
+
+	buf = get_nvme_multipath_dev_hw_path(rp);
+	if (buf) {
+		free(rp);
+		return buf;
+	}
+
+	return rp;
 }
 
 char *diskfd_to_devpath(int fd)
@@ -796,4 +849,28 @@ int imsm_is_nvme_supported(int disk_fd, int verbose)
 		return 0;
 	}
 	return 1;
+}
+
+/* Verify if multipath is supported by NVMe controller
+ * Returns:
+ *	0 - not supported
+ *	1 - supported
+ */
+int is_multipath_nvme(int disk_fd)
+{
+	char path_buf[PATH_MAX];
+	char ns_path[PATH_MAX];
+	char *kname = fd2kname(disk_fd);
+
+	if (!kname)
+		return 0;
+	sprintf(path_buf, "/sys/block/%s", kname);
+
+	if (!realpath(path_buf, ns_path))
+		return 0;
+
+	if (strncmp(ns_path, NVME_SUBSYS_PATH, strlen(NVME_SUBSYS_PATH)) == 0)
+		return 1;
+
+	return 0;
 }
