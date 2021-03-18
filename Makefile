@@ -119,7 +119,12 @@ endif
 # If you want a static binary, you might uncomment these
 # LDFLAGS = -static
 # STRIP = -s
-LDLIBS=-ldl -ludev
+LDLIBS = -ldl
+
+# To explicitly disable libudev, set -DNO_LIBUDEV in CXFLAGS
+ifeq (, $(findstring -DNO_LIBUDEV,  $(CXFLAGS)))
+	LDLIBS += -ludev
+endif
 
 INSTALL = /usr/bin/install
 DESTDIR =

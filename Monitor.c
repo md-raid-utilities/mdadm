@@ -29,7 +29,9 @@
 #include	<signal.h>
 #include	<limits.h>
 #include	<syslog.h>
+#ifndef NO_LIBUDEV
 #include	<libudev.h>
+#endif
 
 struct state {
 	char *devname;
@@ -73,7 +75,9 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist,
 			  int test, struct alert_info *info);
 static void try_spare_migration(struct state *statelist, struct alert_info *info);
 static void link_containers_with_subarrays(struct state *list);
+#ifndef NO_LIBUDEV
 static int check_udev_activity(void);
+#endif
 
 int Monitor(struct mddev_dev *devlist,
 	    char *mailaddr, char *alert_cmd,
@@ -131,6 +135,7 @@ int Monitor(struct mddev_dev *devlist,
 	char *mailfrom;
 	struct alert_info info;
 	struct mddev_ident *mdlist;
+	int delay_for_event = c->delay;
 
 	if (!mailaddr) {
 		mailaddr = conf_get_mailaddr();
@@ -256,13 +261,25 @@ int Monitor(struct mddev_dev *devlist,
 				break;
 			}
 			else {
+#ifndef NO_LIBUDEV
 				/*
-				 * If mdmonitor is awaken by event, check for udev activity
-				 * to wait for udev to finish new devices processing.
+				 * Wait for udevd to finish new devices
+				 * processing.
 				 */
-				if (mdstat_wait(c->delay) && check_udev_activity())
+				if (mdstat_wait(delay_for_event) &&
+				    check_udev_activity())
 					pr_err("Error while waiting for UDEV to complete new devices processing\n");
-
+#else
+				int wait_result = mdstat_wait(delay_for_event);
+				/*
+				 * Give chance to process new device
+				 */
+				if (wait_result != 0) {
+					if (c->delay > 5)
+						delay_for_event = 5;
+				} else
+					delay_for_event = c->delay;
+#endif
 				mdstat_close();
 			}
 		}
@@ -1033,7 +1050,7 @@ static void link_containers_with_subarrays(struct state *list)
 				}
 }
 
-
+#ifndef NO_LIBUDEV
 /* function: check_udev_activity
  * Description: Function waits for udev to finish
  * events processing.
@@ -1089,6 +1106,7 @@ out:
 		udev_unref(udev);
 	return rc;
 }
+#endif
 
 /* Not really Monitor but ... */
 int Wait(char *dev)
