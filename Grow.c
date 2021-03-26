@@ -921,7 +921,7 @@ static int subarray_set_num(char *container, struct mdinfo *sra, char *name, int
 }
 
 int start_reshape(struct mdinfo *sra, int already_running,
-		  int before_data_disks, int data_disks)
+		  int before_data_disks, int data_disks, struct supertype *st)
 {
 	int err;
 	unsigned long long sync_max_to_set;
@@ -935,20 +935,23 @@ int start_reshape(struct mdinfo *sra, int already_running,
 	else
 		sync_max_to_set = (sra->component_size * data_disks
 				   - sra->reshape_progress) / data_disks;
+
 	if (!already_running)
 		sysfs_set_num(sra, NULL, "sync_min", sync_max_to_set);
-	err = err ?: sysfs_set_num(sra, NULL, "sync_max", sync_max_to_set);
+
+        if (st->ss->external)
+		err = err ?: sysfs_set_num(sra, NULL, "sync_max", sync_max_to_set);
+	else
+		err = err ?: sysfs_set_str(sra, NULL, "sync_max", "max");
+
 	if (!already_running && err == 0) {
 		int cnt = 5;
-		int err2;
 		do {
 			err = sysfs_set_str(sra, NULL, "sync_action",
 					    "reshape");
-			err2 = sysfs_set_str(sra, NULL, "sync_max",
-					    "max");
-			if (err || err2)
+			if (err)
 				sleep(1);
-		} while (err && err2 && errno == EBUSY && cnt-- > 0);
+		} while (err && errno == EBUSY && cnt-- > 0);
 	}
 	return err;
 }
@@ -3470,7 +3473,7 @@ started:
 		goto release;
 
 	err = start_reshape(sra, restart, reshape.before.data_disks,
-			    reshape.after.data_disks);
+			    reshape.after.data_disks, st);
 	if (err) {
 		pr_err("Cannot %s reshape for %s\n",
 		       restart ? "continue" : "start", devname);
