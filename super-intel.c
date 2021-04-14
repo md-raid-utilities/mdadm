@@ -5213,7 +5213,10 @@ static int get_super_block(struct intel_super **super_list, char *devnm, char *d
 		goto error;
 	}
 
-	get_dev_sector_size(dfd, NULL, &s->sector_size);
+	if (!get_dev_sector_size(dfd, NULL, &s->sector_size)) {
+		err = 2;
+		goto error;
+	}
 	find_intel_hba_capability(dfd, s, devname);
 	err = load_and_parse_mpb(dfd, s, NULL, keep_fd);
 
@@ -5292,7 +5295,8 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 	free_super_imsm(st);
 
 	super = alloc_super();
-	get_dev_sector_size(fd, NULL, &super->sector_size);
+	if (!get_dev_sector_size(fd, NULL, &super->sector_size))
+		return 1;
 	if (!super)
 		return 1;
 	/* Load hba and capabilities if they exist.
@@ -6001,7 +6005,8 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	}
 
 	get_dev_size(fd, NULL, &size);
-	get_dev_sector_size(fd, NULL, &member_sector_size);
+	if (!get_dev_sector_size(fd, NULL, &member_sector_size))
+		return 1;
 
 	if (super->sector_size == 0) {
 		/* this a first device, so sector_size is not set yet */
@@ -8882,7 +8887,8 @@ static int store_imsm_mpb(int fd, struct imsm_super *mpb)
 	unsigned long long sectors;
 	unsigned int sector_size;
 
-	get_dev_sector_size(fd, NULL, &sector_size);
+	if (!get_dev_sector_size(fd, NULL, &sector_size))
+		return 1;
 	get_dev_size(fd, NULL, &dsize);
 
 	if (mpb_size > sector_size) {
