@@ -11823,12 +11823,12 @@ static int imsm_fix_size_mismatch(struct supertype *st, int subarray_index)
 		if (calc_size == d_size || dev->vol.migr_type == MIGR_GEN_MIGR)
 			continue;
 
-		/* There is a difference, verify that imsm_dev_size is
-		 * rounded correctly and push update.
+		/* There is a difference, confirm that imsm_dev_size is
+		 * smaller and push update.
 		 */
-		if (d_size != round_size_to_mb(d_size, disc_count)) {
-			dprintf("imsm: Size of volume %d is not rounded correctly\n",
-				 i);
+		if (d_size > calc_size) {
+			pr_err("imsm: dev size of subarray %d is incorrect\n",
+				i);
 			goto exit;
 		}
 		memset(&geo, 0, sizeof(struct geo_params));
