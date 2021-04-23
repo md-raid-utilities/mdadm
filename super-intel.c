@@ -3192,7 +3192,7 @@ static int imsm_create_metadata_checkpoint_update(
 	}
 	(*u)->type = update_general_migration_checkpoint;
 	(*u)->curr_migr_unit = current_migr_unit(super->migr_rec);
-	dprintf("prepared for %llu\n", (*u)->curr_migr_unit);
+	dprintf("prepared for %llu\n", (unsigned long long)(*u)->curr_migr_unit);
 
 	return update_memory_size;
 }
@@ -11127,7 +11127,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 			skipped_disks++;
 			continue;
 		}
-		if (read(dl_disk->fd, buf, unit_len) != unit_len) {
+		if (read(dl_disk->fd, buf, unit_len) != (ssize_t)unit_len) {
 			pr_err("Cannot read copy area block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
@@ -11139,7 +11139,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 			skipped_disks++;
 			continue;
 		}
-		if (write(dl_disk->fd, buf, unit_len) != unit_len) {
+		if (write(dl_disk->fd, buf, unit_len) != (ssize_t)unit_len) {
 			pr_err("Cannot restore block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
