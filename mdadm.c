@@ -2041,6 +2041,11 @@ static int misc_list(struct mddev_dev *devlist,
 				rv |= Manage_run(dv->devname, mdfd, c);
 				break;
 			case 'S':
+				if (c->scan) {
+					pr_err("--stop not meaningful with both a --scan assembly and a device name.\n");
+					rv |= 1;
+					break;
+				}
 				rv |= Manage_stop(dv->devname, mdfd, c->verbose, 0);
 				break;
 			case 'o':
