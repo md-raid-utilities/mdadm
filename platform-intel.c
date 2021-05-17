@@ -239,6 +239,29 @@ __u16 devpath_to_vendor(const char *dev_path)
 	return id;
 }
 
+/* Description: Read text value of dev_path/entry field
+ * Parameters:
+ *	dev_path - sysfs path to the device
+ *	entry - entry to be read
+ *	buf - buffer for read value
+ *	len - size of buf
+ *	verbose - error logging level
+ */
+int devpath_to_char(const char *dev_path, const char *entry, char *buf, int len,
+		    int verbose)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, sizeof(path), "%s/%s", dev_path, entry);
+	if (load_sys(path, buf, len)) {
+		if (verbose)
+			pr_err("Cannot read %s, aborting\n", path);
+		return 1;
+	}
+
+	return 0;
+}
+
 struct sys_dev *find_intel_devices(void)
 {
 	struct sys_dev *ahci, *isci, *nvme;

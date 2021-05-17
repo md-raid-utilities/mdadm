@@ -2246,7 +2246,7 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 		char vendor[64];
 		char buf[1024];
 		int major, minor;
-		char *device;
+		char device[PATH_MAX];
 		char *c;
 		int port;
 		int type;
@@ -2262,20 +2262,15 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 			continue;
 		}
 
-		/* retrieve the scsi device type */
-		if (asprintf(&device, "/sys/dev/block/%d:%d/device/xxxxxxx", major, minor) < 0) {
+		/* retrieve the scsi device */
+		if (!devt_to_devpath(makedev(major, minor), 1, device)) {
 			if (verbose > 0)
-				pr_err("failed to allocate 'device'\n");
+				pr_err("failed to get device\n");
 			err = 2;
 			break;
 		}
-		sprintf(device, "/sys/dev/block/%d:%d/device/type", major, minor);
-		if (load_sys(device, buf, sizeof(buf)) != 0) {
-			if (verbose > 0)
-				pr_err("failed to read device type for %s\n",
-					path);
+		if (devpath_to_char(device, "type", buf, sizeof(buf), 0)) {
 			err = 2;
-			free(device);
 			break;
 		}
 		type = strtoul(buf, NULL, 10);
@@ -2284,8 +2279,9 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 		if (!(type == 0 || type == 7 || type == 14)) {
 			vendor[0] = '\0';
 			model[0] = '\0';
-			sprintf(device, "/sys/dev/block/%d:%d/device/vendor", major, minor);
-			if (load_sys(device, buf, sizeof(buf)) == 0) {
+
+			if (devpath_to_char(device, "vendor", buf,
+					    sizeof(buf), 0) == 0) {
 				strncpy(vendor, buf, sizeof(vendor));
 				vendor[sizeof(vendor) - 1] = '\0';
 				c = (char *) &vendor[sizeof(vendor) - 1];
@@ -2293,8 +2289,9 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 					*c-- = '\0';
 
 			}
-			sprintf(device, "/sys/dev/block/%d:%d/device/model", major, minor);
-			if (load_sys(device, buf, sizeof(buf)) == 0) {
+
+			if (devpath_to_char(device, "model", buf,
+					    sizeof(buf), 0) == 0) {
 				strncpy(model, buf, sizeof(model));
 				model[sizeof(model) - 1] = '\0';
 				c = (char *) &model[sizeof(model) - 1];
@@ -2319,7 +2316,6 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 				}
 		} else
 			buf[0] = '\0';
-		free(device);
 
 		/* chop device path to 'host%d' and calculate the port number */
 		c = strchr(&path[hba_len], '/');
@@ -4026,7 +4022,7 @@ static void fd2devname(int fd, char *name)
 
 static int nvme_get_serial(int fd, void *buf, size_t buf_len)
 {
-	char path[60];
+	char path[PATH_MAX];
 	char *name = fd2kname(fd);
 
 	if (!name)
@@ -4035,9 +4031,10 @@ static int nvme_get_serial(int fd, void *buf, size_t buf_len)
 	if (strncmp(name, "nvme", 4) != 0)
 		return 1;
 
-	snprintf(path, sizeof(path) - 1, "/sys/block/%s/device/serial", name);
+	if (!diskfd_to_devpath(fd, 1, path))
+		return 1;
 
-	return load_sys(path, buf, buf_len);
+	return devpath_to_char(path, "serial", buf, buf_len, 0);
 }
 
 extern int scsi_get_serial(int fd, void *buf, size_t buf_len);

@@ -238,6 +238,8 @@ static inline char *guid_str(char *buf, struct efi_guid guid)
 
 char *get_nvme_multipath_dev_hw_path(const char *dev_path);
 char *diskfd_to_devpath(int fd, int dev_level, char *buf);
+int devpath_to_char(const char *dev_path, const char *entry, char *buf,
+		    int len, int verbose);
 __u16 devpath_to_vendor(const char *dev_path);
 struct sys_dev *find_driver_devices(const char *bus, const char *driver);
 struct sys_dev *find_intel_devices(void);
