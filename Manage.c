@@ -992,6 +992,13 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 			return -1;
 		}
 
+		/* Check if metadata handler is able to accept the drive */
+		if (!tst->ss->validate_geometry(tst, LEVEL_CONTAINER, 0, 1, NULL,
+		    0, 0, dv->devname, NULL, 0, 1)) {
+			close(container_fd);
+			return -1;
+		}
+
 		Kill(dv->devname, NULL, 0, -1, 0);
 		dfd = dev_open(dv->devname, O_RDWR | O_EXCL|O_DIRECT);
 		if (tst->ss->add_to_super(tst, &disc, dfd,

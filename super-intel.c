@@ -6652,8 +6652,7 @@ static int store_super_imsm(struct supertype *st, int fd)
 }
 
 static int validate_geometry_imsm_container(struct supertype *st, int level,
-					    int layout, int raiddisks, int chunk,
-					    unsigned long long size,
+					    int raiddisks,
 					    unsigned long long data_offset,
 					    char *dev,
 					    unsigned long long *freesize,
@@ -6725,8 +6724,8 @@ static int validate_geometry_imsm_container(struct supertype *st, int level,
 			}
 		}
 	}
-
-	*freesize = avail_size_imsm(st, ldsize >> 9, data_offset);
+	if (freesize)
+		*freesize = avail_size_imsm(st, ldsize >> 9, data_offset);
 	rv = 1;
 exit:
 	if (super)
@@ -7586,15 +7585,11 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 	 * if given unused devices create a container
 	 * if given given devices in a container create a member volume
 	 */
-	if (level == LEVEL_CONTAINER) {
+	if (level == LEVEL_CONTAINER)
 		/* Must be a fresh device to add to a container */
-		return validate_geometry_imsm_container(st, level, layout,
-							raiddisks,
-							*chunk,
-							size, data_offset,
-							dev, freesize,
-							verbose);
-	}
+		return validate_geometry_imsm_container(st, level, raiddisks,
+							data_offset, dev,
+							freesize, verbose);
 
 	/*
 	 * Size is given in sectors.

@@ -3475,10 +3475,11 @@ validate_geometry_ddf_container(struct supertype *st,
 		return 0;
 	}
 	close(fd);
-
-	*freesize = avail_size_ddf(st, ldsize >> 9, INVALID_SECTORS);
-	if (*freesize == 0)
-		return 0;
+	if (freesize) {
+		*freesize = avail_size_ddf(st, ldsize >> 9, INVALID_SECTORS);
+		if (*freesize == 0)
+			return 0;
+	}
 
 	return 1;
 }
