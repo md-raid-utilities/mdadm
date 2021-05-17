@@ -237,7 +237,7 @@ static inline char *guid_str(char *buf, struct efi_guid guid)
 }
 
 char *get_nvme_multipath_dev_hw_path(const char *dev_path);
-char *diskfd_to_devpath(int fd);
+char *diskfd_to_devpath(int fd, int dev_level, char *buf);
 __u16 devpath_to_vendor(const char *dev_path);
 struct sys_dev *find_driver_devices(const char *bus, const char *driver);
 struct sys_dev *find_intel_devices(void);
@@ -245,7 +245,7 @@ const struct imsm_orom *find_imsm_capability(struct sys_dev *hba);
 const struct imsm_orom *find_imsm_orom(void);
 int disk_attached_to_hba(int fd, const char *hba_path);
 int devt_attached_to_hba(dev_t dev, const char *hba_path);
-char *devt_to_devpath(dev_t dev);
+char *devt_to_devpath(dev_t dev, int dev_level, char *buf);
 int path_attached_to_hba(const char *disk_path, const char *hba_path);
 const char *get_sys_dev_type(enum sys_dev_type);
 const struct orom_entry *get_orom_entry_by_device_id(__u16 dev_id);

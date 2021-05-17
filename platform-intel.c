@@ -712,28 +712,61 @@ char *get_nvme_multipath_dev_hw_path(const char *dev_path)
 	return rp;
 }
 
-char *devt_to_devpath(dev_t dev)
+/* Description: Return part or whole realpath for the dev
+ * Parameters:
+ *	dev - the device to be quered
+ *	dev_level - level of "/device" entries. It allows to caller to access
+ *		    virtual or physical devices which are on "path" to quered
+ *		    one.
+ *	buf - optional, must be PATH_MAX size. If set, then will be used.
+ */
+char *devt_to_devpath(dev_t dev, int dev_level, char *buf)
 {
-	char device[46];
-	char *rp;
-	char *buf;
+	char device[PATH_MAX];
+	char *hw_path;
+	int i;
+	unsigned long device_free_len = sizeof(device) - 1;
+	char dev_str[] = "/device";
+	unsigned long dev_str_len = strlen(dev_str);
 
-	sprintf(device, "/sys/dev/block/%d:%d/device", major(dev), minor(dev));
+	snprintf(device, sizeof(device), "/sys/dev/block/%d:%d", major(dev),
+		 minor(dev));
 
-	rp = realpath(device, NULL);
-	if (!rp)
-		return NULL;
+	/* If caller wants block device, return path to it even if it is exposed
+	 * via virtual layer.
+	 */
+	if (dev_level == 0)
+		return realpath(device, buf);
 
-	buf = get_nvme_multipath_dev_hw_path(rp);
-	if (buf) {
-		free(rp);
-		return buf;
+	device_free_len -= strlen(device);
+	for (i = 0; i < dev_level; i++) {
+		if (device_free_len < dev_str_len)
+			return NULL;
+
+		strncat(device, dev_str, device_free_len);
+
+		/* Resolve nvme-subsystem abstraction if needed
+		 */
+		device_free_len -= dev_str_len;
+		if (i == 0) {
+			char rp[PATH_MAX];
+
+			if (!realpath(device, rp))
+				return NULL;
+			hw_path = get_nvme_multipath_dev_hw_path(rp);
+			if (hw_path) {
+				strcpy(device, hw_path);
+				device_free_len = sizeof(device) -
+						  strlen(device) - 1;
+				free(hw_path);
+			}
+		}
 	}
 
-	return rp;
+	return realpath(device, buf);
 }
 
-char *diskfd_to_devpath(int fd)
+char *diskfd_to_devpath(int fd, int dev_level, char *buf)
 {
 	/* return the device path for a disk, return NULL on error or fd
 	 * refers to a partition
@@ -745,7 +778,7 @@ char *diskfd_to_devpath(int fd)
 	if (!S_ISBLK(st.st_mode))
 		return NULL;
 
-	return devt_to_devpath(st.st_rdev);
+	return devt_to_devpath(st.st_rdev, dev_level, buf);
 }
 
 int path_attached_to_hba(const char *disk_path, const char *hba_path)
@@ -770,7 +803,7 @@ int path_attached_to_hba(const char *disk_path, const char *hba_path)
 
 int devt_attached_to_hba(dev_t dev, const char *hba_path)
 {
-	char *disk_path = devt_to_devpath(dev);
+	char *disk_path = devt_to_devpath(dev, 1, NULL);
 	int rc = path_attached_to_hba(disk_path, hba_path);
 
 	if (disk_path)
@@ -781,7 +814,7 @@ int devt_attached_to_hba(dev_t dev, const char *hba_path)
 
 int disk_attached_to_hba(int fd, const char *hba_path)
 {
-	char *disk_path = diskfd_to_devpath(fd);
+	char *disk_path = diskfd_to_devpath(fd, 1, NULL);
 	int rc = path_attached_to_hba(disk_path, hba_path);
 
 	if (disk_path)
@@ -862,15 +895,9 @@ int imsm_is_nvme_supported(int disk_fd, int verbose)
  */
 int is_multipath_nvme(int disk_fd)
 {
-	char path_buf[PATH_MAX];
 	char ns_path[PATH_MAX];
-	char *kname = fd2kname(disk_fd);
 
-	if (!kname)
-		return 0;
-	sprintf(path_buf, "/sys/block/%s", kname);
-
-	if (!realpath(path_buf, ns_path))
+	if (!diskfd_to_devpath(disk_fd, 0, ns_path))
 		return 0;
 
 	if (strncmp(ns_path, NVME_SUBSYS_PATH, strlen(NVME_SUBSYS_PATH)) == 0)

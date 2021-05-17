@@ -694,7 +694,7 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 	if (fd < 0)
 		disk_path  = (char *) devname;
 	else
-		disk_path = diskfd_to_devpath(fd);
+		disk_path = diskfd_to_devpath(fd, 1, NULL);
 
 	if (!disk_path)
 		return 0;
@@ -2253,7 +2253,7 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 
 		if (sscanf(ent->d_name, "%d:%d", &major, &minor) != 2)
 			continue;
-		path = devt_to_devpath(makedev(major, minor));
+		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
 		if (!path_attached_to_hba(path, hba_path)) {
@@ -2407,7 +2407,7 @@ static int print_nvme_info(struct sys_dev *hba)
 				continue;
 			}
 
-			device_path = diskfd_to_devpath(fd);
+			device_path = diskfd_to_devpath(fd, 1, NULL);
 			if (!device_path) {
 				close(fd);
 				continue;
@@ -4015,28 +4015,13 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 
 static void fd2devname(int fd, char *name)
 {
-	struct stat st;
-	char path[256];
-	char dname[PATH_MAX];
 	char *nm;
-	int rv;
 
-	name[0] = '\0';
-	if (fstat(fd, &st) != 0)
-		return;
-	sprintf(path, "/sys/dev/block/%d:%d",
-		major(st.st_rdev), minor(st.st_rdev));
-
-	rv = readlink(path, dname, sizeof(dname)-1);
-	if (rv <= 0)
+	nm = fd2kname(fd);
+	if (!nm)
 		return;
 
-	dname[rv] = '\0';
-	nm = strrchr(dname, '/');
-	if (nm) {
-		nm++;
-		snprintf(name, MAX_RAID_SERIAL_LEN, "/dev/%s", nm);
-	}
+	snprintf(name, MAX_RAID_SERIAL_LEN, "/dev/%s", nm);
 }
 
 static int nvme_get_serial(int fd, void *buf, size_t buf_len)
@@ -5941,28 +5926,22 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		free(dd);
 		abort();
 	}
+
 	if (super->hba && ((super->hba->type == SYS_DEV_NVME) ||
 	   (super->hba->type == SYS_DEV_VMD))) {
 		int i;
-		char *devpath = diskfd_to_devpath(fd);
-		char controller_path[PATH_MAX];
-		char *controller_name;
+		char cntrl_path[PATH_MAX];
+		char *cntrl_name;
+		char pci_dev_path[PATH_MAX];
 
-		if (!devpath) {
-			pr_err("failed to get devpath, aborting\n");
+		if (!diskfd_to_devpath(fd, 2, pci_dev_path) ||
+		    !diskfd_to_devpath(fd, 1, cntrl_path)) {
+			pr_err("failed to get dev_path, aborting\n");
 			if (dd->devname)
 				free(dd->devname);
 			free(dd);
 			return 1;
 		}
-
-		snprintf(controller_path, PATH_MAX-1, "%s/device", devpath);
-
-		controller_name = basename(devpath);
-		if (is_multipath_nvme(fd))
-			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n", controller_name);
-
-		free(devpath);
 
 		if (!imsm_is_nvme_supported(dd->fd, 1)) {
 			if (dd->devname)
@@ -5971,7 +5950,12 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 			return 1;
 		}
 
-		if (devpath_to_vendor(controller_path) == 0x8086) {
+		cntrl_name = basename(cntrl_path);
+		if (is_multipath_nvme(fd))
+			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n",
+			       cntrl_name);
+
+		if (devpath_to_vendor(pci_dev_path) == 0x8086) {
 			/*
 			 * If Intel's NVMe drive has serial ended with
 			 * "-A","-B","-1" or "-2" it means that this is "x8"
@@ -6985,7 +6969,7 @@ get_devices(const char *hba_path)
 		char *path = NULL;
 		if (sscanf(ent->d_name, "%d:%d", &major, &minor) != 2)
 			continue;
-		path = devt_to_devpath(makedev(major, minor));
+		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
 		if (!path_attached_to_hba(path, hba_path)) {
@@ -10648,7 +10632,7 @@ int validate_container_imsm(struct mdinfo *info)
 	struct sys_dev *hba = NULL;
 	struct sys_dev *intel_devices = find_intel_devices();
 	char *dev_path = devt_to_devpath(makedev(info->disk.major,
-									info->disk.minor));
+						 info->disk.minor), 1, NULL);
 
 	for (idev = intel_devices; idev; idev = idev->next) {
 		if (dev_path && strstr(dev_path, idev->path)) {
@@ -10669,7 +10653,8 @@ int validate_container_imsm(struct mdinfo *info)
 	struct mdinfo *dev;
 
 	for (dev = info->next; dev; dev = dev->next) {
-		dev_path = devt_to_devpath(makedev(dev->disk.major, dev->disk.minor));
+		dev_path = devt_to_devpath(makedev(dev->disk.major,
+						   dev->disk.minor), 1, NULL);
 
 		struct sys_dev *hba2 = NULL;
 		for (idev = intel_devices; idev; idev = idev->next) {
@@ -11181,7 +11166,7 @@ static const char *imsm_get_disk_controller_domain(const char *path)
 		struct sys_dev* hba;
 		char *path;
 
-		path = devt_to_devpath(st.st_rdev);
+		path = devt_to_devpath(st.st_rdev, 1, NULL);
 		if (path == NULL)
 			return "unknown";
 		hba = find_disk_attached_hba(-1, path);
