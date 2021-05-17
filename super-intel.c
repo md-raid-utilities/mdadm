@@ -2381,49 +2381,51 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 
 static int print_nvme_info(struct sys_dev *hba)
 {
-	char buf[1024];
-	char *device_path;
 	struct dirent *ent;
 	DIR *dir;
-	int fd;
 
 	dir = opendir("/sys/block/");
 	if (!dir)
 		return 1;
 
 	for (ent = readdir(dir); ent; ent = readdir(dir)) {
-		if (strstr(ent->d_name, "nvme")) {
-			fd = open_dev(ent->d_name);
-			if (fd < 0)
-				continue;
+		char ns_path[PATH_MAX];
+		char cntrl_path[PATH_MAX];
+		char buf[PATH_MAX];
+		int fd = -1;
 
-			if (!imsm_is_nvme_supported(fd, 0)) {
-				if (fd >= 0)
-					close(fd);
-				continue;
-			}
+		if (!strstr(ent->d_name, "nvme"))
+			goto skip;
 
-			device_path = diskfd_to_devpath(fd, 1, NULL);
-			if (!device_path) {
-				close(fd);
-				continue;
-			}
+		fd = open_dev(ent->d_name);
+		if (fd < 0)
+			goto skip;
 
-			if (path_attached_to_hba(device_path, hba->path)) {
-				fd2devname(fd, buf);
-				if (hba->type == SYS_DEV_VMD)
-					printf(" NVMe under VMD : %s", buf);
-				else if (hba->type == SYS_DEV_NVME)
-					printf("    NVMe Device : %s", buf);
-				if (!imsm_read_serial(fd, NULL, (__u8 *)buf,
-						      sizeof(buf)))
-					printf(" (%s)\n", buf);
-				else
-					printf("()\n");
-			}
-			free(device_path);
+		if (!diskfd_to_devpath(fd, 0, ns_path) ||
+		    !diskfd_to_devpath(fd, 1, cntrl_path))
+			goto skip;
+
+		if (!path_attached_to_hba(cntrl_path, hba->path))
+			goto skip;
+
+		if (!imsm_is_nvme_namespace_supported(fd, 0))
+			goto skip;
+
+		fd2devname(fd, buf);
+		if (hba->type == SYS_DEV_VMD)
+			printf(" NVMe under VMD : %s", buf);
+		else if (hba->type == SYS_DEV_NVME)
+			printf("    NVMe Device : %s", buf);
+
+		if (!imsm_read_serial(fd, NULL, (__u8 *)buf,
+				      sizeof(buf)))
+			printf(" (%s)\n", buf);
+		else
+			printf("()\n");
+
+skip:
+		if (fd > -1)
 			close(fd);
-		}
 	}
 
 	closedir(dir);
@@ -5933,14 +5935,8 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 
 		if (!diskfd_to_devpath(fd, 2, pci_dev_path) ||
 		    !diskfd_to_devpath(fd, 1, cntrl_path)) {
-			pr_err("failed to get dev_path, aborting\n");
-			if (dd->devname)
-				free(dd->devname);
-			free(dd);
-			return 1;
-		}
+			pr_err("failed to get dev paths, aborting\n");
 
-		if (!imsm_is_nvme_supported(dd->fd, 1)) {
 			if (dd->devname)
 				free(dd->devname);
 			free(dd);
@@ -6665,7 +6661,7 @@ static int validate_geometry_imsm_container(struct supertype *st, int level,
 {
 	int fd;
 	unsigned long long ldsize;
-	struct intel_super *super;
+	struct intel_super *super = NULL;
 	int rv = 0;
 
 	if (level != LEVEL_CONTAINER)
@@ -6680,24 +6676,18 @@ static int validate_geometry_imsm_container(struct supertype *st, int level,
 				dev, strerror(errno));
 		return 0;
 	}
-	if (!get_dev_size(fd, dev, &ldsize)) {
-		close(fd);
-		return 0;
-	}
+	if (!get_dev_size(fd, dev, &ldsize))
+		goto exit;
 
 	/* capabilities retrieve could be possible
 	 * note that there is no fd for the disks in array.
 	 */
 	super = alloc_super();
-	if (!super) {
-		close(fd);
-		return 0;
-	}
-	if (!get_dev_sector_size(fd, NULL, &super->sector_size)) {
-		close(fd);
-		free_imsm(super);
-		return 0;
-	}
+	if (!super)
+		goto exit;
+
+	if (!get_dev_sector_size(fd, NULL, &super->sector_size))
+		goto exit;
 
 	rv = find_intel_hba_capability(fd, super, verbose > 0 ? dev : NULL);
 	if (rv != 0) {
@@ -6708,32 +6698,42 @@ static int validate_geometry_imsm_container(struct supertype *st, int level,
 			fd, str, super->orom, rv, raiddisks);
 #endif
 		/* no orom/efi or non-intel hba of the disk */
-		close(fd);
-		free_imsm(super);
-		return 0;
+		rv = 0;
+		goto exit;
 	}
-	close(fd);
 	if (super->orom) {
 		if (raiddisks > super->orom->tds) {
 			if (verbose)
 				pr_err("%d exceeds maximum number of platform supported disks: %d\n",
 					raiddisks, super->orom->tds);
-			free_imsm(super);
-			return 0;
+			goto exit;
 		}
 		if ((super->orom->attr & IMSM_OROM_ATTR_2TB_DISK) == 0 &&
 		    (ldsize >> 9) >> 32 > 0) {
 			if (verbose)
 				pr_err("%s exceeds maximum platform supported size\n", dev);
-			free_imsm(super);
-			return 0;
+			goto exit;
+		}
+
+		if (super->hba->type == SYS_DEV_VMD ||
+		    super->hba->type == SYS_DEV_NVME) {
+			if (!imsm_is_nvme_namespace_supported(fd, 1)) {
+				if (verbose)
+					pr_err("NVMe namespace %s is not supported by IMSM\n",
+						basename(dev));
+				goto exit;
+			}
 		}
 	}
 
 	*freesize = avail_size_imsm(st, ldsize >> 9, data_offset);
-	free_imsm(super);
+	rv = 1;
+exit:
+	if (super)
+		free_imsm(super);
+	close(fd);
 
-	return 1;
+	return rv;
 }
 
 static unsigned long long find_size(struct extent *e, int *idx, int num_extents)

@@ -879,36 +879,75 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 	closedir(dir);
 	return NULL;
 }
-/* Verify that NVMe drive is supported by IMSM
+
+/* Scan over all controller's namespaces and compare nsid value to verify if
+ * current one is supported. The routine doesn't check IMSM capabilities for
+ * namespace. Only one nvme namespace is supported by IMSM.
+ * Paramteres:
+ *	fd - open descriptor to the nvme namespace
+ *	verbose - error logging level
  * Returns:
- *	0 - not supported
- *	1 - supported
+ *	1 - if namespace is supported
+ *	0 - otherwise
  */
-int imsm_is_nvme_supported(int disk_fd, int verbose)
+int imsm_is_nvme_namespace_supported(int fd, int verbose)
 {
-	char nsid_path[PATH_MAX];
-	char buf[PATH_MAX];
-	struct stat stb;
+	DIR *dir = NULL;
+	struct dirent *ent;
+	char cntrl_path[PATH_MAX];
+	char ns_path[PATH_MAX];
+	unsigned long long lowest_nsid = ULLONG_MAX;
+	unsigned long long this_nsid;
+	int rv = 0;
 
-	if (disk_fd < 0)
-		return 0;
 
-	if (fstat(disk_fd, &stb))
-		return 0;
-
-	snprintf(nsid_path, PATH_MAX-1, "/sys/dev/block/%d:%d/nsid",
-		 major(stb.st_rdev), minor(stb.st_rdev));
-
-	if (load_sys(nsid_path, buf, sizeof(buf))) {
-		pr_err("Cannot read %s, rejecting drive\n", nsid_path);
-		return 0;
-	}
-	if (strtoll(buf, NULL, 10) != 1) {
+	if (!diskfd_to_devpath(fd, 1, cntrl_path) ||
+	    !diskfd_to_devpath(fd, 0, ns_path)) {
 		if (verbose)
-			pr_err("Only first namespace is supported by IMSM, aborting\n");
-		return 0;
+			pr_err("Cannot get device paths\n");
+		goto abort;
 	}
-	return 1;
+
+
+	if (devpath_to_ll(ns_path, "nsid", &this_nsid)) {
+		if (verbose)
+			pr_err("Cannot read nsid value for %s",
+			       basename(ns_path));
+		goto abort;
+	}
+
+	dir = opendir(cntrl_path);
+	if (!dir)
+		goto abort;
+
+	/* The lowest nvme namespace is supported */
+	for (ent = readdir(dir); ent; ent = readdir(dir)) {
+		unsigned long long curr_nsid;
+		char curr_ns_path[PATH_MAX + 256];
+
+		if (!strstr(ent->d_name, "nvme"))
+			continue;
+
+		snprintf(curr_ns_path, sizeof(curr_ns_path), "%s/%s",
+			 cntrl_path, ent->d_name);
+
+		if (devpath_to_ll(curr_ns_path, "nsid", &curr_nsid))
+			goto abort;
+
+		if (lowest_nsid > curr_nsid)
+			lowest_nsid = curr_nsid;
+	}
+
+	if (this_nsid == lowest_nsid)
+		rv = 1;
+	else if (verbose)
+		pr_err("IMSM is supported on the lowest NVMe namespace\n");
+
+abort:
+	if (dir)
+		closedir(dir);
+
+	return rv;
 }
 
 /* Verify if multipath is supported by NVMe controller
