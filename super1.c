@@ -2631,7 +2631,7 @@ static int locate_bitmap1(struct supertype *st, int fd, int node_num)
 	else
 		ret = -1;
 
-	offset = __le64_to_cpu(sb->super_offset) + __le32_to_cpu(sb->bitmap_offset);
+	offset = __le64_to_cpu(sb->super_offset) + (int32_t)__le32_to_cpu(sb->bitmap_offset);
 	if (node_num) {
 		bms = (bitmap_super_t*)(((char*)sb)+MAX_SB_SIZE);
 		bm_sectors_per_node = calc_bitmap_size(bms, 4096) >> 9;
