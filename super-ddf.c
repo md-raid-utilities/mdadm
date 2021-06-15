@@ -3463,7 +3463,7 @@ validate_geometry_ddf_container(struct supertype *st,
 	if (!dev)
 		return 1;
 
-	fd = open(dev, O_RDONLY|O_EXCL, 0);
+	fd = dev_open(dev, O_RDONLY|O_EXCL);
 	if (fd < 0) {
 		if (verbose)
 			pr_err("ddf: Cannot open %s: %s\n",

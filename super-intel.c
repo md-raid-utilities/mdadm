@@ -6668,7 +6668,7 @@ static int validate_geometry_imsm_container(struct supertype *st, int level,
 	if (!dev)
 		return 1;
 
-	fd = open(dev, O_RDONLY|O_EXCL, 0);
+	fd = dev_open(dev, O_RDONLY|O_EXCL);
 	if (fd < 0) {
 		if (verbose > 0)
 			pr_err("imsm: Cannot open %s: %s\n",
