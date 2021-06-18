@@ -548,7 +548,8 @@ int Detail(char *dev, struct context *c)
 			       array.working_disks);
 		if (array.raid_disks) {
 			printf("    Failed Devices : %d\n", array.failed_disks);
-			printf("     Spare Devices : %d\n", array.spare_disks);
+			if (!external)
+				printf("     Spare Devices : %d\n", array.spare_disks);
 		}
 		printf("\n");
 		if (array.level == 5) {
