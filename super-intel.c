@@ -1663,7 +1663,7 @@ static void print_imsm_dev(struct intel_super *super,
 		   (unsigned long long)sz * 512 / super->sector_size,
 	       human_size(sz * 512));
 	printf("  Sector Offset : %llu\n",
-		pba_of_lba0(map));
+		pba_of_lba0(map) * 512 / super->sector_size);
 	printf("    Num Stripes : %llu\n",
 		num_data_stripes(map));
 	printf("     Chunk Size : %u KiB",
