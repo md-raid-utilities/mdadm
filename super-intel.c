@@ -2123,12 +2123,6 @@ static void brief_examine_super_imsm(struct supertype *st, int verbose)
 	/* We just write a generic IMSM ARRAY entry */
 	struct mdinfo info;
 	char nbuf[64];
-	struct intel_super *super = st->sb;
-
-	if (!super->anchor->num_raid_devs) {
-		printf("ARRAY metadata=imsm\n");
-		return;
-	}
 
 	getinfo_super_imsm(st, &info, NULL);
 	fname_from_uuid(st, &info, nbuf, ':');
@@ -3911,12 +3905,9 @@ static void imsm_copy_dev(struct imsm_dev *dest, struct imsm_dev *src)
 static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 			      int verbose)
 {
-	/*
-	 * return:
+	/*  return:
 	 *  0 same, or first was empty, and second was copied
-	 *  1 second had wrong number
-	 *  2 wrong uuid
-	 *  3 wrong other info
+	 *  1 sb are different
 	 */
 	struct intel_super *first = st->sb;
 	struct intel_super *sec = tst->sb;
@@ -3926,31 +3917,30 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 		tst->sb = NULL;
 		return 0;
 	}
+
 	/* in platform dependent environment test if the disks
 	 * use the same Intel hba
-	 * If not on Intel hba at all, allow anything.
+	 * if not on Intel hba at all, allow anything.
+	 * doesn't check HBAs if num_raid_devs is not set, as it means
+	 * it is a free floating spare, and all spares regardless of HBA type
+	 * will fall into separate container during the assembly
 	 */
-	if (!check_env("IMSM_NO_PLATFORM") && first->hba && sec->hba) {
+	if (first->hba && sec->hba && first->anchor->num_raid_devs != 0) {
 		if (first->hba->type != sec->hba->type) {
 			if (verbose)
 				pr_err("HBAs of devices do not match %s != %s\n",
 				       get_sys_dev_type(first->hba->type),
 				       get_sys_dev_type(sec->hba->type));
-			return 3;
+			return 1;
 		}
-
 		if (first->orom != sec->orom) {
 			if (verbose)
 				pr_err("HBAs of devices do not match %s != %s\n",
 				       first->hba->pci_id, sec->hba->pci_id);
-			return 3;
+			return 1;
 		}
-
 	}
 
-	/* if an anchor does not have num_raid_devs set then it is a free
-	 * floating spare
-	 */
 	if (first->anchor->num_raid_devs > 0 &&
 	    sec->anchor->num_raid_devs > 0) {
 		/* Determine if these disks might ever have been
@@ -3962,7 +3952,7 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 
 		if (memcmp(first->anchor->sig, sec->anchor->sig,
 			   MAX_SIGNATURE_LENGTH) != 0)
-			return 3;
+			return 1;
 
 		if (first_family == 0)
 			first_family = first->anchor->family_num;
@@ -3970,43 +3960,17 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 			sec_family = sec->anchor->family_num;
 
 		if (first_family != sec_family)
-			return 3;
+			return 1;
 
 	}
 
-	/* if 'first' is a spare promote it to a populated mpb with sec's
-	 * family number
-	 */
-	if (first->anchor->num_raid_devs == 0 &&
-	    sec->anchor->num_raid_devs > 0) {
-		int i;
-		struct intel_dev *dv;
-		struct imsm_dev *dev;
-
-		/* we need to copy raid device info from sec if an allocation
-		 * fails here we don't associate the spare
-		 */
-		for (i = 0; i < sec->anchor->num_raid_devs; i++) {
-			dv = xmalloc(sizeof(*dv));
-			dev = xmalloc(sizeof_imsm_dev(get_imsm_dev(sec, i), 1));
-			dv->dev = dev;
-			dv->index = i;
-			dv->next = first->devlist;
-			first->devlist = dv;
-		}
-		if (i < sec->anchor->num_raid_devs) {
-			/* allocation failure */
-			free_devlist(first);
-			pr_err("imsm: failed to associate spare\n");
-			return 3;
-		}
-		first->anchor->num_raid_devs = sec->anchor->num_raid_devs;
-		first->anchor->orig_family_num = sec->anchor->orig_family_num;
-		first->anchor->family_num = sec->anchor->family_num;
-		memcpy(first->anchor->sig, sec->anchor->sig, MAX_SIGNATURE_LENGTH);
-		for (i = 0; i < sec->anchor->num_raid_devs; i++)
-			imsm_copy_dev(get_imsm_dev(first, i), get_imsm_dev(sec, i));
-	}
+	/* if an anchor does not have num_raid_devs set then it is a free
+	* floating spare. don't assosiate spare with any array, as during assembly
+	* spares shall fall into separate container, from which they can be moved
+	* when necessary
+	*/
+	if (first->anchor->num_raid_devs ^ sec->anchor->num_raid_devs)
+		return 1;
 
 	return 0;
 }

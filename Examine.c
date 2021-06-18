@@ -166,7 +166,7 @@ int Examine(struct mddev_dev *devlist,
 			int newline = 0;
 
 			ap->st->ss->brief_examine_super(ap->st, c->verbose > 0);
-			if (ap->spares)
+			if (ap->spares && !ap->st->ss->external)
 				newline += printf("   spares=%d", ap->spares);
 			if (c->verbose > 0) {
 				newline += printf("   devices");
