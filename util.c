@@ -1543,7 +1543,7 @@ int open_container(int fd)
 	/* 'fd' is a block device.  Find out if it is in use
 	 * by a container, and return an open fd on that container.
 	 */
-	char path[256];
+	char path[288];
 	char *e;
 	DIR *dir;
 	struct dirent *de;
