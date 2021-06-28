@@ -4499,9 +4499,9 @@ load_and_parse_mpb(int fd, struct intel_super *super, char *devname, int keep_fd
 	return err;
 }
 
-static void __free_imsm_disk(struct dl *d)
+static void __free_imsm_disk(struct dl *d, int close_fd)
 {
-	if (d->fd >= 0)
+	if (close_fd && d->fd > -1)
 		close(d->fd);
 	if (d->devname)
 		free(d->devname);
@@ -4518,17 +4518,17 @@ static void free_imsm_disks(struct intel_super *super)
 	while (super->disks) {
 		d = super->disks;
 		super->disks = d->next;
-		__free_imsm_disk(d);
+		__free_imsm_disk(d, 1);
 	}
 	while (super->disk_mgmt_list) {
 		d = super->disk_mgmt_list;
 		super->disk_mgmt_list = d->next;
-		__free_imsm_disk(d);
+		__free_imsm_disk(d, 1);
 	}
 	while (super->missing) {
 		d = super->missing;
 		super->missing = d->next;
-		__free_imsm_disk(d);
+		__free_imsm_disk(d, 1);
 	}
 
 }
@@ -5243,10 +5243,13 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 	free_super_imsm(st);
 
 	super = alloc_super();
-	if (!get_dev_sector_size(fd, NULL, &super->sector_size))
-		return 1;
 	if (!super)
 		return 1;
+
+	if (!get_dev_sector_size(fd, NULL, &super->sector_size)) {
+		free_imsm(super);
+		return 1;
+	}
 	/* Load hba and capabilities if they exist.
 	 * But do not preclude loading metadata in case capabilities or hba are
 	 * non-compliant and ignore_hw_compat is set.
@@ -5884,9 +5887,7 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	rv = imsm_read_serial(fd, devname, dd->serial, MAX_RAID_SERIAL_LEN);
 	if (rv) {
 		pr_err("failed to retrieve scsi serial, aborting\n");
-		if (dd->devname)
-			free(dd->devname);
-		free(dd);
+		__free_imsm_disk(dd, 0);
 		abort();
 	}
 
@@ -5900,10 +5901,7 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		if (!diskfd_to_devpath(fd, 2, pci_dev_path) ||
 		    !diskfd_to_devpath(fd, 1, cntrl_path)) {
 			pr_err("failed to get dev paths, aborting\n");
-
-			if (dd->devname)
-				free(dd->devname);
-			free(dd);
+			__free_imsm_disk(dd, 0);
 			return 1;
 		}
 
@@ -5939,15 +5937,16 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		    !imsm_orom_has_tpv_support(super->orom)) {
 			pr_err("\tPlatform configuration does not support non-Intel NVMe drives.\n"
 			       "\tPlease refer to Intel(R) RSTe/VROC user guide.\n");
-			free(dd->devname);
-			free(dd);
+			__free_imsm_disk(dd, 0);
 			return 1;
 		}
 	}
 
 	get_dev_size(fd, NULL, &size);
-	if (!get_dev_sector_size(fd, NULL, &member_sector_size))
+	if (!get_dev_sector_size(fd, NULL, &member_sector_size)) {
+		__free_imsm_disk(dd, 0);
 		return 1;
+	}
 
 	if (super->sector_size == 0) {
 		/* this a first device, so sector_size is not set yet */
@@ -9260,7 +9259,7 @@ static int remove_disk_super(struct intel_super *super, int major, int minor)
 			else
 				super->disks = dl->next;
 			dl->next = NULL;
-			__free_imsm_disk(dl);
+			__free_imsm_disk(dl, 1);
 			dprintf("removed %x:%x\n", major, minor);
 			break;
 		}
@@ -9310,7 +9309,7 @@ static int add_remove_disk_update(struct intel_super *super)
 				}
 			}
 			/* release allocate disk structure */
-			__free_imsm_disk(disk_cfg);
+			__free_imsm_disk(disk_cfg, 1);
 		}
 	}
 	return check_degraded;
@@ -10511,7 +10510,7 @@ static void imsm_delete(struct intel_super *super, struct dl **dlp, unsigned ind
 		struct dl *dl = *dlp;
 
 		*dlp = (*dlp)->next;
-		__free_imsm_disk(dl);
+		__free_imsm_disk(dl, 1);
 	}
 }
 
