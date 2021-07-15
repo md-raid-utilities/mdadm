@@ -254,9 +254,8 @@ int Create(struct supertype *st, char *mddev,
 	case LEVEL_MULTIPATH:
 	case LEVEL_CONTAINER:
 		if (s->chunk) {
-			s->chunk = 0;
-			if (c->verbose > 0)
-				pr_err("chunk size ignored for this level\n");
+			pr_err("specifying chunk size is forbidden for this level\n");
+			return 1;
 		}
 		break;
 	default:
