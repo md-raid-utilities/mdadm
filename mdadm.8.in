@@ -1132,7 +1132,8 @@ out-of-date.  If
 .I mdadm
 cannot find enough working devices to start the array, but can find
 some devices that are recorded as having failed, then it will mark
-those devices as working so that the array can be started.
+those devices as working so that the array can be started. This works only for
+native. For external metadata it allows to start dirty degraded RAID 4, 5, 6.
 An array which requires
 .B \-\-force
 to be started may contain data corruption.  Use it carefully.

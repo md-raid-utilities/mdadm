@@ -8081,10 +8081,6 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 				if ((!able_to_resync(level, missing) ||
 				     recovery_start == 0))
 					this->resync_start = MaxSector;
-			} else {
-				/*
-				 * FIXME handle dirty degraded
-				 */
 			}
 
 			if (skip)
