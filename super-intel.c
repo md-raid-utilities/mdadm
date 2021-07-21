@@ -1228,6 +1228,33 @@ static unsigned long long total_blocks(struct imsm_disk *disk)
 	return join_u32(disk->total_blocks_lo, disk->total_blocks_hi);
 }
 
+/**
+ * imsm_num_data_members() - get data drives count for an array.
+ * @map: Map to analyze.
+ *
+ * num_data_members value represents minimal count of drives for level.
+ * The name of the property could be misleading for RAID5 with asymmetric layout
+ * because some data required to be calculated from parity.
+ * The property is extracted from level and num_members value.
+ *
+ * Return: num_data_members value on success, zero otherwise.
+ */
+static __u8 imsm_num_data_members(struct imsm_map *map)
+{
+	switch (get_imsm_raid_level(map)) {
+	case 0:
+		return map->num_members;
+	case 1:
+	case 10:
+		return map->num_members / 2;
+	case 5:
+		return map->num_members - 1;
+	default:
+		dprintf("unsupported raid level\n");
+		return 0;
+	}
+}
+
 static unsigned long long pba_of_lba0(struct imsm_map *map)
 {
 	if (map == NULL)
@@ -1301,6 +1328,24 @@ static void set_total_blocks(struct imsm_disk *disk, unsigned long long n)
 	split_ull(n, &disk->total_blocks_lo, &disk->total_blocks_hi);
 }
 
+/**
+ * set_num_domains() - Set number of domains for an array.
+ * @map: Map to be updated.
+ *
+ * num_domains property represents copies count of each data drive, thus make
+ * it meaningful only for RAID1 and RAID10. IMSM supports two domains for
+ * raid1 and raid10.
+ */
+static void set_num_domains(struct imsm_map *map)
+{
+	int level = get_imsm_raid_level(map);
+
+	if (level == 1 || level == 10)
+		map->num_domains = 2;
+	else
+		map->num_domains = 1;
+}
+
 static void set_pba_of_lba0(struct imsm_map *map, unsigned long long n)
 {
 	split_ull(n, &map->pba_of_lba0_lo, &map->pba_of_lba0_hi);
@@ -1314,6 +1359,24 @@ static void set_blocks_per_member(struct imsm_map *map, unsigned long long n)
 static void set_num_data_stripes(struct imsm_map *map, unsigned long long n)
 {
 	split_ull(n, &map->num_data_stripes_lo, &map->num_data_stripes_hi);
+}
+
+/**
+ * update_num_data_stripes() - Calculate and update num_data_stripes value.
+ * @map: map to be updated.
+ * @dev_size: size of volume.
+ *
+ * num_data_stripes value is addictionally divided by num_domains, therefore for
+ * levels where num_domains is not 1, nds is a part of real value.
+ */
+static void update_num_data_stripes(struct imsm_map *map,
+				     unsigned long long dev_size)
+{
+	unsigned long long nds = dev_size / imsm_num_data_members(map);
+
+	nds /= map->num_domains;
+	nds /= map->blocks_per_strip;
+	set_num_data_stripes(map, nds);
 }
 
 static void set_vol_curr_migr_unit(struct imsm_dev *dev, unsigned long long n)
@@ -2870,26 +2933,6 @@ static __u32 num_stripes_per_unit_rebuild(struct imsm_dev *dev)
 		return hi->num_domains;
 	} else
 		return num_stripes_per_unit_resync(dev);
-}
-
-static __u8 imsm_num_data_members(struct imsm_map *map)
-{
-	/* named 'imsm_' because raid0, raid1 and raid10
-	 * counter-intuitively have the same number of data disks
-	 */
-	switch (get_imsm_raid_level(map)) {
-	case 0:
-		return map->num_members;
-		break;
-	case 1:
-	case 10:
-		return map->num_members/2;
-	case 5:
-		return map->num_members - 1;
-	default:
-		dprintf("unsupported raid level\n");
-		return 0;
-	}
 }
 
 static unsigned long long calc_component_size(struct imsm_map *map,
@@ -5433,7 +5476,6 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	int namelen;
 	unsigned long long array_blocks;
 	size_t size_old, size_new;
-	unsigned long long num_data_stripes;
 	unsigned int data_disks;
 	unsigned long long size_per_member;
 
@@ -5551,18 +5593,9 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	}
 
 	map->raid_level = info->level;
-	if (info->level == 10) {
+	if (info->level == 10)
 		map->raid_level = 1;
-		map->num_domains = info->raid_disks / 2;
-	} else if (info->level == 1)
-		map->num_domains = info->raid_disks;
-	else
-		map->num_domains = 1;
-
-	/* info->size is only int so use the 'size' parameter instead */
-	num_data_stripes = size_per_member / info_to_blocks_per_strip(info);
-	num_data_stripes /= map->num_domains;
-	set_num_data_stripes(map, num_data_stripes);
+	set_num_domains(map);
 
 	size_per_member += NUM_BLOCKS_DIRTY_STRIPE_REGION;
 	set_blocks_per_member(map, info_to_blocks_per_member(info,
@@ -5570,6 +5603,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 							     BLOCKS_PER_KB));
 
 	map->num_members = info->raid_disks;
+	update_num_data_stripes(map, array_blocks);
 	for (i = 0; i < map->num_members; i++) {
 		/* initialized in add_to_super */
 		set_imsm_ord_tbl_ent(map, i, IMSM_ORD_REBUILD);
@@ -9384,7 +9418,6 @@ static int apply_reshape_migration_update(struct imsm_update_reshape_migration *
 			/* update chunk size
 			 */
 			if (u->new_chunksize > 0) {
-				unsigned long long num_data_stripes;
 				struct imsm_map *dest_map =
 					get_imsm_map(dev, MAP_0);
 				int used_disks =
@@ -9395,11 +9428,7 @@ static int apply_reshape_migration_update(struct imsm_update_reshape_migration *
 
 				map->blocks_per_strip =
 					__cpu_to_le16(u->new_chunksize * 2);
-				num_data_stripes =
-					imsm_dev_size(dev) / used_disks;
-				num_data_stripes /= map->blocks_per_strip;
-				num_data_stripes /= map->num_domains;
-				set_num_data_stripes(map, num_data_stripes);
+				update_num_data_stripes(map, imsm_dev_size(dev));
 			}
 
 			/* ensure blocks_per_member has valid value
@@ -9473,7 +9502,6 @@ static int apply_size_change_update(struct imsm_update_size_change *u,
 			struct imsm_map *map = get_imsm_map(dev, MAP_0);
 			int used_disks = imsm_num_data_members(map);
 			unsigned long long blocks_per_member;
-			unsigned long long num_data_stripes;
 			unsigned long long new_size_per_disk;
 
 			if (used_disks == 0)
@@ -9484,16 +9512,10 @@ static int apply_size_change_update(struct imsm_update_size_change *u,
 			new_size_per_disk = u->new_size / used_disks;
 			blocks_per_member = new_size_per_disk +
 					    NUM_BLOCKS_DIRTY_STRIPE_REGION;
-			num_data_stripes = new_size_per_disk /
-					   map->blocks_per_strip;
-			num_data_stripes /= map->num_domains;
-			dprintf("(size: %llu, blocks per member: %llu, num_data_stipes: %llu)\n",
-				u->new_size, new_size_per_disk,
-				num_data_stripes);
-			set_blocks_per_member(map, blocks_per_member);
-			set_num_data_stripes(map, num_data_stripes);
-			imsm_set_array_size(dev, u->new_size);
 
+			imsm_set_array_size(dev, u->new_size);
+			set_blocks_per_member(map, blocks_per_member);
+			update_num_data_stripes(map, u->new_size);
 			ret_val = 1;
 			break;
 		}
@@ -9775,8 +9797,6 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 	map = get_imsm_map(dev, MAP_0);
 
 	if (u->direction == R10_TO_R0) {
-		unsigned long long num_data_stripes;
-
 		/* Number of failed disks must be half of initial disk number */
 		if (imsm_count_failed(super, dev, MAP_0) !=
 				(map->num_members / 2))
@@ -9797,19 +9817,16 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 			}
 		}
 		/* update map */
-		map->num_members = map->num_members / 2;
+		map->num_members /= map->num_domains;
 		map->map_state = IMSM_T_STATE_NORMAL;
-		map->num_domains = 1;
 		map->raid_level = 0;
+		set_num_domains(map);
+		update_num_data_stripes(map, imsm_dev_size(dev));
 		map->failed_disk_num = -1;
-		num_data_stripes = imsm_dev_size(dev) / 2;
-		num_data_stripes /= map->blocks_per_strip;
-		set_num_data_stripes(map, num_data_stripes);
 	}
 
 	if (u->direction == R0_TO_R10) {
 		void **space;
-		unsigned long long num_data_stripes;
 
 		/* update slots in current disk list */
 		for (dm = super->disks; dm; dm = dm->next) {
@@ -9844,14 +9861,12 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 		memcpy(dev_new, dev, sizeof(*dev));
 		/* update new map */
 		map = get_imsm_map(dev_new, MAP_0);
-		map->num_members = map->num_members * 2;
+
 		map->map_state = IMSM_T_STATE_DEGRADED;
-		map->num_domains = 2;
 		map->raid_level = 1;
-		num_data_stripes = imsm_dev_size(dev) / 2;
-		num_data_stripes /= map->blocks_per_strip;
-		num_data_stripes /= map->num_domains;
-		set_num_data_stripes(map, num_data_stripes);
+		set_num_domains(map);
+		map->num_members = map->num_members * map->num_domains;
+		update_num_data_stripes(map, imsm_dev_size(dev));
 
 		/* replace dev<->dev_new */
 		dv->dev = dev_new;
