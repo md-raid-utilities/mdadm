@@ -331,6 +331,11 @@ static int select_devices(struct mddev_dev *devlist,
 				/* Ignore unrecognised device if looking for
 				 * specific array */
 				goto loop;
+			if (ident->uuid_set)
+				/* ignore unrecognized device if looking for
+				 * specific uuid
+				 */
+				goto loop;
 
 			pr_err("%s has no superblock - assembly aborted\n",
 			       devname);
