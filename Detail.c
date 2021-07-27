@@ -66,11 +66,11 @@ int Detail(char *dev, struct context *c)
 	int spares = 0;
 	struct stat stb;
 	int failed = 0;
-	struct supertype *st;
+	struct supertype *st = NULL;
 	char *subarray = NULL;
 	int max_disks = MD_SB_DISKS; /* just a default */
 	struct mdinfo *info = NULL;
-	struct mdinfo *sra;
+	struct mdinfo *sra = NULL;
 	struct mdinfo *subdev;
 	char *member = NULL;
 	char *container = NULL;
@@ -93,8 +93,7 @@ int Detail(char *dev, struct context *c)
 	if (!sra) {
 		if (md_get_array_info(fd, &array)) {
 			pr_err("%s does not appear to be an md device\n", dev);
-			close(fd);
-			return rv;
+			goto out;
 		}
 	}
 	external = (sra != NULL && sra->array.major_version == -1 &&
@@ -108,16 +107,13 @@ int Detail(char *dev, struct context *c)
 			    sra->devs == NULL) {
 				pr_err("Array associated with md device %s does not exist.\n",
 				       dev);
-				close(fd);
-				sysfs_free(sra);
-				return rv;
+				goto out;
 			}
 			array = sra->array;
 		} else {
 			pr_err("cannot get array detail for %s: %s\n",
 			       dev, strerror(errno));
-			close(fd);
-			return rv;
+			goto out;
 		}
 	}
 
@@ -827,10 +823,12 @@ out:
 	close(fd);
 	free(subarray);
 	free(avail);
-	for (d = 0; d < n_devices; d++)
-		free(devices[d]);
+	if (devices)
+		for (d = 0; d < n_devices; d++)
+			free(devices[d]);
 	free(devices);
 	sysfs_free(sra);
+	free(st);
 	return rv;
 }
 
