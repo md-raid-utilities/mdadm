@@ -1659,10 +1659,8 @@ int main(int argc, char *argv[])
 			break;
 		}
 		if (c.delay == 0) {
-			if (get_linux_version() > 2006016)
-				/* mdstat responds to poll */
-				c.delay = 1000;
-			else
+			c.delay = conf_get_monitor_delay();
+			if (!c.delay)
 				c.delay = 60;
 		}
 		rv = Monitor(devlist, mailaddr, program,

@@ -505,7 +505,7 @@ Keywords used in the
 .I POLICY
 line and supported values are:
 
-.RS 7
+.RS 4
 .TP
 .B domain=
 any arbitrary string
@@ -589,7 +589,9 @@ found.
 
 .TP
 .B SYSFS
-The SYSFS line lists custom values of MD device's sysfs attributes which will be
+The
+.B SYSFS
+line lists custom values of MD device's sysfs attributes which will be
 stored in sysfs after the array is assembled. Multiple lines are allowed and each
 line has to contain the uuid or the name of the device to which it relates.
 .RS 4
@@ -604,8 +606,22 @@ name of the MD device as was given to
 when the array was created. It will be ignored if
 .B uuid
 is not empty.
+.RE
+
 .TP
-.RS 7
+.B MONITORDELAY
+The
+.B monitordelay
+line gives a delay in seconds
+.I mdadm
+shall wait before pooling md arrays
+when
+.I mdadm
+is running in
+.B \-\-monitor
+mode.
+.B \-d/\-\-delay
+command line argument takes precedence over the config file
 
 .SH EXAMPLE
 DEVICE /dev/sd[bcdjkl]1
@@ -682,6 +698,8 @@ SYSFS name=/dev/md/raid5 group_thread_cnt=4 sync_speed_max=1000000
 .br
 SYSFS uuid=bead5eb6:31c17a27:da120ba2:7dfda40d group_thread_cnt=4
 sync_speed_max=1000000
+.br
+MONITORDELAY 60
 
 .SH SEE ALSO
 .BR mdadm (8),
