@@ -1,6 +1,7 @@
-Subject: ANNOUNCE: mdadm 4.2-rc1 - A tool for managing md Soft RAID under Linux
+Subject: ANNOUNCE: mdadm 4.2-rc2 - A tool for managing md Soft RAID under Linux
 
-I am pleased to announce the availability of the first rc release of mdadm-4.2
+I am pleased to announce the availability of the second rc release of
+mdadm-4.2, hopefully the last before we cut final.
 
 It is available at the usual places:
    http://www.kernel.org/pub/linux/utils/raid/mdadm/
@@ -12,4 +13,4 @@ The update constitutes more than one year of enhancements and bug fixes
 including for IMSM RAID, Partial Parity Log, clustered RAID support,
 improved testing, and gcc-8 support.
 
-Jes Sorensen, 2021-04-14
+Jes Sorensen, 2021-08-02
