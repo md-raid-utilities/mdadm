@@ -947,12 +947,12 @@ dev_t devnm2devid(char *devnm)
 	/* First look in /sys/block/$DEVNM/dev for %d:%d
 	 * If that fails, try parsing out a number
 	 */
-	char path[100];
+	char path[PATH_MAX];
 	char *ep;
 	int fd;
 	int mjr,mnr;
 
-	sprintf(path, "/sys/block/%s/dev", devnm);
+	snprintf(path, sizeof(path), "/sys/block/%s/dev", devnm);
 	fd = open(path, O_RDONLY);
 	if (fd >= 0) {
 		char buf[20];
