@@ -899,8 +899,13 @@ int Create(struct supertype *st, char *mddev,
 				else
 					inf->disk.state = 0;
 
-				if (dv->writemostly == FlagSet)
-					inf->disk.state |= (1<<MD_DISK_WRITEMOSTLY);
+				if (dv->writemostly == FlagSet) {
+					if (major_num == BITMAP_MAJOR_CLUSTERED) {
+						pr_err("Can not set %s --write-mostly with a clustered bitmap\n",dv->devname);
+						goto abort_locked;
+					} else
+						inf->disk.state |= (1<<MD_DISK_WRITEMOSTLY);
+				}
 				if (dv->failfast == FlagSet)
 					inf->disk.state |= (1<<MD_DISK_FAILFAST);
 

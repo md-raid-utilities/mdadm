@@ -430,6 +430,11 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 			dv = map_dev(disk.major, disk.minor, 1);
 			if (!dv)
 				continue;
+			if (((disk.state & (1 << MD_DISK_WRITEMOSTLY)) == 0) &&
+			   (strcmp(s->bitmap_file, "clustered") == 0)) {
+				pr_err("%s disks marked write-mostly are not supported with clustered bitmap\n",devname);
+				return 1;
+			}
 			fd2 = dev_open(dv, O_RDWR);
 			if (fd2 < 0)
 				continue;
