@@ -2637,9 +2637,11 @@ static int init_super_ddf_bvd(struct supertype *st,
 		ve->init_state = DDF_init_not;
 
 	memset(ve->pad1, 0xff, 14);
-	memset(ve->name, ' ', 16);
-	if (name)
-		strncpy(ve->name, name, 16);
+	memset(ve->name, '\0', sizeof(ve->name));
+	if (name) {
+		int l = strnlen(name, sizeof(ve->name));
+		memcpy(ve->name, name, l);
+	}
 	ddf->virt->populated_vdes =
 		cpu_to_be16(be16_to_cpu(ddf->virt->populated_vdes)+1);
 
