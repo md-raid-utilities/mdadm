@@ -153,7 +153,7 @@ int Create(struct supertype *st, char *mddev,
 		return 1;
 	}
 	if (s->raiddisks < 2 && s->level >= 4) {
-		pr_err("at least 2 raid-devices needed for level 4 or 5\n");
+		pr_err("at least 2 raid-devices needed for level %d\n", s->level);
 		return 1;
 	}
 	if (s->level <= 0 && s->sparedisks) {
