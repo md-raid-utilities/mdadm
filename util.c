@@ -422,6 +422,8 @@ int parse_layout_10(char *layout)
 
 int parse_layout_faulty(char *layout)
 {
+	if (!layout)
+		return -1;
 	/* Parse the layout string for 'faulty' */
 	int ln = strcspn(layout, "0123456789");
 	char *m = xstrdup(layout);
@@ -432,17 +434,6 @@ int parse_layout_faulty(char *layout)
 		return -1;
 
 	return mode | (atoi(layout+ln)<< ModeShift);
-}
-
-long parse_num(char *num)
-{
-	/* Either return a valid number, or -1 */
-	char *c;
-	long rv = strtol(num, &c, 10);
-	if (rv < 0 || *c || !num[0])
-		return -1;
-	else
-		return rv;
 }
 
 int parse_cluster_confirm_arg(char *input, char **devname, int *slot)

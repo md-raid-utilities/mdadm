@@ -4057,20 +4057,19 @@ static int compare_super_ddf(struct supertype *st, struct supertype *tst,
  * We need to confirm that the array matches the metadata in 'c' so
  * that we don't corrupt any metadata.
  */
-static int ddf_open_new(struct supertype *c, struct active_array *a, char *inst)
+static int ddf_open_new(struct supertype *c, struct active_array *a, int inst)
 {
 	struct ddf_super *ddf = c->sb;
-	int n = atoi(inst);
 	struct mdinfo *dev;
 	struct dl *dl;
 	static const char faulty[] = "faulty";
 
-	if (all_ff(ddf->virt->entries[n].guid)) {
-		pr_err("subarray %d doesn't exist\n", n);
+	if (all_ff(ddf->virt->entries[inst].guid)) {
+		pr_err("subarray %d doesn't exist\n", inst);
 		return -ENODEV;
 	}
-	dprintf("new subarray %d, GUID: %s\n", n,
-		guid_str(ddf->virt->entries[n].guid));
+	dprintf("new subarray %d, GUID: %s\n", inst,
+		guid_str(ddf->virt->entries[inst].guid));
 	for (dev = a->info.devs; dev; dev = dev->next) {
 		for (dl = ddf->dlist; dl; dl = dl->next)
 			if (dl->major == dev->disk.major &&
@@ -4078,13 +4077,13 @@ static int ddf_open_new(struct supertype *c, struct active_array *a, char *inst)
 				break;
 		if (!dl || dl->pdnum < 0) {
 			pr_err("device %d/%d of subarray %d not found in meta data\n",
-				dev->disk.major, dev->disk.minor, n);
+				dev->disk.major, dev->disk.minor, inst);
 			return -1;
 		}
 		if ((be16_to_cpu(ddf->phys->entries[dl->pdnum].state) &
 			(DDF_Online|DDF_Missing|DDF_Failed)) != DDF_Online) {
 			pr_err("new subarray %d contains broken device %d/%d (%02x)\n",
-			       n, dl->major, dl->minor,
+			       inst, dl->major, dl->minor,
 			       be16_to_cpu(ddf->phys->entries[dl->pdnum].state));
 			if (write(dev->state_fd, faulty, sizeof(faulty)-1) !=
 			    sizeof(faulty) - 1)
@@ -4092,7 +4091,7 @@ static int ddf_open_new(struct supertype *c, struct active_array *a, char *inst)
 			dev->curr_state = DS_FAULTY;
 		}
 	}
-	a->info.container_member = n;
+	a->info.container_member = inst;
 	return 0;
 }
 

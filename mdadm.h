@@ -1077,7 +1077,7 @@ extern struct superswitch {
 
 /* for mdmon */
 	int (*open_new)(struct supertype *c, struct active_array *a,
-			char *inst);
+			int inst);
 
 	/* Tell the metadata handler the current state of the array.
 	 * This covers whether it is known to be consistent (no pending writes)
@@ -1488,7 +1488,7 @@ extern int parse_uuid(char *str, int uuid[4]);
 extern int is_near_layout_10(int layout);
 extern int parse_layout_10(char *layout);
 extern int parse_layout_faulty(char *layout);
-extern long parse_num(char *num);
+extern int parse_num(int *dest, char *num);
 extern int parse_cluster_confirm_arg(char *inp, char **devname, int *slot);
 extern int check_ext2(int fd, char *name);
 extern int check_reiser(int fd, char *name);

@@ -8263,19 +8263,19 @@ static int imsm_count_failed(struct intel_super *super, struct imsm_dev *dev,
 }
 
 static int imsm_open_new(struct supertype *c, struct active_array *a,
-			 char *inst)
+			 int inst)
 {
 	struct intel_super *super = c->sb;
 	struct imsm_super *mpb = super->anchor;
 	struct imsm_update_prealloc_bb_mem u;
 
-	if (atoi(inst) >= mpb->num_raid_devs) {
-		pr_err("subarry index %d, out of range\n", atoi(inst));
+	if (inst >= mpb->num_raid_devs) {
+		pr_err("subarry index %d, out of range\n", inst);
 		return -ENODEV;
 	}
 
-	dprintf("imsm: open_new %s\n", inst);
-	a->info.container_member = atoi(inst);
+	dprintf("imsm: open_new %d\n", inst);
+	a->info.container_member = inst;
 
 	u.type = update_prealloc_badblocks_mem;
 	imsm_update_metadata_locally(c, &u, sizeof(u));

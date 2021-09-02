@@ -610,8 +610,7 @@ int main(int argc, char *argv[])
 					s.raiddisks, optarg);
 				exit(2);
 			}
-			s.raiddisks = parse_num(optarg);
-			if (s.raiddisks <= 0) {
+			if (parse_num(&s.raiddisks, optarg) != 0 || s.raiddisks <= 0) {
 				pr_err("invalid number of raid devices: %s\n",
 					optarg);
 				exit(2);
@@ -621,8 +620,7 @@ int main(int argc, char *argv[])
 		case O(ASSEMBLE, Nodes):
 		case O(GROW, Nodes):
 		case O(CREATE, Nodes):
-			c.nodes = parse_num(optarg);
-			if (c.nodes < 2) {
+			if (parse_num(&c.nodes, optarg) != 0 || c.nodes < 2) {
 				pr_err("clustered array needs two nodes at least: %s\n",
 					optarg);
 				exit(2);
@@ -647,8 +645,7 @@ int main(int argc, char *argv[])
 					s.level);
 				exit(2);
 			}
-			s.sparedisks = parse_num(optarg);
-			if (s.sparedisks < 0) {
+			if (parse_num(&s.sparedisks, optarg) != 0 || s.sparedisks < 0) {
 				pr_err("invalid number of spare-devices: %s\n",
 					optarg);
 				exit(2);
@@ -732,12 +729,9 @@ int main(int argc, char *argv[])
 			}
 			if (strcmp(optarg, "dev") == 0)
 				ident.super_minor = -2;
-			else {
-				ident.super_minor = parse_num(optarg);
-				if (ident.super_minor < 0) {
-					pr_err("Bad super-minor number: %s.\n", optarg);
-					exit(2);
-				}
+			else if (parse_num(&ident.super_minor, optarg) != 0 || ident.super_minor < 0) {
+				pr_err("Bad super-minor number: %s.\n", optarg);
+				exit(2);
 			}
 			continue;
 
@@ -907,8 +901,8 @@ int main(int argc, char *argv[])
 
 		case O(MONITOR,'r'): /* rebuild increments */
 		case O(MONITOR,Increment):
-			increments = atoi(optarg);
-			if (increments > 99 || increments < 1) {
+			if (parse_num(&increments, optarg) != 0
+				|| increments > 99 || increments < 1) {
 				pr_err("please specify positive integer between 1 and 99 as rebuild increments.\n");
 				exit(2);
 			}
@@ -919,15 +913,10 @@ int main(int argc, char *argv[])
 		case O(BUILD,'d'): /* delay for bitmap updates */
 		case O(CREATE,'d'):
 			if (c.delay)
-				pr_err("only specify delay once. %s ignored.\n",
-					optarg);
-			else {
-				c.delay = parse_num(optarg);
-				if (c.delay < 1) {
-					pr_err("invalid delay: %s\n",
-						optarg);
-					exit(2);
-				}
+				pr_err("only specify delay once. %s ignored.\n", optarg);
+			else if (parse_num(&c.delay, optarg) != 0 || c.delay < 1) {
+				pr_err("invalid delay: %s\n", optarg);
+				exit(2);
 			}
 			continue;
 		case O(MONITOR,'f'): /* daemonise */
@@ -1209,18 +1198,15 @@ int main(int argc, char *argv[])
 
 		case O(GROW, WriteBehind):
 		case O(BUILD, WriteBehind):
-		case O(CREATE, WriteBehind): /* write-behind mode */
+		case O(CREATE, WriteBehind):
 			s.write_behind = DEFAULT_MAX_WRITE_BEHIND;
-			if (optarg) {
-				s.write_behind = parse_num(optarg);
-				if (s.write_behind < 0 ||
-				    s.write_behind > 16383) {
-					pr_err("Invalid value for maximum outstanding write-behind writes: %s.\n\tMust be between 0 and 16383.\n", optarg);
-					exit(2);
-				}
+			if (parse_num(&s.write_behind, optarg) != 0 ||
+			s.write_behind < 0 || s.write_behind > 16383) {
+				pr_err("Invalid value for maximum outstanding write-behind writes: %s.\n\tMust be between 0 and 16383.\n",
+						optarg);
+				exit(2);
 			}
 			continue;
-
 		case O(INCREMENTAL, 'r'):
 		case O(INCREMENTAL, RebuildMapOpt):
 			rebuild_map = 1;
