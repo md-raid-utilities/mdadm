@@ -258,6 +258,7 @@ int Monitor(struct mddev_dev *devlist,
 			if (oneshot)
 				break;
 			else if (!anyredundant) {
+				pr_err("No array with redundancy detected, stopping\n");
 				break;
 			}
 			else {
