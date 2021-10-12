@@ -1125,6 +1125,7 @@ static int start_array(int mdfd,
 	}
 
 	if (content->array.level == LEVEL_CONTAINER) {
+		sysfs_rules_apply(mddev, content);
 		if (c->verbose >= 0) {
 			pr_err("Container %s has been assembled with %d drive%s",
 			       mddev, okcnt + sparecnt + journalcnt,
@@ -1132,10 +1133,8 @@ static int start_array(int mdfd,
 			if (okcnt < (unsigned)content->array.raid_disks)
 				fprintf(stderr, " (out of %d)\n",
 					content->array.raid_disks);
-			else {
+			else
 				fprintf(stderr, "\n");
-				sysfs_rules_apply(mddev, content);
-			}
 		}
 
 		if (st->ss->validate_container) {
