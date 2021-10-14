@@ -359,7 +359,7 @@ static int check_one_sharer(int scan)
 			 "/proc/%d/comm", pid);
 		comm_fp = fopen(comm_path, "r");
 		if (comm_fp) {
-			if (fscanf(comm_fp, "%s", comm) &&
+			if (fscanf(comm_fp, "%19s", comm) &&
 			    strncmp(basename(comm), Name, strlen(Name)) == 0) {
 				if (scan) {
 					pr_err("Only one autorebuild process allowed in scan mode, aborting\n");

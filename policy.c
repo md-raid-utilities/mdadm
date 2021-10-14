@@ -761,7 +761,7 @@ void policy_save_path(char *id_path, struct map_ent *array)
 		return;
 	}
 
-	if (fprintf(f, "%s %08x:%08x:%08x:%08x\n",
+	if (fprintf(f, "%20s %08x:%08x:%08x:%08x\n",
 		    array->metadata,
 		    array->uuid[0], array->uuid[1],
 		    array->uuid[2], array->uuid[3]) <= 0)
@@ -784,7 +784,7 @@ int policy_check_path(struct mdinfo *disk, struct map_ent *array)
 		if (!f)
 			continue;
 
-		rv = fscanf(f, " %s %x:%x:%x:%x\n",
+		rv = fscanf(f, " %20s %x:%x:%x:%x\n",
 			    array->metadata,
 			    array->uuid,
 			    array->uuid+1,
