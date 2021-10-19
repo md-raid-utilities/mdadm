@@ -783,6 +783,31 @@ static inline char *map_dev(int major, int minor, int create)
 	return map_dev_preferred(major, minor, create, NULL);
 }
 
+/**
+ * is_fd_valid() - check file descriptor.
+ * @fd: file descriptor.
+ *
+ * The function checks if @fd is nonnegative integer and shall be used only
+ * to verify open() result.
+ */
+static inline int is_fd_valid(int fd)
+{
+	return (fd > -1);
+}
+
+/**
+ * close_fd() - verify, close and unset file descriptor.
+ * @fd: pointer to file descriptor.
+ *
+ * The function closes and invalidates file descriptor if appropriative. It
+ * ignores incorrect file descriptor quitely to simplify error handling.
+ */
+static inline void close_fd(int *fd)
+{
+	if (is_fd_valid(*fd) && close(*fd) == 0)
+		*fd = -1;
+}
+
 struct active_array;
 struct metadata_update;
 
