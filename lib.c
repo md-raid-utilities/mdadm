@@ -27,6 +27,17 @@
 #include	<ctype.h>
 #include	<limits.h>
 
+bool is_dev_alive(char *path)
+{
+	if (!path)
+		return false;
+
+	if (access(path, R_OK) == 0)
+		return true;
+
+	return false;
+}
+
 /* This fill contains various 'library' style function.  They
  * have no dependency on anything outside this file.
  */
