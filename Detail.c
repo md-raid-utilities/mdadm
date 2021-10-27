@@ -351,14 +351,14 @@ int Detail(char *dev, struct context *c)
 	avail = xcalloc(array.raid_disks, 1);
 
 	for (d = 0; d < array.raid_disks; d++) {
-		char *dv, *dv_rep;
-		dv = map_dev_preferred(disks[d*2].major,
-				disks[d*2].minor, 0, c->prefer);
-		dv_rep = map_dev_preferred(disks[d*2+1].major,
-				disks[d*2+1].minor, 0, c->prefer);
+		char dv[PATH_MAX], dv_rep[PATH_MAX];
+		snprintf(dv, PATH_MAX, "/sys/dev/block/%d:%d",
+			disks[d*2].major, disks[d*2].minor);
+		snprintf(dv_rep, PATH_MAX, "/sys/dev/block/%d:%d",
+			disks[d*2+1].major, disks[d*2+1].minor);
 
-		if ((dv && (disks[d*2].state & (1<<MD_DISK_SYNC))) ||
-		    (dv_rep && (disks[d*2+1].state & (1<<MD_DISK_SYNC)))) {
+		if ((is_dev_alive(dv) && (disks[d*2].state & (1<<MD_DISK_SYNC))) ||
+		    (is_dev_alive(dv_rep) && (disks[d*2+1].state & (1<<MD_DISK_SYNC)))) {
 			avail_disks ++;
 			avail[d] = 1;
 		} else
