@@ -1658,7 +1658,7 @@ int get_spare_criteria_imsm(struct supertype *st, struct spare_criteria *c)
 	return 0;
 }
 
-static int is_gen_migration(struct imsm_dev *dev);
+static bool is_gen_migration(struct imsm_dev *dev);
 
 #define IMSM_4K_DIV 8
 
@@ -1902,7 +1902,7 @@ void examine_migr_rec_imsm(struct intel_super *super)
 		struct imsm_map *map;
 		int slot = -1;
 
-		if (is_gen_migration(dev) == 0)
+		if (is_gen_migration(dev) == false)
 				continue;
 
 		printf("\nMigration Record Information:");
@@ -3461,6 +3461,12 @@ static void getinfo_super_imsm_volume(struct supertype *st, struct mdinfo *info,
 	info->recovery_blocked = imsm_reshape_blocks_arrays_changes(st->sb);
 
 	if (is_gen_migration(dev)) {
+		/*
+		 * device prev_map should be added if it is in the middle
+		 * of migration
+		 */
+		assert(prev_map);
+
 		info->reshape_active = 1;
 		info->new_level = get_imsm_raid_level(map);
 		info->new_layout = imsm_level_to_layout(info->new_level);
@@ -4255,7 +4261,7 @@ static void end_migration(struct imsm_dev *dev, struct intel_super *super,
 	 *
 	 * FIXME add support for raid-level-migration
 	 */
-	if (map_state != map->map_state && (is_gen_migration(dev) == 0) &&
+	if (map_state != map->map_state && (is_gen_migration(dev) == false) &&
 	    prev->map_state != IMSM_T_STATE_UNINITIALIZED) {
 		/* when final map state is other than expected
 		 * merge maps (not for migration)
@@ -7862,18 +7868,13 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 	return 0;
 }
 
-static int is_gen_migration(struct imsm_dev *dev)
+static bool is_gen_migration(struct imsm_dev *dev)
 {
-	if (dev == NULL)
-		return 0;
+	if (dev && dev->vol.migr_state &&
+	    migr_type(dev) == MIGR_GEN_MIGR)
+		return true;
 
-	if (!dev->vol.migr_state)
-		return 0;
-
-	if (migr_type(dev) == MIGR_GEN_MIGR)
-		return 1;
-
-	return 0;
+	return false;
 }
 
 static int is_rebuilding(struct imsm_dev *dev)
@@ -8377,7 +8378,7 @@ static void handle_missing(struct intel_super *super, struct imsm_dev *dev)
 	dprintf("imsm: mark missing\n");
 	/* end process for initialization and rebuild only
 	 */
-	if (is_gen_migration(dev) == 0) {
+	if (is_gen_migration(dev) == false) {
 		int failed = imsm_count_failed(super, dev, MAP_0);
 
 		if (failed) {
