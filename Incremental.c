@@ -1346,7 +1346,7 @@ restart:
 		}
 		mdfd = open_dev(me->devnm);
 
-		if (mdfd < 0)
+		if (!is_fd_valid(mdfd))
 			continue;
 		if (!isdigit(me->metadata[0])) {
 			/* must be a container */
@@ -1356,7 +1356,7 @@ restart:
 
 			if (st && st->ss->load_container)
 				ret = st->ss->load_container(st, mdfd, NULL);
-			close(mdfd);
+			close_fd(&mdfd);
 			if (!ret && st && st->ss->container_content) {
 				if (map_lock(&map))
 					pr_err("failed to get exclusive lock on mapfile\n");
@@ -1368,7 +1368,7 @@ restart:
 			continue;
 		}
 		if (md_array_active(mdfd)) {
-			close(mdfd);
+			close_fd(&mdfd);
 			continue;
 		}
 		/* Ok, we can try this one.   Maybe it needs a bitmap */
@@ -1385,9 +1385,9 @@ restart:
 			int bmfd;
 
 			bmfd = open(mddev->bitmap_file, O_RDWR);
-			if (bmfd >= 0) {
+			if (is_fd_valid(bmfd)) {
 				added = ioctl(mdfd, SET_BITMAP_FILE, bmfd);
-				close(bmfd);
+				close_fd(&bmfd);
 			}
 			if (c->verbose >= 0) {
 				if (added == 0)
@@ -1416,6 +1416,7 @@ restart:
 			}
 			sysfs_free(sra);
 		}
+		close_fd(&mdfd);
 	}
 	map_free(mapl);
 	return rv;
