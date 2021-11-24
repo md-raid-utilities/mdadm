@@ -569,8 +569,7 @@ static int select_devices(struct mddev_dev *devlist,
 				if (dfd < 0 ||
 				    st->ss->load_super(st, dfd, NULL))
 					tmpdev->used = 2;
-				if (dfd > 0)
-					close(dfd);
+				close_fd(&dfd);
 			}
 		}
 

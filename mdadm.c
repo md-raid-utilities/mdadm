@@ -1770,8 +1770,7 @@ int main(int argc, char *argv[])
 	}
 	if (locked)
 		cluster_release_dlmlock();
-	if (mdfd > 0)
-		close(mdfd);
+	close_fd(&mdfd);
 	exit(rv);
 }
 

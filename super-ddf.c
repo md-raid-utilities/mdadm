@@ -4914,7 +4914,7 @@ static int raid10_degraded(struct mdinfo *info)
 			pr_err("BUG: invalid raid disk\n");
 			goto out;
 		}
-		if (d->state_fd > 0)
+		if (is_fd_valid(d->state_fd))
 			found[i]++;
 	}
 	ret = 2;

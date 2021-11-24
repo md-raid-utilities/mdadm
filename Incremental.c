@@ -1702,8 +1702,8 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		return 1;
 	}
 	mdfd = open_dev_excl(ent->devnm);
-	if (mdfd > 0) {
-		close(mdfd);
+	if (is_fd_valid(mdfd)) {
+		close_fd(&mdfd);
 		if (sysfs_get_str(&mdi, NULL, "array_state",
 				  buf, sizeof(buf)) > 0) {
 			if (strncmp(buf, "active", 6) == 0 ||
