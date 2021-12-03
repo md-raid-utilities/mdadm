@@ -1359,9 +1359,16 @@ int main(int argc, char *argv[])
 			mdfd = open_mddev(devlist->devname, 1);
 			if (mdfd < 0)
 				exit(1);
-		} else
+		} else {
+			char *bname = basename(devlist->devname);
+
+			if (strlen(bname) > MD_NAME_MAX) {
+				pr_err("Name %s is too long.\n", devlist->devname);
+				exit(1);
+			}
 			/* non-existent device is OK */
 			mdfd = open_mddev(devlist->devname, 0);
+		}
 		if (mdfd == -2) {
 			pr_err("device %s exists but is not an md array.\n", devlist->devname);
 			exit(1);

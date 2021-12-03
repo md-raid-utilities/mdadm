@@ -2186,6 +2186,11 @@ is run, but will be created by
 .I udev
 once the array becomes active.
 
+The max length md-device name is limited to 32 characters.
+Different metadata types have more strict limitation
+(like IMSM where only 16 characters are allowed).
+For that reason, long name could be truncated or rejected, it depends on metadata policy.
+
 As devices are added, they are checked to see if they contain RAID
 superblocks or filesystems.  They are also checked to see if the variance in
 device size exceeds 1%.
