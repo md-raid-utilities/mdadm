@@ -50,7 +50,7 @@ ENV{DEVTYPE}!="partition", GOTO="md_timeouts_end"
 
 IMPORT{program}="/sbin/mdadm --examine --export $devnode"
 
-ACTION=="add|change", \
+ACTION!="remove", \
   ENV{ID_FS_TYPE}=="linux_raid_member", \
   ENV{MD_LEVEL}=="raid[1-9]*", \
   TEST=="/sys/block/$parent/device/timeout", \

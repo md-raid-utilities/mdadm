@@ -3,7 +3,7 @@
 SUBSYSTEM!="block", GOTO="md_end"
 
 # handle md arrays
-ACTION!="add|change", GOTO="md_end"
+ACTION=="remove", GOTO="md_end"
 KERNEL!="md*", GOTO="md_end"
 
 # partitions have no md/{array_state,metadata_version}, but should not
