@@ -1512,6 +1512,7 @@ extern int get_linux_version(void);
 extern int mdadm_version(char *version);
 extern unsigned long long parse_size(char *size);
 extern int parse_uuid(char *str, int uuid[4]);
+int default_layout(struct supertype *st, int level, int verbose);
 extern int is_near_layout_10(int layout);
 extern int parse_layout_10(char *layout);
 extern int parse_layout_faulty(char *layout);

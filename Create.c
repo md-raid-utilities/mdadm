@@ -39,39 +39,54 @@ static int round_size_and_verify(unsigned long long *size, int chunk)
 	return 0;
 }
 
-static int default_layout(struct supertype *st, int level, int verbose)
+/**
+ * default_layout() - Get default layout for level.
+ * @st: metadata requested, could be NULL.
+ * @level: raid level requested.
+ * @verbose: verbose level.
+ *
+ * Try to ask metadata handler first, otherwise use global defaults.
+ *
+ * Return: Layout or &UnSet, return value meaning depends of level used.
+ */
+int default_layout(struct supertype *st, int level, int verbose)
 {
 	int layout = UnSet;
+	mapping_t *layout_map = NULL;
+	char *layout_name = NULL;
 
 	if (st && st->ss->default_geometry)
 		st->ss->default_geometry(st, &level, &layout, NULL);
 
-	if (layout == UnSet)
-		switch(level) {
-		default: /* no layout */
-			layout = 0;
-			break;
-		case 0:
-			layout = RAID0_ORIG_LAYOUT;
-			break;
-		case 10:
-			layout = 0x102; /* near=2, far=1 */
-			if (verbose > 0)
-				pr_err("layout defaults to n2\n");
-			break;
-		case 5:
-		case 6:
-			layout = map_name(r5layout, "default");
-			if (verbose > 0)
-				pr_err("layout defaults to %s\n", map_num(r5layout, layout));
-			break;
-		case LEVEL_FAULTY:
-			layout = map_name(faultylayout, "default");
+	if (layout != UnSet)
+		return layout;
 
-			if (verbose > 0)
-				pr_err("layout defaults to %s\n", map_num(faultylayout, layout));
-			break;
-		}
+	switch (level) {
+	default: /* no layout */
+		layout = 0;
+		break;
+	case 0:
+		layout = RAID0_ORIG_LAYOUT;
+		break;
+	case 10:
+		layout = 0x102; /* near=2, far=1 */
+		layout_name = "n2";
+		break;
+	case 5:
+	case 6:
+		layout_map = r5layout;
+		break;
+	case LEVEL_FAULTY:
+		layout_map = faultylayout;
+		break;
+	}
+
+	if (layout_map) {
+		layout = map_name(layout_map, "default");
+		layout_name = map_num(layout_map, layout);
+	}
+	if (layout_name && verbose > 0)
+		pr_err("layout defaults to %s\n", layout_name);
 
 	return layout;
 }

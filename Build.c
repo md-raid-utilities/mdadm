@@ -71,28 +71,7 @@ int Build(char *mddev, struct mddev_dev *devlist,
 	}
 
 	if (s->layout == UnSet)
-		switch(s->level) {
-		default: /* no layout */
-			s->layout = 0;
-			break;
-		case 10:
-			s->layout = 0x102; /* near=2, far=1 */
-			if (c->verbose > 0)
-				pr_err("layout defaults to n1\n");
-			break;
-		case 5:
-		case 6:
-			s->layout = map_name(r5layout, "default");
-			if (c->verbose > 0)
-				pr_err("layout defaults to %s\n", map_num(r5layout, s->layout));
-			break;
-		case LEVEL_FAULTY:
-			s->layout = map_name(faultylayout, "default");
-
-			if (c->verbose > 0)
-				pr_err("layout defaults to %s\n", map_num(faultylayout, s->layout));
-			break;
-		}
+		s->layout = default_layout(NULL, s->level, c->verbose);
 
 	/* We need to create the device.  It can have no name. */
 	map_lock(&map);
