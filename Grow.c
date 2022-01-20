@@ -547,7 +547,7 @@ int Grow_consistency_policy(char *devname, int fd, struct context *c, struct sha
 	if (s->consistency_policy != CONSISTENCY_POLICY_RESYNC &&
 	    s->consistency_policy != CONSISTENCY_POLICY_PPL) {
 		pr_err("Operation not supported for consistency policy %s\n",
-		       map_num(consistency_policies, s->consistency_policy));
+		       map_num_s(consistency_policies, s->consistency_policy));
 		return 1;
 	}
 
@@ -578,14 +578,14 @@ int Grow_consistency_policy(char *devname, int fd, struct context *c, struct sha
 
 	if (sra->consistency_policy == (unsigned)s->consistency_policy) {
 		pr_err("Consistency policy is already %s\n",
-		       map_num(consistency_policies, s->consistency_policy));
+		       map_num_s(consistency_policies, s->consistency_policy));
 		ret = 1;
 		goto free_info;
 	} else if (sra->consistency_policy != CONSISTENCY_POLICY_RESYNC &&
 		   sra->consistency_policy != CONSISTENCY_POLICY_PPL) {
 		pr_err("Current consistency policy is %s, cannot change to %s\n",
-		       map_num(consistency_policies, sra->consistency_policy),
-		       map_num(consistency_policies, s->consistency_policy));
+		       map_num_s(consistency_policies, sra->consistency_policy),
+		       map_num_s(consistency_policies, s->consistency_policy));
 		ret = 1;
 		goto free_info;
 	}
@@ -704,8 +704,8 @@ int Grow_consistency_policy(char *devname, int fd, struct context *c, struct sha
 	}
 
 	ret = sysfs_set_str(sra, NULL, "consistency_policy",
-			    map_num(consistency_policies,
-				    s->consistency_policy));
+			    map_num_s(consistency_policies,
+					 s->consistency_policy));
 	if (ret)
 		pr_err("Failed to change array consistency policy\n");
 
@@ -2241,7 +2241,7 @@ size_change_error:
 		info.new_layout = UnSet;
 		if (info.array.level == 6 && info.new_level == UnSet) {
 			char l[40], *h;
-			strcpy(l, map_num(r6layout, info.array.layout));
+			strcpy(l, map_num_s(r6layout, info.array.layout));
 			h = strrchr(l, '-');
 			if (h && strcmp(h, "-6") == 0) {
 				*h = 0;
@@ -2266,7 +2266,7 @@ size_change_error:
 			info.new_layout = info.array.layout;
 		else if (info.array.level == 5 && info.new_level == 6) {
 			char l[40];
-			strcpy(l, map_num(r5layout, info.array.layout));
+			strcpy(l, map_num_s(r5layout, info.array.layout));
 			strcat(l, "-6");
 			info.new_layout = map_name(r6layout, l);
 		} else {

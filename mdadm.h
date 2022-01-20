@@ -770,7 +770,7 @@ extern int restore_stripes(int *dest, unsigned long long *offsets,
 #endif
 
 #define SYSLOG_FACILITY LOG_DAEMON
-
+extern char *map_num_s(mapping_t *map, int num);
 extern char *map_num(mapping_t *map, int num);
 extern int map_name(mapping_t *map, char *name);
 extern mapping_t r0layout[], r5layout[], r6layout[],

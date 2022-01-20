@@ -280,8 +280,8 @@ int main(int argc, char *argv[])
 			else
 				fprintf(stderr, "-%c", opt);
 			fprintf(stderr, " would set mdadm mode to \"%s\", but it is already set to \"%s\".\n",
-				map_num(modes, newmode),
-				map_num(modes, mode));
+				map_num_s(modes, newmode),
+				map_num_s(modes, mode));
 			exit(2);
 		} else if (!mode && newmode) {
 			mode = newmode;
@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
 			switch(s.level) {
 			default:
 				pr_err("layout not meaningful for %s arrays.\n",
-					map_num(pers, s.level));
+					map_num_s(pers, s.level));
 				exit(2);
 			case UnSet:
 				pr_err("raid level must be given before layout.\n");
@@ -1248,10 +1248,10 @@ int main(int argc, char *argv[])
 		if (option_index > 0)
 			pr_err(":option --%s not valid in %s mode\n",
 				long_options[option_index].name,
-				map_num(modes, mode));
+				map_num_s(modes, mode));
 		else
 			pr_err("option -%c not valid in %s mode\n",
-				opt, map_num(modes, mode));
+				opt, map_num_s(modes, mode));
 		exit(2);
 
 	}
@@ -1276,7 +1276,7 @@ int main(int argc, char *argv[])
 		if (s.consistency_policy != CONSISTENCY_POLICY_UNKNOWN &&
 		    s.consistency_policy != CONSISTENCY_POLICY_JOURNAL) {
 			pr_err("--write-journal is not supported with consistency policy: %s\n",
-			       map_num(consistency_policies, s.consistency_policy));
+			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		}
 	}
@@ -1285,12 +1285,12 @@ int main(int argc, char *argv[])
 	    s.consistency_policy != CONSISTENCY_POLICY_UNKNOWN) {
 		if (s.level <= 0) {
 			pr_err("--consistency-policy not meaningful with level %s.\n",
-			       map_num(pers, s.level));
+			       map_num_s(pers, s.level));
 			exit(2);
 		} else if (s.consistency_policy == CONSISTENCY_POLICY_JOURNAL &&
 			   !s.journaldisks) {
 			pr_err("--write-journal is required for consistency policy: %s\n",
-			       map_num(consistency_policies, s.consistency_policy));
+			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		} else if (s.consistency_policy == CONSISTENCY_POLICY_PPL &&
 			   s.level != 5) {
@@ -1300,14 +1300,14 @@ int main(int argc, char *argv[])
 			   (!s.bitmap_file ||
 			    strcmp(s.bitmap_file, "none") == 0)) {
 			pr_err("--bitmap is required for consistency policy: %s\n",
-			       map_num(consistency_policies, s.consistency_policy));
+			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		} else if (s.bitmap_file &&
 			   strcmp(s.bitmap_file, "none") != 0 &&
 			   s.consistency_policy != CONSISTENCY_POLICY_BITMAP &&
 			   s.consistency_policy != CONSISTENCY_POLICY_JOURNAL) {
 			pr_err("--bitmap is not compatible with consistency policy: %s\n",
-			       map_num(consistency_policies, s.consistency_policy));
+			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		}
 	}

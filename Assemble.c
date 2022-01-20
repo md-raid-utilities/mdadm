@@ -63,7 +63,7 @@ static void set_array_assembly_status(struct context *c,
 				   struct assembly_array_info *arr)
 {
 	int raid_disks = arr->preexist_cnt + arr->new_cnt;
-	char *status_msg = map_num(assemble_statuses, status);
+	char *status_msg = map_num_s(assemble_statuses, status);
 
 	if (c->export && result)
 		*result |= status;
@@ -77,9 +77,7 @@ static void set_array_assembly_status(struct context *c,
 		fprintf(stderr, " (%d new)", arr->new_cnt);
 	if (arr->exp_cnt)
 		fprintf(stderr, " ( + %d for expansion)", arr->exp_cnt);
-	if (status_msg)
-		fprintf(stderr, " %s", status_msg);
-	fprintf(stderr, ".\n");
+	fprintf(stderr, " %s.\n", status_msg);
 }
 
 static int name_matches(char *found, char *required, char *homehost, int require_homehost)

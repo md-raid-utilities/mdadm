@@ -83,7 +83,7 @@ int default_layout(struct supertype *st, int level, int verbose)
 
 	if (layout_map) {
 		layout = map_name(layout_map, "default");
-		layout_name = map_num(layout_map, layout);
+		layout_name = map_num_s(layout_map, layout);
 	}
 	if (layout_name && verbose > 0)
 		pr_err("layout defaults to %s\n", layout_name);

@@ -495,8 +495,8 @@ int Detail(char *dev, struct context *c)
 			if (array.state & (1 << MD_SB_CLEAN)) {
 				if ((array.level == 0) ||
 				    (array.level == LEVEL_LINEAR))
-					arrayst = map_num(sysfs_array_states,
-							  sra->array_state);
+					arrayst = map_num_s(sysfs_array_states,
+							       sra->array_state);
 				else
 					arrayst = "clean";
 			} else {

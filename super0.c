@@ -288,7 +288,7 @@ static void export_examine_super0(struct supertype *st)
 {
 	mdp_super_t *sb = st->sb;
 
-	printf("MD_LEVEL=%s\n", map_num(pers, sb->level));
+	printf("MD_LEVEL=%s\n", map_num_s(pers, sb->level));
 	printf("MD_DEVICES=%d\n", sb->raid_disks);
 	if (sb->minor_version >= 90)
 		printf("MD_UUID=%08x:%08x:%08x:%08x\n",

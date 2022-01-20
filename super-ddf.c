@@ -1477,13 +1477,13 @@ static void examine_vds(struct ddf_super *sb)
 		printf("\n");
 		printf("         unit[%d] : %d\n", i, be16_to_cpu(ve->unit));
 		printf("        state[%d] : %s, %s%s\n", i,
-		       map_num(ddf_state, ve->state & 7),
+		       map_num_s(ddf_state, ve->state & 7),
 		       (ve->state & DDF_state_morphing) ? "Morphing, ": "",
 		       (ve->state & DDF_state_inconsistent)? "Not Consistent" : "Consistent");
 		printf("   init state[%d] : %s\n", i,
-		       map_num(ddf_init_state, ve->init_state&DDF_initstate_mask));
+		       map_num_s(ddf_init_state, ve->init_state & DDF_initstate_mask));
 		printf("       access[%d] : %s\n", i,
-		       map_num(ddf_access, (ve->init_state & DDF_access_mask) >> 6));
+		       map_num_s(ddf_access, (ve->init_state & DDF_access_mask) >> 6));
 		printf("         Name[%d] : %.16s\n", i, ve->name);
 		examine_vd(i, sb, ve->guid);
 	}

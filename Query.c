@@ -93,7 +93,7 @@ int Query(char *dev)
 	else {
 		printf("%s: %s %s %d devices, %d spare%s. Use mdadm --detail for more detail.\n",
 		       dev, human_size_brief(larray_size,IEC),
-		       map_num(pers, level), raid_disks,
+		       map_num_s(pers, level), raid_disks,
 		       spare_disks, spare_disks == 1 ? "" : "s");
 	}
 	st = guess_super(fd);
@@ -131,7 +131,7 @@ int Query(char *dev)
 		       dev,
 		       info.disk.number, info.array.raid_disks,
 		       activity,
-		       map_num(pers, info.array.level),
+		       map_num_s(pers, info.array.level),
 		       mddev);
 		if (st->ss == &super0)
 			put_md_name(mddev);

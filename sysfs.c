@@ -689,7 +689,7 @@ int sysfs_set_array(struct mdinfo *info, int vers)
 	if (info->array.level < 0)
 		return 0; /* FIXME */
 	rv |= sysfs_set_str(info, NULL, "level",
-			    map_num(pers, info->array.level));
+			    map_num_s(pers, info->array.level));
 	if (info->reshape_active && info->delta_disks != UnSet)
 		raid_disks -= info->delta_disks;
 	rv |= sysfs_set_num(info, NULL, "raid_disks", raid_disks);
@@ -724,9 +724,10 @@ int sysfs_set_array(struct mdinfo *info, int vers)
 	}
 
 	if (info->consistency_policy == CONSISTENCY_POLICY_PPL) {
-		if (sysfs_set_str(info, NULL, "consistency_policy",
-				  map_num(consistency_policies,
-					  info->consistency_policy))) {
+		char *policy = map_num_s(consistency_policies,
+					    info->consistency_policy);
+
+		if (sysfs_set_str(info, NULL, "consistency_policy", policy)) {
 			pr_err("This kernel does not support PPL. Falling back to consistency-policy=resync.\n");
 			info->consistency_policy = CONSISTENCY_POLICY_RESYNC;
 		}

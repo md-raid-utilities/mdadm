@@ -166,6 +166,30 @@ mapping_t sysfs_array_states[] = {
 	{ NULL, ARRAY_UNKNOWN_STATE }
 };
 
+/**
+ * map_num_s() - Safer alternative of map_num() function.
+ * @map: map to search.
+ * @num: key to match.
+ *
+ * Shall be used only if key existence is quaranted.
+ *
+ * Return: Pointer to name of the element.
+ */
+char *map_num_s(mapping_t *map, int num)
+{
+	char *ret = map_num(map, num);
+
+	assert(ret);
+	return ret;
+}
+
+/**
+ * map_num() - get element name by key.
+ * @map: map to search.
+ * @num: key to match.
+ *
+ * Return: Pointer to name of the element or NULL.
+ */
 char *map_num(mapping_t *map, int num)
 {
 	while (map->name) {

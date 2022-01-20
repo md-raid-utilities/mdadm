@@ -671,7 +671,7 @@ static void export_examine_super1(struct supertype *st)
 	int len = 32;
 	int layout;
 
-	printf("MD_LEVEL=%s\n", map_num(pers, __le32_to_cpu(sb->level)));
+	printf("MD_LEVEL=%s\n", map_num_s(pers, __le32_to_cpu(sb->level)));
 	printf("MD_DEVICES=%d\n", __le32_to_cpu(sb->raid_disks));
 	for (i = 0; i < 32; i++)
 		if (sb->set_name[i] == '\n' || sb->set_name[i] == '\0') {
