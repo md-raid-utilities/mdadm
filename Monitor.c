@@ -26,7 +26,6 @@
 #include	"md_p.h"
 #include	"md_u.h"
 #include	<sys/wait.h>
-#include	<signal.h>
 #include	<limits.h>
 #include	<syslog.h>
 #ifndef NO_LIBUDEV
@@ -435,8 +434,10 @@ static void alert(char *event, char *dev, char *disc, struct alert_info *info)
 		if (mp) {
 			FILE *mdstat;
 			char hname[256];
+
 			gethostname(hname, sizeof(hname));
-			signal(SIGPIPE, SIG_IGN);
+			signal_s(SIGPIPE, SIG_IGN);
+
 			if (info->mailfrom)
 				fprintf(mp, "From: %s\n", info->mailfrom);
 			else

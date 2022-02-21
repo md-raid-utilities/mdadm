@@ -22,7 +22,6 @@
 #include "probe_roms.h"
 #include "mdadm.h"
 #include <unistd.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -69,7 +68,8 @@ static int probe_address16(const __u16 *ptr, __u16 *val)
 
 void probe_roms_exit(void)
 {
-	signal(SIGBUS, SIG_DFL);
+	signal_s(SIGBUS, SIG_DFL);
+
 	if (rom_fd >= 0) {
 		close(rom_fd);
 		rom_fd = -1;
@@ -98,7 +98,7 @@ int probe_roms_init(unsigned long align)
 	if (roms_init())
 		return -1;
 
-	if (signal(SIGBUS, sigbus) == SIG_ERR)
+	if (signal_s(SIGBUS, sigbus) == SIG_ERR)
 		rc = -1;
 	if (rc == 0) {
 		fd = open("/dev/mem", O_RDONLY);

@@ -35,7 +35,6 @@
 #include	<poll.h>
 #include	<ctype.h>
 #include	<dirent.h>
-#include	<signal.h>
 #include	<dlfcn.h>
 
 

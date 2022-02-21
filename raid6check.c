@@ -24,7 +24,6 @@
 
 #include "mdadm.h"
 #include <stdint.h>
-#include <signal.h>
 #include <sys/mman.h>
 
 #define CHECK_PAGE_BITS (12)
@@ -130,30 +129,36 @@ void raid6_stats(int *disk, int *results, int raid_disks, int chunk_size)
 }
 
 int lock_stripe(struct mdinfo *info, unsigned long long start,
-		int chunk_size, int data_disks, sighandler_t *sig) {
+		int chunk_size, int data_disks, sighandler_t *sig)
+{
 	int rv;
+
+	sig[0] = signal_s(SIGTERM, SIG_IGN);
+	sig[1] = signal_s(SIGINT, SIG_IGN);
+	sig[2] = signal_s(SIGQUIT, SIG_IGN);
+
+	if (sig[0] == SIG_ERR || sig[1] == SIG_ERR || sig[2] == SIG_ERR)
+		return 1;
+
 	if(mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {
 		return 2;
 	}
-
-	sig[0] = signal(SIGTERM, SIG_IGN);
-	sig[1] = signal(SIGINT, SIG_IGN);
-	sig[2] = signal(SIGQUIT, SIG_IGN);
 
 	rv = sysfs_set_num(info, NULL, "suspend_lo", start * chunk_size * data_disks);
 	rv |= sysfs_set_num(info, NULL, "suspend_hi", (start + 1) * chunk_size * data_disks);
 	return rv * 256;
 }
 
-int unlock_all_stripes(struct mdinfo *info, sighandler_t *sig) {
+int unlock_all_stripes(struct mdinfo *info, sighandler_t *sig)
+{
 	int rv;
 	rv = sysfs_set_num(info, NULL, "suspend_lo", 0x7FFFFFFFFFFFFFFFULL);
 	rv |= sysfs_set_num(info, NULL, "suspend_hi", 0);
 	rv |= sysfs_set_num(info, NULL, "suspend_lo", 0);
 
-	signal(SIGQUIT, sig[2]);
-	signal(SIGINT, sig[1]);
-	signal(SIGTERM, sig[0]);
+	signal_s(SIGQUIT, sig[2]);
+	signal_s(SIGINT, sig[1]);
+	signal_s(SIGTERM, sig[0]);
 
 	if(munlockall() != 0)
 		return 3;

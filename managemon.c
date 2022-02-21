@@ -106,7 +106,6 @@
 #include	"mdmon.h"
 #include	<sys/syscall.h>
 #include	<sys/socket.h>
-#include	<signal.h>
 
 static void close_aa(struct active_array *aa)
 {
