@@ -1001,8 +1001,8 @@ int remove_disks_for_takeover(struct supertype *st,
 				rv = 1;
 			sysfs_free(arrays);
 			if (rv) {
-				pr_err("Error. Cannot perform operation on /dev/%s\n", st->devnm);
-				pr_err("For this operation it MUST be single array in container\n");
+				pr_err("Error. Cannot perform operation on %s- for this operation "
+				       "it MUST be single array in container\n", st->devnm);
 				return rv;
 			}
 		}

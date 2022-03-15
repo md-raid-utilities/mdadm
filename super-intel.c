@@ -11683,8 +11683,8 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 		struct imsm_super *mpb = super->anchor;
 
 		if (mpb->num_raid_devs > 1) {
-			pr_err("Error. Cannot perform operation on %s- for this operation it MUST be single array in container\n",
-			       geo->dev_name);
+			pr_err("Error. Cannot perform operation on %s- for this operation "
+			       "it MUST be single array in container\n", geo->dev_name);
 			change = -1;
 		}
 	}
