@@ -613,7 +613,6 @@ char Help_incr[] =
 ;
 
 char Help_config[] =
-"The /etc/mdadm.conf config file:\n\n"
 " The config file contains, apart from blank lines and comment lines that\n"
 " start with a hash(#), array lines, device lines, and various\n"
 " configuration lines.\n"
@@ -636,10 +635,12 @@ char Help_config[] =
 " than a device must match all of them to be considered.\n"
 "\n"
 " Other configuration lines include:\n"
-"  mailaddr, mailfrom, program     used for --monitor mode\n"
-"  create, auto                    used when creating device names in /dev\n"
-"  homehost, policy, part-policy   used to guide policy in various\n"
-"                                  situations\n"
+"  mailaddr, mailfrom, program, monitordelay    used for --monitor mode\n"
+"  create, auto                                 used when creating device names in /dev\n"
+"  homehost, homecluster, policy, part-policy   used to guide policy in various\n"
+"                                               situations\n"
+"\n"
+"For more details see mdadm.conf(5).\n"
 "\n"
 ;
 
