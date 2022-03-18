@@ -439,6 +439,23 @@ from any possible local name. e.g.
 .B /dev/md/1_1
 or
 .BR /dev/md/home_0 .
+
+.TP
+.B HOMECLUSTER
+The
+.B homcluster
+line gives a default value for the
+.B \-\-homecluster=
+option to mdadm.  It specifies  the  cluster name for the md device.
+The md device can be assembled only on the cluster which matches
+the name specified. If
+.B homcluster
+is not provided, mdadm tries to detect the cluster name automatically.
+
+There should only be one
+.B homecluster
+line.  Any subsequent lines will be silently ignored.
+
 .TP
 .B AUTO
 A list of names of metadata format can be given, each preceded by a
