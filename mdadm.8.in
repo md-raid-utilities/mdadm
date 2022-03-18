@@ -267,13 +267,13 @@ the exact meaning of this option in different contexts.
 .TP
 .BR \-c ", " \-\-config=
 Specify the config file or directory.  Default is to use
-.B /etc/mdadm.conf
+.B {CONFFILE}
 and
-.BR /etc/mdadm.conf.d ,
+.BR {CONFFILE}.d ,
 or if those are missing then
-.B /etc/mdadm/mdadm.conf
+.B {CONFFILE2}
 and
-.BR /etc/mdadm/mdadm.conf.d .
+.BR {CONFFILE2}.d .
 If the config file given is
 .B "partitions"
 then nothing will be read, but
@@ -2014,9 +2014,9 @@ The config file is only used if explicitly named with
 or requested with (a possibly implicit)
 .BR \-\-scan .
 In the later case,
-.B /etc/mdadm.conf
+.B {CONFFILE}
 or
-.B /etc/mdadm/mdadm.conf
+.B {CONFFILE2}
 is used.
 
 If
@@ -3344,7 +3344,7 @@ uses this to find arrays when
 is given in Misc mode, and to monitor array reconstruction
 on Monitor mode.
 
-.SS /etc/mdadm.conf
+.SS {CONFFILE} (or {CONFFILE2})
 
 The config file lists which devices may be scanned to see if
 they contain MD super block, and gives identifying information
@@ -3352,7 +3352,7 @@ they contain MD super block, and gives identifying information
 .BR mdadm.conf (5)
 for more details.
 
-.SS /etc/mdadm.conf.d
+.SS {CONFFILE}.d (or {CONFFILE2}.d)
 
 A directory containing configuration files which are read in lexical
 order.

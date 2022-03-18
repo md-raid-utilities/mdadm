@@ -227,7 +227,12 @@ raid6check : raid6check.o mdadm.h $(CHECK_OBJS)
 
 mdadm.8 : mdadm.8.in
 	sed -e 's/{DEFAULT_METADATA}/$(DEFAULT_METADATA)/g' \
-	-e 's,{MAP_PATH},$(MAP_PATH),g'  mdadm.8.in > mdadm.8
+	-e 's,{MAP_PATH},$(MAP_PATH),g' -e 's,{CONFFILE},$(CONFFILE),g' \
+	-e 's,{CONFFILE2},$(CONFFILE2),g'  mdadm.8.in > mdadm.8
+
+mdadm.conf.5 : mdadm.conf.5.in
+	sed -e 's,{CONFFILE},$(CONFFILE),g' \
+	-e 's,{CONFFILE2},$(CONFFILE2),g'  mdadm.conf.5.in > mdadm.conf.5
 
 mdadm.man : mdadm.8
 	man -l mdadm.8 > mdadm.man

@@ -8,7 +8,7 @@
 .SH NAME
 mdadm.conf \- configuration for management of Software RAID with mdadm
 .SH SYNOPSIS
-/etc/mdadm.conf
+{CONFFILE}
 .SH DESCRIPTION
 .PP
 .I mdadm
