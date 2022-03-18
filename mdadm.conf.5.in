@@ -88,7 +88,8 @@ but only the major and minor device numbers.  It scans
 .I /dev
 to find the name that matches the numbers.
 
-If no DEVICE line is present, then "DEVICE partitions containers" is assumed.
+If no DEVICE line is present in any config file,
+then "DEVICE partitions containers" is assumed.
 
 For example:
 .IP
@@ -272,6 +273,10 @@ catenated with spaces to form the address.
 Note that this value cannot be set via the
 .I mdadm
 commandline.  It is only settable via the config file.
+There should only be one
+.B MAILADDR
+line and it should have only one address.  Any subsequent addresses
+are silently ignored.
 
 .TP
 .B PROGRAM
@@ -286,7 +291,8 @@ device.
 
 There should only be one
 .B program
-line and it should be give only one program.
+line and it should be given only one program.  Any subsequent programs
+are silently ignored.
 
 
 .TP
@@ -295,7 +301,14 @@ The
 .B create
 line gives default values to be used when creating arrays, new members
 of arrays, and device entries for arrays.
-These include:
+
+There should only be one
+.B create
+line.  Any subsequent lines will override the previous settings.
+
+Keywords used in the
+.I CREATE
+line and supported values are:
 
 .RS 4
 .TP
@@ -475,8 +488,8 @@ The known metadata types are
 
 .B AUTO
 should be given at most once.  Subsequent lines are silently ignored.
-Thus an earlier config file in a config directory will over-ride
-the setting in a later config file.
+Thus a later config file in a config directory will not overwrite
+the setting in an earlier config file.
 
 .TP
 .B POLICY
@@ -594,6 +607,7 @@ The
 line lists custom values of MD device's sysfs attributes which will be
 stored in sysfs after the array is assembled. Multiple lines are allowed and each
 line has to contain the uuid or the name of the device to which it relates.
+Lines are applied in reverse order.
 .RS 4
 .TP
 .B uuid=
@@ -621,7 +635,46 @@ is running in
 .B \-\-monitor
 mode.
 .B \-d/\-\-delay
-command line argument takes precedence over the config file
+command line argument takes precedence over the config file.
+
+If multiple
+.B MINITORDELAY
+lines are provided, only first non-zero value is considered.
+
+.SH FILES
+
+.SS {CONFFILE}
+
+The default config file location, used when
+.I mdadm
+is running without --config option.
+
+.SS {CONFFILE}.d
+
+The default directory with config files. Used when
+.I mdadm
+is running without --config option, after successful reading of the
+.B {CONFFILE}
+default config file. Files in that directory
+are read in lexical order.
+
+
+.SS {CONFFILE2}
+
+Alternative config file that is read, when
+.I mdadm
+is running without --config option and the
+.B {CONFFILE}
+default config file was not opened successfully.
+
+.SS {CONFFILE2}.d
+
+The alternative directory with config files. Used when
+.I mdadm
+is runninng without --config option, after reading the
+.B {CONFFILE2}
+alternative config file whether it was successful or not. Files in
+that directory are read in lexical order.
 
 .SH EXAMPLE
 DEVICE /dev/sd[bcdjkl]1

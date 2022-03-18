@@ -266,14 +266,11 @@ the exact meaning of this option in different contexts.
 
 .TP
 .BR \-c ", " \-\-config=
-Specify the config file or directory.  Default is to use
-.B {CONFFILE}
-and
-.BR {CONFFILE}.d ,
-or if those are missing then
-.B {CONFFILE2}
-and
-.BR {CONFFILE2}.d .
+Specify the config file or directory.  If not specified, default config file
+and default conf.d directory will be used.  See
+.BR mdadm.conf (5)
+for more details.
+
 If the config file given is
 .B "partitions"
 then nothing will be read, but
@@ -2013,11 +2010,9 @@ The config file is only used if explicitly named with
 .B \-\-config
 or requested with (a possibly implicit)
 .BR \-\-scan .
-In the later case,
-.B {CONFFILE}
-or
-.B {CONFFILE2}
-is used.
+In the later case, default config file is used.  See
+.BR mdadm.conf (5)
+for more details.
 
 If
 .B \-\-scan
@@ -3346,16 +3341,15 @@ on Monitor mode.
 
 .SS {CONFFILE} (or {CONFFILE2})
 
-The config file lists which devices may be scanned to see if
-they contain MD super block, and gives identifying information
-(e.g. UUID) about known MD arrays.  See
+Default config file.  See
 .BR mdadm.conf (5)
 for more details.
 
 .SS {CONFFILE}.d (or {CONFFILE2}.d)
 
-A directory containing configuration files which are read in lexical
-order.
+Default directory containing configuration files.  See
+.BR mdadm.conf (5)
+for more details.
 
 .SS {MAP_PATH}
 When
