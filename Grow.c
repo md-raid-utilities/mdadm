@@ -1998,6 +1998,12 @@ int Grow_reshape(char *devname, int fd,
 			goto release;
 		}
 
+		if (array.level == 0) {
+			pr_err("Component size change is not supported for RAID0\n");
+			rv = 1;
+			goto release;
+		}
+
 		if (reshape_super(st, s->size, UnSet, UnSet, 0, 0, UnSet, NULL,
 				  devname, APPLY_METADATA_CHANGES,
 				  c->verbose > 0)) {

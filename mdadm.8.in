@@ -459,7 +459,8 @@ number of spare devices.
 
 .TP
 .BR \-z ", " \-\-size=
-Amount (in Kilobytes) of space to use from each drive in RAID levels 1/4/5/6.
+Amount (in Kilobytes) of space to use from each drive in RAID levels 1/4/5/6/10
+and for RAID 0 on external metadata.
 This must be a multiple of the chunk size, and must leave about 128Kb
 of space at the end of the drive for the RAID superblock.
 If this is not specified
@@ -478,10 +479,19 @@ To guard against this it can be useful to set the initial size
 slightly smaller than the smaller device with the aim that it will
 still be larger than any replacement.
 
+This option can be used with
+.B \-\-create
+for determining initial size of an array. For external metadata,
+it can be used on a volume, but not on a container itself.
+Setting initial size of
+.B RAID 0
+array is only valid for external metadata.
+
 This value can be set with
 .B \-\-grow
-for RAID level 1/4/5/6 though
+for RAID level 1/4/5/6/10 though
 DDF arrays may not be able to support this.
+RAID 0 array size cannot be changed.
 If the array was created with a size smaller than the currently
 active drives, the extra space can be accessed using
 .BR \-\-grow .
@@ -500,11 +510,6 @@ an 'fsck' of the filesystem is a minimum requirement.  If there are
 problems the array can be made bigger again with no loss with another
 .B "\-\-grow \-\-size="
 command.
-
-This value cannot be used when creating a
-.B CONTAINER
-such as with DDF and IMSM metadata, though it perfectly valid when
-creating an array inside a container.
 
 .TP
 .BR \-Z ", " \-\-array\-size=
