@@ -11783,9 +11783,8 @@ static int imsm_fix_size_mismatch(struct supertype *st, int subarray_index)
 			st->update_tail = &st->updates;
 		} else {
 			imsm_sync_metadata(st);
+			free(update);
 		}
-
-		free(update);
 	}
 	ret_val = 0;
 exit:
