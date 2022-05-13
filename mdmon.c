@@ -288,6 +288,15 @@ void usage(void)
 	exit(2);
 }
 
+static bool is_duplicate_opt(const int opt, const int set_val, const char *long_name)
+{
+	if (opt == set_val) {
+		pr_err("--%s option duplicated!\n", long_name);
+		return true;
+	}
+	return false;
+}
+
 static int mdmon(char *devnm, int must_fork, int takeover);
 
 int main(int argc, char *argv[])
@@ -299,6 +308,7 @@ int main(int argc, char *argv[])
 	int all = 0;
 	int takeover = 0;
 	int dofork = 1;
+	bool help = false;
 	static struct option options[] = {
 		{"all", 0, NULL, 'a'},
 		{"takeover", 0, NULL, 't'},
@@ -308,6 +318,41 @@ int main(int argc, char *argv[])
 		{NULL, 0, NULL, 0}
 	};
 
+	while ((opt = getopt_long(argc, argv, "thaF", options, NULL)) != -1) {
+		switch (opt) {
+		case 'a':
+			if (is_duplicate_opt(all, 1, "all"))
+				exit(1);
+			container_name = argv[optind-1];
+			all = 1;
+			break;
+		case 't':
+			if (is_duplicate_opt(takeover, 1, "takeover"))
+				exit(1);
+			takeover = 1;
+			break;
+		case 'F':
+			if (is_duplicate_opt(dofork, 0, "foreground"))
+				exit(1);
+			dofork = 0;
+			break;
+		case OffRootOpt:
+			if (is_duplicate_opt(argv[0][0], '@', "offroot"))
+				exit(1);
+			argv[0][0] = '@';
+			break;
+		case 'h':
+			if (is_duplicate_opt(help, true, "help"))
+				exit(1);
+			help = true;
+			break;
+		default:
+			usage();
+			break;
+		}
+	}
+
+
 	if (in_initrd()) {
 		/*
 		 * set first char of argv[0] to @. This is used by
@@ -315,28 +360,6 @@ int main(int argc, char *argv[])
 		 * initrd/initramfs and should be preserved during shutdown
 		 */
 		argv[0][0] = '@';
-	}
-
-	while ((opt = getopt_long(argc, argv, "thaF", options, NULL)) != -1) {
-		switch (opt) {
-		case 'a':
-			container_name = argv[optind-1];
-			all = 1;
-			break;
-		case 't':
-			takeover = 1;
-			break;
-		case 'F':
-			dofork = 0;
-			break;
-		case OffRootOpt:
-			argv[0][0] = '@';
-			break;
-		case 'h':
-		default:
-			usage();
-			break;
-		}
 	}
 
 	if (all == 0 && container_name == NULL) {
@@ -352,6 +375,9 @@ int main(int argc, char *argv[])
 
 	if (strcmp(container_name, "/proc/mdstat") == 0)
 		all = 1;
+
+	if (help)
+		usage();
 
 	if (all) {
 		struct mdstat_ent *mdstat, *e;
