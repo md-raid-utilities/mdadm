@@ -1892,6 +1892,14 @@ int Grow_reshape(char *devname, int fd,
 
 		if (retval) {
 			pr_err("Cannot read superblock for %s\n", devname);
+			close(cfd);
+			free(subarray);
+			return 1;
+		}
+
+		if (s->raiddisks && subarray) {
+			pr_err("--raid-devices operation can be performed on a container only\n");
+			close(cfd);
 			free(subarray);
 			return 1;
 		}
