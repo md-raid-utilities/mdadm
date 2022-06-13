@@ -1499,7 +1499,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		return 0;
 	}
 	for (ra = list ; ra ; ra = ra->next) {
-		int mdfd;
+		int mdfd = -1;
 		char chosen_name[1024];
 		struct map_ent *mp;
 		struct mddev_ident *match = NULL;
@@ -1514,6 +1514,12 @@ static int Incremental_container(struct supertype *st, char *devname,
 
 		if (mp) {
 			mdfd = open_dev(mp->devnm);
+			if (!is_fd_valid(mdfd)) {
+				pr_err("failed to open %s: %s.\n",
+				       mp->devnm, strerror(errno));
+				rv = 2;
+				goto release;
+			}
 			if (mp->path)
 				strcpy(chosen_name, mp->path);
 			else
@@ -1573,21 +1579,25 @@ static int Incremental_container(struct supertype *st, char *devname,
 					    c->autof,
 					    trustworthy,
 					    chosen_name, 0);
-		}
-		if (only && (!mp || strcmp(mp->devnm, only) != 0))
-			continue;
 
-		if (mdfd < 0) {
-			pr_err("failed to open %s: %s.\n",
-				chosen_name, strerror(errno));
-			return 2;
+			if (!is_fd_valid(mdfd)) {
+				pr_err("create_mddev failed with chosen name %s: %s.\n",
+				       chosen_name, strerror(errno));
+				rv = 2;
+				goto release;
+			}
+		}
+
+		if (only && (!mp || strcmp(mp->devnm, only) != 0)) {
+			close_fd(&mdfd);
+			continue;
 		}
 
 		assemble_container_content(st, mdfd, ra, c,
 					   chosen_name, &result);
 		map_free(map);
 		map = NULL;
-		close(mdfd);
+		close_fd(&mdfd);
 	}
 	if (c->export && result) {
 		char sep = '=';
@@ -1610,7 +1620,11 @@ static int Incremental_container(struct supertype *st, char *devname,
 		}
 		printf("\n");
 	}
-	return 0;
+
+release:
+	map_free(map);
+	sysfs_free(list);
+	return rv;
 }
 
 static void run_udisks(char *arg1, char *arg2)
