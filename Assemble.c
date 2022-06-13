@@ -1982,7 +1982,12 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	}
 
 	sra = sysfs_read(mdfd, NULL, GET_VERSION|GET_DEVS);
-	if (sra == NULL || strcmp(sra->text_version, content->text_version) != 0) {
+	if (sra == NULL) {
+		pr_err("Failed to read sysfs parameters\n");
+		return 1;
+	}
+
+	if (strcmp(sra->text_version, content->text_version) != 0) {
 		if (content->array.major_version == -1 &&
 		    content->array.minor_version == -2 &&
 		    c->readonly &&

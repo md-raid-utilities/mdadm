@@ -5125,13 +5125,16 @@ static struct mdinfo *ddf_activate_spare(struct active_array *a,
 	 */
 	vc = find_vdcr(ddf, a->info.container_member, rv->disk.raid_disk,
 		       &n_bvd, &vcl);
-	if (vc == NULL)
+	if (vc == NULL) {
+		free(rv);
 		return NULL;
+	}
 
 	mu = xmalloc(sizeof(*mu));
 	if (posix_memalign(&mu->space, 512, sizeof(struct vcl)) != 0) {
 		free(mu);
-		mu = NULL;
+		free(rv);
+		return NULL;
 	}
 
 	mu->len = ddf->conf_rec_len * 512 * vcl->conf.sec_elmnt_count;
@@ -5161,6 +5164,8 @@ static struct mdinfo *ddf_activate_spare(struct active_array *a,
 			pr_err("BUG: can't find disk %d (%d/%d)\n",
 			       di->disk.raid_disk,
 			       di->disk.major, di->disk.minor);
+			free(mu);
+			free(rv);
 			return NULL;
 		}
 		vc->phys_refnum[i_prim] = ddf->phys->entries[dl->pdnum].refnum;
