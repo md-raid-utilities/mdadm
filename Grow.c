@@ -2944,7 +2944,7 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 	}
 
 	md_get_array_info(fd, &array);
-	if (level == 0 && (array.level >= 4 && array.level <= 6)) {
+	if (level == 0 && is_level456(array.level)) {
 		/* To convert to RAID0 we need to fail and
 		 * remove any non-data devices. */
 		int found = 0;

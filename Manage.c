@@ -307,7 +307,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	 *  - unfreeze reshape
 	 *  - wait on 'sync_completed' for that point to be reached.
 	 */
-	if (mdi && (mdi->array.level >= 4 && mdi->array.level <= 6) &&
+	if (mdi && is_level456(mdi->array.level) &&
 	    sysfs_attribute_available(mdi, NULL, "sync_action") &&
 	    sysfs_attribute_available(mdi, NULL, "reshape_direction") &&
 	    sysfs_get_str(mdi, NULL, "sync_action", buf, 20) > 0 &&
@@ -1679,6 +1679,7 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 {
 	struct supertype supertype, *st = &supertype;
 	int fd, rv = 2;
+	struct mdinfo *info = NULL;
 
 	memset(st, 0, sizeof(*st));
 
@@ -1696,6 +1697,13 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 	if (mdmon_running(st->devnm))
 		st->update_tail = &st->updates;
 
+	info = st->ss->container_content(st, subarray);
+
+	if (strncmp(update, "ppl", 3) == 0 && !is_level456(info->array.level)) {
+		pr_err("RWH policy ppl is supported only for raid4, raid5 and raid6.\n");
+		goto free_super;
+	}
+
 	rv = st->ss->update_subarray(st, subarray, update, ident);
 
 	if (rv) {
@@ -1711,7 +1719,9 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 		pr_err("Updated subarray-%s name from %s, UUIDs may have changed\n",
 		       subarray, dev);
 
- free_super:
+free_super:
+	if (info)
+		free(info);
 	st->ss->free_super(st);
 	close(fd);
 

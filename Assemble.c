@@ -906,8 +906,7 @@ static int force_array(struct mdinfo *content,
 				 * devices in RAID4 or last devices in RAID4/5/6.
 				 */
 				delta = devices[j].i.delta_disks;
-				if (devices[j].i.array.level >= 4 &&
-				    devices[j].i.array.level <= 6 &&
+				if (is_level456(devices[j].i.array.level) &&
 				    i/2 >= content->array.raid_disks - delta)
 					/* OK */;
 				else if (devices[j].i.array.level == 4 &&
@@ -1226,8 +1225,7 @@ static int start_array(int mdfd,
 				fprintf(stderr, ".\n");
 			}
 			if (content->reshape_active &&
-			    content->array.level >= 4 &&
-			    content->array.level <= 6) {
+			    is_level456(content->array.level)) {
 				/* might need to increase the size
 				 * of the stripe cache - default is 256
 				 */
@@ -1974,7 +1972,8 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	int start_reshape;
 	char *avail;
 	int err;
-	int is_raid456, is_clean, all_disks;
+	int is_clean, all_disks;
+	bool is_raid456;
 
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
@@ -2107,7 +2106,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		content->array.state |= 1;
 	}
 
-	is_raid456 = (content->array.level >= 4 && content->array.level <= 6);
+	is_raid456 = is_level456(content->array.level);
 	is_clean = content->array.state & 1;
 
 	if (enough(content->array.level, content->array.raid_disks,

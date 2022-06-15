@@ -797,6 +797,17 @@ static inline int is_fd_valid(int fd)
 }
 
 /**
+ * is_level456() - check whether given level is between inclusive 4 and 6.
+ * @level: level to check.
+ *
+ * Return: true if condition is met, false otherwise
+ */
+static inline bool is_level456(int level)
+{
+	return (level >= 4 && level <= 6);
+}
+
+/**
  * close_fd() - verify, close and unset file descriptor.
  * @fd: pointer to file descriptor.
  *

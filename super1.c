@@ -1530,8 +1530,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			 * So we reject a revert-reshape unless the
 			 * alignment is good.
 			 */
-			if (__le32_to_cpu(sb->level) >= 4 &&
-			    __le32_to_cpu(sb->level) <= 6) {
+			if (is_level456(__le32_to_cpu(sb->level))) {
 				reshape_sectors =
 					__le64_to_cpu(sb->reshape_position);
 				reshape_chunk = __le32_to_cpu(sb->new_chunk);

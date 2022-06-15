@@ -683,7 +683,7 @@ static int update_super0(struct supertype *st, struct mdinfo *info,
 			int parity = sb->level == 6 ? 2 : 1;
 			rv = 0;
 
-			if (sb->level >= 4 && sb->level <= 6 &&
+			if (is_level456(sb->level) &&
 			    sb->reshape_position % (
 				    sb->new_chunk/512 *
 				    (sb->raid_disks - sb->delta_disks - parity))) {
