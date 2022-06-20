@@ -5789,6 +5789,10 @@ static int add_to_super_imsm_volume(struct supertype *st, mdu_disk_info_t *dk,
 	struct imsm_map *map;
 	struct dl *dl, *df;
 	int slot;
+	int autolayout = 0;
+
+	if (!is_fd_valid(fd))
+		autolayout = 1;
 
 	dev = get_imsm_dev(super, super->current_vol);
 	map = get_imsm_map(dev, MAP_0);
@@ -5799,23 +5803,30 @@ static int add_to_super_imsm_volume(struct supertype *st, mdu_disk_info_t *dk,
 		return 1;
 	}
 
-	if (!is_fd_valid(fd)) {
-		/* we're doing autolayout so grab the pre-marked (in
-		 * validate_geometry) raid_disk
-		 */
-		for (dl = super->disks; dl; dl = dl->next)
+	for (dl = super->disks; dl ; dl = dl->next) {
+		if (autolayout) {
 			if (dl->raiddisk == dk->raid_disk)
 				break;
-	} else {
-		for (dl = super->disks; dl ; dl = dl->next)
-			if (dl->major == dk->major &&
-			    dl->minor == dk->minor)
-				break;
+		} else if (dl->major == dk->major && dl->minor == dk->minor)
+			break;
 	}
 
 	if (!dl) {
-		pr_err("%s is not a member of the same container\n", devname);
+		if (!autolayout)
+			pr_err("%s is not a member of the same container.\n",
+			       devname);
 		return 1;
+	}
+
+	if (!autolayout && super->current_vol > 0) {
+		int _slot = get_disk_slot_in_dev(super, 0, dl->index);
+
+		if (_slot != dk->raid_disk) {
+			pr_err("Member %s is in %d slot for the first volume, but is in %d slot for a new volume.\n",
+			       dl->devname, _slot, dk->raid_disk);
+			pr_err("Raid members are in different order than for the first volume, aborting.\n");
+			return 1;
+		}
 	}
 
 	if (mpb->num_disks == 0)
