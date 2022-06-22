@@ -3514,7 +3514,6 @@ started:
 			return 0;
 		}
 
-	close(fd);
 	/* Now we just need to kick off the reshape and watch, while
 	 * handling backups of the data...
 	 * This is all done by a forked background process.
@@ -3534,6 +3533,9 @@ started:
 		map_fork();
 		break;
 	}
+
+	/* Close unused file descriptor in the forked process */
+	close_fd(&fd);
 
 	/* If another array on the same devices is busy, the
 	 * reshape will wait for them.  This would mean that
