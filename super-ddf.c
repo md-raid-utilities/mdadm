@@ -503,13 +503,6 @@ struct ddf_super {
 static int load_super_ddf_all(struct supertype *st, int fd,
 			      void **sbp, char *devname);
 static int get_svd_state(const struct ddf_super *, const struct vcl *);
-static int
-validate_geometry_ddf_container(struct supertype *st,
-				int level, int layout, int raiddisks,
-				int chunk, unsigned long long size,
-				unsigned long long data_offset,
-				char *dev, unsigned long long *freesize,
-				int verbose);
 
 static int validate_geometry_ddf_bvd(struct supertype *st,
 				     int level, int layout, int raiddisks,
@@ -3322,6 +3315,42 @@ static int reserve_space(struct supertype *st, int raiddisks,
 	return 1;
 }
 
+static int
+validate_geometry_ddf_container(struct supertype *st,
+				int level, int raiddisks,
+				unsigned long long data_offset,
+				char *dev, unsigned long long *freesize,
+				int verbose)
+{
+	int fd;
+	unsigned long long ldsize;
+
+	if (level != LEVEL_CONTAINER)
+		return 0;
+	if (!dev)
+		return 1;
+
+	fd = dev_open(dev, O_RDONLY|O_EXCL);
+	if (fd < 0) {
+		if (verbose)
+			pr_err("ddf: Cannot open %s: %s\n",
+			       dev, strerror(errno));
+		return 0;
+	}
+	if (!get_dev_size(fd, dev, &ldsize)) {
+		close(fd);
+		return 0;
+	}
+	close(fd);
+	if (freesize) {
+		*freesize = avail_size_ddf(st, ldsize >> 9, INVALID_SECTORS);
+		if (*freesize == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int validate_geometry_ddf(struct supertype *st,
 				 int level, int layout, int raiddisks,
 				 int *chunk, unsigned long long size,
@@ -3347,11 +3376,9 @@ static int validate_geometry_ddf(struct supertype *st,
 		level = LEVEL_CONTAINER;
 	if (level == LEVEL_CONTAINER) {
 		/* Must be a fresh device to add to a container */
-		return validate_geometry_ddf_container(st, level, layout,
-						       raiddisks, *chunk,
-						       size, data_offset, dev,
-						       freesize,
-						       verbose);
+		return validate_geometry_ddf_container(st, level, raiddisks,
+						       data_offset, dev,
+						       freesize, verbose);
 	}
 
 	if (!dev) {
@@ -3445,43 +3472,6 @@ static int validate_geometry_ddf(struct supertype *st,
 		close(cfd);
 	} else /* device may belong to a different container */
 		return 0;
-
-	return 1;
-}
-
-static int
-validate_geometry_ddf_container(struct supertype *st,
-				int level, int layout, int raiddisks,
-				int chunk, unsigned long long size,
-				unsigned long long data_offset,
-				char *dev, unsigned long long *freesize,
-				int verbose)
-{
-	int fd;
-	unsigned long long ldsize;
-
-	if (level != LEVEL_CONTAINER)
-		return 0;
-	if (!dev)
-		return 1;
-
-	fd = dev_open(dev, O_RDONLY|O_EXCL);
-	if (fd < 0) {
-		if (verbose)
-			pr_err("ddf: Cannot open %s: %s\n",
-			       dev, strerror(errno));
-		return 0;
-	}
-	if (!get_dev_size(fd, dev, &ldsize)) {
-		close(fd);
-		return 0;
-	}
-	close(fd);
-	if (freesize) {
-		*freesize = avail_size_ddf(st, ldsize >> 9, INVALID_SECTORS);
-		if (*freesize == 0)
-			return 0;
-	}
 
 	return 1;
 }
