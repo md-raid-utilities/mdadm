@@ -3369,9 +3369,6 @@ static int validate_geometry_ddf(struct supertype *st,
 	 * If given BVDs, we make an SVD, changing all the GUIDs in the process.
 	 */
 
-	if (*chunk == UnSet)
-		*chunk = DEFAULT_CHUNK;
-
 	if (level == LEVEL_NONE)
 		level = LEVEL_CONTAINER;
 	if (level == LEVEL_CONTAINER) {
@@ -3380,6 +3377,9 @@ static int validate_geometry_ddf(struct supertype *st,
 						       data_offset, dev,
 						       freesize, verbose);
 	}
+
+	if (*chunk == UnSet)
+		*chunk = DEFAULT_CHUNK;
 
 	if (!dev) {
 		mdu_array_info_t array = {
