@@ -1,0 +1,8 @@
+always fails
+
+Prints lots of messages, but the array doesn't assemble. Error
+possibly related to:
+
+  mdadm: /dev/md/1 is busy - skipping
+  mdadm: no recogniseable superblock on /dev/md/testing:0
+  mdadm: /dev/md/2 is busy - skipping

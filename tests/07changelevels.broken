@@ -1,0 +1,9 @@
+always fails
+
+Fails with errors:
+
+    mdadm: /dev/loop0 is smaller than given size. 18976K < 19968K + metadata
+    mdadm: /dev/loop1 is smaller than given size. 18976K < 19968K + metadata
+    mdadm: /dev/loop2 is smaller than given size. 18976K < 19968K + metadata
+
+    ERROR: /dev/md0 isn't a block device.

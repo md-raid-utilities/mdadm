@@ -1,0 +1,6 @@
+fails infrequently
+
+Fails roughly 1 in 10 runs with errors:
+
+    mdadm: /dev/loop2 is still in use, cannot remove.
+    /dev/loop2 removal from /dev/md/container should have succeeded

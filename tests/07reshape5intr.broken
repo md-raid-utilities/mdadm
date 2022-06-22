@@ -1,0 +1,45 @@
+always fails
+
+This patch, recently added to md-next causes the test to always fail:
+
+7e6ba434cc60 ("md: don't unregister sync_thread with reconfig_mutex
+held")
+
+The new error is simply:
+
+   ERROR: no reshape happening
+
+Before the patch, the error seen is below.
+
+--
+
+fails infrequently
+
+Fails roughly 1 in 4 runs with errors:
+
+    mdadm: Merging with already-assembled /dev/md/0
+    mdadm: cannot re-read metadata from /dev/loop6 - aborting
+
+    ERROR: no reshape happening
+
+Also have seen a random deadlock:
+
+     INFO: task mdadm:109702 blocked for more than 30 seconds.
+           Not tainted 5.18.0-rc3-eid-vmlocalyes-dbg-00095-g3c2b5427979d #2040
+     "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+     task:mdadm           state:D stack:    0 pid:109702 ppid:     1 flags:0x00004000
+     Call Trace:
+      <TASK>
+      __schedule+0x67e/0x13b0
+      schedule+0x82/0x110
+      mddev_suspend+0x2e1/0x330
+      suspend_lo_store+0xbd/0x140
+      md_attr_store+0xcb/0x130
+      sysfs_kf_write+0x89/0xb0
+      kernfs_fop_write_iter+0x202/0x2c0
+      new_sync_write+0x222/0x330
+      vfs_write+0x3bc/0x4d0
+      ksys_write+0xd9/0x180
+      __x64_sys_write+0x43/0x50
+      do_syscall_64+0x3b/0x90
+      entry_SYSCALL_64_after_hwframe+0x44/0xae

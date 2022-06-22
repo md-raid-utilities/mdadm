@@ -1,0 +1,7 @@
+fails infrequently
+
+Fails about 1 in 5 with a sha mismatch:
+
+    8286c2bc045ae2cfe9f8b7ae3a898fa25db6926f /dev/md0 does not match
+    a083a0738b58caab37fd568b91b177035ded37df /dev/md0 with /dev/loop2 and
+    /dev/loop3 missing

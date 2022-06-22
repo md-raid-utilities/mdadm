@@ -1,0 +1,12 @@
+always fails
+
+Test seems to run 'test_stripe' at $dir directory, but $dir is never
+set. If $dir is adjusted to $PWD, the test still fails with:
+
+    mdadm: /dev/loop2 is not suitable for this array.
+    mdadm: create aborted
+    ++ return 1
+    ++ cmp -s -n 8192 /dev/md0 /tmp/RandFile
+    ++ echo cmp failed
+    cmp failed
+    ++ exit 2

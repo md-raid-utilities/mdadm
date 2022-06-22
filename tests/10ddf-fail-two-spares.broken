@@ -1,0 +1,5 @@
+fails infrequently
+
+Fails roughly 1 in 3 with error:
+
+   ERROR: /dev/md/vol1 should be optimal in meta data
