@@ -227,6 +227,7 @@ int main(int argc, char *argv[])
 			shortopt = short_bitmap_auto_options;
 			break;
 		case 'F': newmode = MONITOR;
+			shortopt = short_monitor_options;
 			break;
 		case 'G': newmode = GROW;
 			shortopt = short_bitmap_options;
