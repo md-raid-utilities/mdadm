@@ -1201,8 +1201,9 @@ int main(int argc, char *argv[])
 		case O(BUILD, WriteBehind):
 		case O(CREATE, WriteBehind):
 			s.write_behind = DEFAULT_MAX_WRITE_BEHIND;
-			if (parse_num(&s.write_behind, optarg) != 0 ||
-			s.write_behind < 0 || s.write_behind > 16383) {
+			if (optarg &&
+			    (parse_num(&s.write_behind, optarg) != 0 ||
+			     s.write_behind < 0 || s.write_behind > 16383)) {
 				pr_err("Invalid value for maximum outstanding write-behind writes: %s.\n\tMust be between 0 and 16383.\n",
 						optarg);
 				exit(2);
