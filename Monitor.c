@@ -190,9 +190,11 @@ int Monitor(struct mddev_dev *devlist,
 			if (mdlist->devname[0] == '/')
 				st->devname = xstrdup(mdlist->devname);
 			else {
-				st->devname = xmalloc(8+strlen(mdlist->devname)+1);
-				strcpy(strcpy(st->devname, "/dev/md/"),
-				       mdlist->devname);
+				/* length of "/dev/md/" + device name + terminating byte */
+				size_t _len = sizeof("/dev/md/") + strnlen(mdlist->devname, PATH_MAX);
+
+				st->devname = xcalloc(_len, sizeof(char));
+				snprintf(st->devname, _len, "/dev/md/%s", mdlist->devname);
 			}
 			if (!is_mddev(mdlist->devname))
 				return 1;
