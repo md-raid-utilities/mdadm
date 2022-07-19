@@ -595,6 +595,7 @@ struct shape {
 	int	assume_clean;
 	int	write_behind;
 	unsigned long long size;
+	unsigned long long data_offset;
 	int	consistency_policy;
 };
 
@@ -1431,7 +1432,6 @@ extern int Grow_addbitmap(char *devname, int fd,
 			  struct context *c, struct shape *s);
 extern int Grow_reshape(char *devname, int fd,
 			struct mddev_dev *devlist,
-			unsigned long long data_offset,
 			struct context *c, struct shape *s);
 extern int Grow_restart(struct supertype *st, struct mdinfo *info,
 			int *fdlist, int cnt, char *backup_file, int verbose);
@@ -1462,8 +1462,7 @@ extern int Create(struct supertype *st, char *mddev,
 		  char *name, int *uuid,
 		  int subdevs, struct mddev_dev *devlist,
 		  struct shape *s,
-		  struct context *c,
-		  unsigned long long data_offset);
+		  struct context *c);
 
 extern int Detail(char *dev, struct context *c);
 extern int Detail_Platform(struct superswitch *ss, int scan, int verbose, int export, char *controller_path);

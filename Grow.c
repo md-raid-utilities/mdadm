@@ -1775,7 +1775,6 @@ static int reshape_container(char *container, char *devname,
 
 int Grow_reshape(char *devname, int fd,
 		 struct mddev_dev *devlist,
-		 unsigned long long data_offset,
 		 struct context *c, struct shape *s)
 {
 	/* Make some changes in the shape of an array.
@@ -1821,7 +1820,7 @@ int Grow_reshape(char *devname, int fd,
 		return 1;
 	}
 
-	if (data_offset != INVALID_SECTORS && array.level != 10 &&
+	if (s->data_offset != INVALID_SECTORS && array.level != 10 &&
 	    (array.level < 4 || array.level > 6)) {
 		pr_err("--grow --data-offset not yet supported\n");
 		return 1;
@@ -2179,7 +2178,7 @@ size_change_error:
 	if ((s->level == UnSet || s->level == array.level) &&
 	    (s->layout_str == NULL) &&
 	    (s->chunk == 0 || s->chunk == array.chunk_size) &&
-	    data_offset == INVALID_SECTORS &&
+	    s->data_offset == INVALID_SECTORS &&
 	    (s->raiddisks == 0 || s->raiddisks == array.raid_disks)) {
 		/* Nothing more to do */
 		if (!changed && c->verbose >= 0)
@@ -2379,7 +2378,7 @@ size_change_error:
 		}
 		sync_metadata(st);
 		rv = reshape_array(container, fd, devname, st, &info, c->force,
-				   devlist, data_offset, c->backup_file,
+				   devlist, s->data_offset, c->backup_file,
 				   c->verbose, 0, 0, 0);
 		frozen = 0;
 	}

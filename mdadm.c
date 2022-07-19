@@ -49,7 +49,6 @@ int main(int argc, char *argv[])
 	int i;
 
 	unsigned long long array_size = 0;
-	unsigned long long data_offset = INVALID_SECTORS;
 	struct mddev_ident ident;
 	char *configfile = NULL;
 	int devmode = 0;
@@ -79,6 +78,7 @@ int main(int argc, char *argv[])
 		.layout		= UnSet,
 		.bitmap_chunk	= UnSet,
 		.consistency_policy	= CONSISTENCY_POLICY_UNKNOWN,
+		.data_offset = INVALID_SECTORS,
 	};
 
 	char sys_hostname[256];
@@ -479,15 +479,15 @@ int main(int argc, char *argv[])
 
 		case O(CREATE,DataOffset):
 		case O(GROW,DataOffset):
-			if (data_offset != INVALID_SECTORS) {
+			if (s.data_offset != INVALID_SECTORS) {
 				pr_err("data-offset may only be specified one. Second value is %s.\n", optarg);
 				exit(2);
 			}
 			if (mode == CREATE && strcmp(optarg, "variable") == 0)
-				data_offset = VARIABLE_OFFSET;
+				s.data_offset = VARIABLE_OFFSET;
 			else
-				data_offset = parse_size(optarg);
-			if (data_offset == INVALID_SECTORS) {
+				s.data_offset = parse_size(optarg);
+			if (s.data_offset == INVALID_SECTORS) {
 				pr_err("invalid data-offset: %s\n",
 					optarg);
 				exit(2);
@@ -1416,7 +1416,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (c.backup_file && data_offset != INVALID_SECTORS) {
+	if (c.backup_file && s.data_offset != INVALID_SECTORS) {
 		pr_err("--backup-file and --data-offset are incompatible\n");
 		exit(2);
 	}
@@ -1587,8 +1587,7 @@ int main(int argc, char *argv[])
 
 		rv = Create(ss, devlist->devname,
 			    ident.name, ident.uuid_set ? ident.uuid : NULL,
-			    devs_found-1, devlist->next,
-			    &s, &c, data_offset);
+			    devs_found - 1, devlist->next, &s, &c);
 		break;
 	case MISC:
 		if (devmode == 'E') {
@@ -1706,10 +1705,9 @@ int main(int argc, char *argv[])
 						   c.verbose);
 		else if (s.size > 0 || s.raiddisks || s.layout_str ||
 			 s.chunk != 0 || s.level != UnSet ||
-			 data_offset != INVALID_SECTORS) {
+			 s.data_offset != INVALID_SECTORS) {
 			rv = Grow_reshape(devlist->devname, mdfd,
-					  devlist->next,
-					  data_offset, &c, &s);
+					  devlist->next, &c, &s);
 		} else if (s.consistency_policy != CONSISTENCY_POLICY_UNKNOWN) {
 			rv = Grow_consistency_policy(devlist->devname, mdfd, &c, &s);
 		} else if (array_size == 0)

@@ -95,7 +95,7 @@ int Create(struct supertype *st, char *mddev,
 	   char *name, int *uuid,
 	   int subdevs, struct mddev_dev *devlist,
 	   struct shape *s,
-	   struct context *c, unsigned long long data_offset)
+	   struct context *c)
 {
 	/*
 	 * Create a new raid array.
@@ -288,7 +288,7 @@ int Create(struct supertype *st, char *mddev,
 	newsize = s->size * 2;
 	if (st && ! st->ss->validate_geometry(st, s->level, s->layout, s->raiddisks,
 					      &s->chunk, s->size*2,
-					      data_offset, NULL,
+					      s->data_offset, NULL,
 					      &newsize, s->consistency_policy,
 					      c->verbose >= 0))
 		return 1;
@@ -323,10 +323,10 @@ int Create(struct supertype *st, char *mddev,
 	info.array.working_disks = 0;
 	dnum = 0;
 	for (dv = devlist; dv; dv = dv->next)
-		if (data_offset == VARIABLE_OFFSET)
+		if (s->data_offset == VARIABLE_OFFSET)
 			dv->data_offset = INVALID_SECTORS;
 		else
-			dv->data_offset = data_offset;
+			dv->data_offset = s->data_offset;
 
 	for (dv=devlist; dv && !have_container; dv=dv->next, dnum++) {
 		char *dname = dv->devname;
@@ -342,7 +342,7 @@ int Create(struct supertype *st, char *mddev,
 			missing_disks ++;
 			continue;
 		}
-		if (data_offset == VARIABLE_OFFSET) {
+		if (s->data_offset == VARIABLE_OFFSET) {
 			doff = strchr(dname, ':');
 			if (doff) {
 				*doff++ = 0;
@@ -350,7 +350,7 @@ int Create(struct supertype *st, char *mddev,
 			} else
 				dv->data_offset = INVALID_SECTORS;
 		} else
-			dv->data_offset = data_offset;
+			dv->data_offset = s->data_offset;
 
 		dfd = open(dname, O_RDONLY);
 		if (dfd < 0) {
@@ -535,7 +535,7 @@ int Create(struct supertype *st, char *mddev,
 			if (!st->ss->validate_geometry(st, s->level, s->layout,
 						       s->raiddisks,
 						       &s->chunk, minsize*2,
-						       data_offset,
+						       s->data_offset,
 						       NULL, NULL,
 						       s->consistency_policy, 0)) {
 				pr_err("devices too large for RAID level %d\n", s->level);
@@ -754,7 +754,7 @@ int Create(struct supertype *st, char *mddev,
 		}
 	}
 	if (!st->ss->init_super(st, &info.array, s, name, c->homehost, uuid,
-				data_offset))
+				s->data_offset))
 		goto abort_locked;
 
 	total_slots = info.array.nr_disks;
