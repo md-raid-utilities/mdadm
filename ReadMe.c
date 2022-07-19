@@ -147,7 +147,6 @@ struct option long_options[] = {
     {"nofailfast",0, 0,  NoFailFast},
     {"re-add",    0, 0,  ReAdd},
     {"homehost",  1, 0,  HomeHost},
-    {"symlinks",  1, 0,  Symlinks},
     {"data-offset",1, 0, DataOffset},
     {"nodes",1, 0, Nodes}, /* also for --assemble */
     {"home-cluster",1, 0, ClusterName},

@@ -394,7 +394,6 @@ struct createinfo {
 	int	gid;
 	int	autof;
 	int	mode;
-	int	symlinks;
 	int	names;
 	int	bblist;
 	struct supertype *supertype;
@@ -442,7 +441,6 @@ enum special_options {
 	BackupFile,
 	HomeHost,
 	AutoHomeHost,
-	Symlinks,
 	AutoDetect,
 	Waitclean,
 	DetailPlatform,

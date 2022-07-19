@@ -59,7 +59,6 @@ int main(int argc, char *argv[])
 	struct mddev_dev *dv;
 	mdu_array_info_t array;
 	int devs_found = 0;
-	char *symlinks = NULL;
 	int grow_continue = 0;
 	/* autof indicates whether and how to create device node.
 	 * bottom 3 bits are style.  Rest (when shifted) are number of parts
@@ -663,13 +662,6 @@ int main(int argc, char *argv[])
 		case O(ASSEMBLE,Auto): /* auto-creation of device node */
 			c.autof = parse_auto(optarg, "--auto flag", 0);
 			continue;
-
-		case O(CREATE,Symlinks):
-		case O(BUILD,Symlinks):
-		case O(ASSEMBLE,Symlinks): /* auto creation of symlinks in /dev to /dev/md */
-			symlinks = optarg;
-			continue;
-
 		case O(BUILD,'f'): /* force honouring '-n 1' */
 		case O(BUILD,Force): /* force honouring '-n 1' */
 		case O(GROW,'f'): /* ditto */
@@ -1325,18 +1317,6 @@ int main(int argc, char *argv[])
 		exit(2);
 	}
 
-	if (symlinks) {
-		struct createinfo *ci = conf_get_create_info();
-
-		if (strcasecmp(symlinks, "yes") == 0)
-			ci->symlinks = 1;
-		else if (strcasecmp(symlinks, "no") == 0)
-			ci->symlinks = 0;
-		else {
-			pr_err("option --symlinks must be 'no' or 'yes'\n");
-			exit(2);
-		}
-	}
 	/* Ok, got the option parsing out of the way
 	 * hopefully it's mostly right but there might be some stuff
 	 * missing

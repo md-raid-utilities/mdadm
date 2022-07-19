@@ -194,7 +194,6 @@ struct mddev_dev *load_containers(void)
 
 struct createinfo createinfo = {
 	.autof = 2, /* by default, create devices with standard names */
-	.symlinks = 1,
 	.names = 0, /* By default, stick with numbered md devices. */
 	.bblist = 1, /* Use a bad block list by default */
 #ifdef DEBIAN
@@ -310,11 +309,7 @@ static void createline(char *line)
 			if (!createinfo.supertype)
 				pr_err("metadata format %s unknown, ignoring\n",
 					w+9);
-		} else if (strncasecmp(w, "symlinks=yes", 12) == 0)
-			createinfo.symlinks = 1;
-		else if  (strncasecmp(w, "symlinks=no", 11) == 0)
-			createinfo.symlinks = 0;
-		else if (strncasecmp(w, "names=yes", 12) == 0)
+		} else if (strncasecmp(w, "names=yes", 12) == 0)
 			createinfo.names = 1;
 		else if  (strncasecmp(w, "names=no", 11) == 0)
 			createinfo.names = 0;
