@@ -11869,10 +11869,6 @@ static int imsm_fix_size_mismatch(struct supertype *st, int subarray_index)
 		geo.size = d_size;
 		u_size = imsm_create_metadata_update_for_size_change(st, &geo,
 								     &update);
-		if (u_size < 1) {
-			dprintf("imsm: Cannot prepare size change update\n");
-			goto exit;
-		}
 		imsm_update_metadata_locally(st, update, u_size);
 		if (st->update_tail) {
 			append_metadata_update(st, update, u_size);
