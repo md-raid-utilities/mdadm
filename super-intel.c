@@ -11854,7 +11854,7 @@ static int imsm_fix_size_mismatch(struct supertype *st, int subarray_index)
 		unsigned long long d_size = imsm_dev_size(dev);
 		int u_size;
 
-		if (calc_size == d_size || dev->vol.migr_type == MIGR_GEN_MIGR)
+		if (calc_size == d_size)
 			continue;
 
 		/* There is a difference, confirm that imsm_dev_size is
