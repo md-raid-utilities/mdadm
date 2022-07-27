@@ -1329,6 +1329,9 @@ int main(int argc, char *argv[])
 
 	if (mode == MANAGE || mode == BUILD || mode == CREATE ||
 	    mode == GROW || (mode == ASSEMBLE && ! c.scan)) {
+		struct stat stb;
+		int ret;
+
 		if (devs_found < 1) {
 			pr_err("an md device must be given in this mode\n");
 			exit(2);
@@ -1341,6 +1344,12 @@ int main(int argc, char *argv[])
 			mdfd = open_mddev(devlist->devname, 1);
 			if (mdfd < 0)
 				exit(1);
+
+			ret = fstat(mdfd, &stb);
+			if (ret) {
+				pr_err("fstat failed on %s.\n", devlist->devname);
+				exit(1);
+			}
 		} else {
 			char *bname = basename(devlist->devname);
 
@@ -1348,30 +1357,21 @@ int main(int argc, char *argv[])
 				pr_err("Name %s is too long.\n", devlist->devname);
 				exit(1);
 			}
-			/* non-existent device is OK */
-			mdfd = open_mddev(devlist->devname, 0);
-		}
-		if (mdfd == -2) {
-			pr_err("device %s exists but is not an md array.\n", devlist->devname);
-			exit(1);
-		}
-		if ((int)ident.super_minor == -2) {
-			struct stat stb;
-			if (mdfd < 0) {
+
+			ret = stat(devlist->devname, &stb);
+			if (ident.super_minor == -2 && ret != 0) {
 				pr_err("--super-minor=dev given, and listed device %s doesn't exist.\n",
-					devlist->devname);
+				       devlist->devname);
 				exit(1);
 			}
-			fstat(mdfd, &stb);
+
+			if (!ret && !stat_is_md_dev(&stb)) {
+				pr_err("device %s exists but is not an md array.\n", devlist->devname);
+				exit(1);
+			}
+		}
+		if (ident.super_minor == -2)
 			ident.super_minor = minor(stb.st_rdev);
-		}
-		if (mdfd >= 0 && mode != MANAGE && mode != GROW) {
-			/* We don't really want this open yet, we just might
-			 * have wanted to check some things
-			 */
-			close(mdfd);
-			mdfd = -1;
-		}
 	}
 
 	if (s.raiddisks) {

@@ -164,6 +164,18 @@ char *stat2devnm(struct stat *st)
 	return devid2devnm(st->st_rdev);
 }
 
+bool stat_is_md_dev(struct stat *st)
+{
+	if ((S_IFMT & st->st_mode) != S_IFBLK)
+		return false;
+	if (major(st->st_rdev) == MD_MAJOR)
+		return true;
+	if (major(st->st_rdev) == (unsigned)get_mdp_major())
+		return true;
+
+	return false;
+}
+
 char *fd2devnm(int fd)
 {
 	struct stat stb;
