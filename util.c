@@ -1027,6 +1027,20 @@ int get_maj_min(char *dev, int *major, int *minor)
 		*e == 0);
 }
 
+/**
+ * is_bit_set() - get bit value by index.
+ * @val: value.
+ * @index: index of the bit (LSB numbering).
+ *
+ * Return: bit value.
+ */
+bool is_bit_set(int *val, unsigned char index)
+{
+	if ((*val) & (1 << index))
+		return true;
+	return false;
+}
+
 int dev_open(char *dev, int flags)
 {
 	/* like 'open', but if 'dev' matches %d:%d, create a temp
