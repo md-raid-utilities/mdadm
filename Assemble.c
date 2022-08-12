@@ -1947,7 +1947,7 @@ out:
 						break;
 					close(mdfd);
 				}
-				usleep(usecs);
+				sleep_for(0, USEC_TO_NSEC(usecs), true);
 				usecs <<= 1;
 			}
 		}

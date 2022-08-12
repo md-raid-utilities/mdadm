@@ -1720,6 +1720,10 @@ extern int cluster_get_dlmlock(void);
 extern int cluster_release_dlmlock(void);
 extern void set_dlm_hooks(void);
 
+#define MSEC_TO_NSEC(msec) ((msec) * 1000000)
+#define USEC_TO_NSEC(usec) ((usec) * 1000)
+extern void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt);
+
 #define _ROUND_UP(val, base)	(((val) + (base) - 1) & ~(base - 1))
 #define ROUND_UP(val, base)	_ROUND_UP(val, (typeof(val))(base))
 #define ROUND_UP_PTR(ptr, base)	((typeof(ptr)) \

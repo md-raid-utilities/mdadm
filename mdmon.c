@@ -99,7 +99,7 @@ static int clone_monitor(struct supertype *container)
 	if (rc)
 		return rc;
 	while (mon_tid == -1)
-		usleep(10);
+		sleep_for(0, USEC_TO_NSEC(10), true);
 	pthread_attr_destroy(&attr);
 
 	mgr_tid = syscall(SYS_gettid);
@@ -209,7 +209,7 @@ static void try_kill_monitor(pid_t pid, char *devname, int sock)
 		rv = kill(pid, SIGUSR1);
 		if (rv < 0)
 			break;
-		usleep(200000);
+		sleep_for(0, MSEC_TO_NSEC(200), true);
 	}
 }
 

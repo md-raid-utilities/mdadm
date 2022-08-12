@@ -166,7 +166,7 @@ retry:
 		pr_err("error %d when get PW mode on lock %s\n", errno, str);
 		/* let's try several times if EAGAIN happened */
 		if (dlm_lock_res->lksb.sb_status == EAGAIN && retry_count < 10) {
-			sleep(10);
+			sleep_for(10, 0, true);
 			retry_count++;
 			goto retry;
 		}
@@ -1085,7 +1085,7 @@ int open_dev_excl(char *devnm)
 	int i;
 	int flags = O_RDWR;
 	dev_t devid = devnm2devid(devnm);
-	long delay = 1000;
+	unsigned int delay = 1; // miliseconds
 
 	sprintf(buf, "%d:%d", major(devid), minor(devid));
 	for (i = 0; i < 25; i++) {
@@ -1098,8 +1098,8 @@ int open_dev_excl(char *devnm)
 		}
 		if (errno != EBUSY)
 			return fd;
-		usleep(delay);
-		if (delay < 200000)
+		sleep_for(0, MSEC_TO_NSEC(delay), true);
+		if (delay < 200)
 			delay *= 2;
 	}
 	return -1;
@@ -1123,7 +1123,7 @@ void wait_for(char *dev, int fd)
 {
 	int i;
 	struct stat stb_want;
-	long delay = 1000;
+	unsigned int delay = 1; // miliseconds
 
 	if (fstat(fd, &stb_want) != 0 ||
 	    (stb_want.st_mode & S_IFMT) != S_IFBLK)
@@ -1135,8 +1135,8 @@ void wait_for(char *dev, int fd)
 		    (stb.st_mode & S_IFMT) == S_IFBLK &&
 		    (stb.st_rdev == stb_want.st_rdev))
 			return;
-		usleep(delay);
-		if (delay < 200000)
+		sleep_for(0, MSEC_TO_NSEC(delay), true);
+		if (delay < 200)
 			delay *= 2;
 	}
 	if (i == 25)
@@ -1821,7 +1821,7 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 	while ((ret = ioctl(mdfd, HOT_REMOVE_DISK, dev)) == -1 &&
 	       errno == EBUSY &&
 	       cnt-- > 0)
-		usleep(10000);
+		sleep_for(0, MSEC_TO_NSEC(10), true);
 
 	return ret;
 }
@@ -1834,7 +1834,7 @@ int sys_hot_remove_disk(int statefd, int force)
 	while ((ret = write(statefd, "remove", 6)) == -1 &&
 	       errno == EBUSY &&
 	       cnt-- > 0)
-		usleep(10000);
+		sleep_for(0, MSEC_TO_NSEC(10), true);
 	return ret == 6 ? 0 : -1;
 }
 
@@ -2374,4 +2374,28 @@ int zero_disk_range(int fd, unsigned long long sector, size_t count)
 out:
 	close(fd_zero);
 	return ret;
+}
+
+/**
+ * sleep_for() - Sleeps for specified time.
+ * @sec: Seconds to sleep for.
+ * @nsec: Nanoseconds to sleep for, has to be less than one second.
+ * @wake_after_interrupt: If set, wake up if interrupted.
+ *
+ * Function immediately returns if error different than EINTR occurs.
+ */
+void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt)
+{
+	struct timespec delay = {.tv_sec = sec, .tv_nsec = nsec};
+
+	assert(nsec < MSEC_TO_NSEC(1000));
+
+	do {
+		errno = 0;
+		nanosleep(&delay, &delay);
+		if (errno != 0 && errno != EINTR) {
+			pr_err("Error sleeping for %us %ldns: %s\n", sec, nsec, strerror(errno));
+			return;
+		}
+	} while (!wake_after_interrupt && errno == EINTR);
 }

@@ -5275,7 +5275,7 @@ static int get_super_block(struct intel_super **super_list, char *devnm, char *d
 	/* retry the load if we might have raced against mdmon */
 	if (err == 3 && devnm && mdmon_running(devnm))
 		for (retry = 0; retry < 3; retry++) {
-			usleep(3000);
+			sleep_for(0, MSEC_TO_NSEC(3), true);
 			err = load_and_parse_mpb(dfd, s, NULL, keep_fd);
 			if (err != 3)
 				break;
@@ -5377,7 +5377,7 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 
 		if (mdstat && mdmon_running(mdstat->devnm) && getpid() != mdmon_pid(mdstat->devnm)) {
 			for (retry = 0; retry < 3; retry++) {
-				usleep(3000);
+				sleep_for(0, MSEC_TO_NSEC(3), true);
 				rv = load_and_parse_mpb(fd, super, devname, 0);
 				if (rv != 3)
 					break;
@@ -12084,7 +12084,7 @@ int wait_for_reshape_imsm(struct mdinfo *sra, int ndata)
 				close(fd);
 				return 1;
 			}
-			usleep(30000);
+			sleep_for(0, MSEC_TO_NSEC(30), true);
 		} else
 			break;
 	} while (retry--);

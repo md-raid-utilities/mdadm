@@ -244,7 +244,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 					    "array_state",
 					    "inactive")) < 0 &&
 		       errno == EBUSY) {
-			usleep(200000);
+			sleep_for(0, MSEC_TO_NSEC(200), true);
 			count--;
 		}
 		if (err) {
@@ -328,7 +328,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 		       sysfs_get_ll(mdi, NULL, "sync_max", &old_sync_max) == 0) {
 			/* must be in the critical section - wait a bit */
 			delay -= 1;
-			usleep(100000);
+			sleep_for(0, MSEC_TO_NSEC(100), true);
 		}
 
 		if (sysfs_set_str(mdi, NULL, "sync_action", "frozen") != 0)
@@ -405,7 +405,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 				 * quite started yet.  Wait a bit and
 				 * check  'sync_action' to see.
 				 */
-				usleep(10000);
+				sleep_for(0, MSEC_TO_NSEC(10), true);
 				sysfs_get_str(mdi, NULL, "sync_action", buf, sizeof(buf));
 				if (strncmp(buf, "reshape", 7) != 0)
 					break;
@@ -447,7 +447,7 @@ done:
 	count = 25; err = 0;
 	while (count && fd >= 0 &&
 	       (err = ioctl(fd, STOP_ARRAY, NULL)) < 0 && errno == EBUSY) {
-		usleep(200000);
+		sleep_for(0, MSEC_TO_NSEC(200), true);
 		count --;
 	}
 	if (fd >= 0 && err) {
@@ -1105,7 +1105,7 @@ int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 				ret = sysfs_unique_holder(devnm, rdev);
 				if (ret < 2)
 					break;
-				usleep(100 * 1000);	/* 100ms */
+				sleep_for(0, MSEC_TO_NSEC(100), true);
 			} while (--count > 0);
 
 			if (ret == 0) {

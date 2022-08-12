@@ -954,7 +954,7 @@ int start_reshape(struct mdinfo *sra, int already_running,
 			err = sysfs_set_str(sra, NULL, "sync_action",
 					    "reshape");
 			if (err)
-				sleep(1);
+				sleep_for(1, 0, true);
 		} while (err && errno == EBUSY && cnt-- > 0);
 	}
 	return err;
@@ -5058,7 +5058,7 @@ int Grow_continue_command(char *devname, int fd,
 			}
 			st->ss->getinfo_super(st, content, NULL);
 			if (!content->reshape_active)
-				sleep(3);
+				sleep_for(3, 0, true);
 			else
 				break;
 		} while (cnt-- > 0);
