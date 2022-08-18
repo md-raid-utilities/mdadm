@@ -1285,6 +1285,50 @@ int Manage_with(struct supertype *tst, int fd, struct mddev_dev *dv,
 	return -1;
 }
 
+/**
+ * is_remove_safe() - Check if remove is safe.
+ * @array: Array info.
+ * @fd: Array file descriptor.
+ * @devname: Name of device to remove.
+ * @verbose: Verbose.
+ *
+ * The function determines if array will be operational
+ * after removing &devname.
+ *
+ * Return: True if array will be operational, false otherwise.
+ */
+bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const int verbose)
+{
+	dev_t devid = devnm2devid(devname + 5);
+	struct mdinfo *mdi = sysfs_read(fd, NULL, GET_DEVS | GET_DISKS | GET_STATE);
+
+	if (!mdi) {
+		if (verbose)
+			pr_err("Failed to read sysfs attributes for %s\n", devname);
+		return false;
+	}
+
+	char *avail = xcalloc(array->raid_disks, sizeof(char));
+
+	for (mdi = mdi->devs; mdi; mdi = mdi->next) {
+		if (mdi->disk.raid_disk < 0)
+			continue;
+		if (!(mdi->disk.state & (1 << MD_DISK_SYNC)))
+			continue;
+		if (makedev(mdi->disk.major, mdi->disk.minor) == devid)
+			continue;
+		avail[mdi->disk.raid_disk] = 1;
+	}
+	sysfs_free(mdi);
+
+	bool is_enough = enough(array->level, array->raid_disks,
+				array->layout, (array->state & 1),
+				avail);
+
+	free(avail);
+	return is_enough;
+}
+
 int Manage_subdevs(char *devname, int fd,
 		   struct mddev_dev *devlist, int verbose, int test,
 		   char *update, int force)
@@ -1598,7 +1642,14 @@ int Manage_subdevs(char *devname, int fd,
 			break;
 
 		case 'f': /* set faulty */
-			/* FIXME check current member */
+			if (!is_remove_safe(&array, fd, dv->devname, verbose)) {
+				pr_err("Cannot remove %s from %s, array will be failed.\n",
+				       dv->devname, devname);
+				if (sysfd >= 0)
+					close(sysfd);
+				goto abort;
+			}
+
 			if ((sysfd >= 0 && write(sysfd, "faulty", 6) != 6) ||
 			    (sysfd < 0 && ioctl(fd, SET_DISK_FAULTY,
 						rdev))) {
