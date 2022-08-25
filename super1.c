@@ -406,12 +406,18 @@ static void examine_super1(struct supertype *st, char *homehost)
 
 	st->ss->getinfo_super(st, &info, NULL);
 	if (info.space_after != 1 &&
-	    !(__le32_to_cpu(sb->feature_map) & MD_FEATURE_NEW_OFFSET))
-		printf("   Unused Space : before=%llu sectors, after=%llu sectors\n",
-		       info.space_before, info.space_after);
-
-	printf("          State : %s\n",
-	       (__le64_to_cpu(sb->resync_offset)+1)? "active":"clean");
+	    !(__le32_to_cpu(sb->feature_map) & MD_FEATURE_NEW_OFFSET)) {
+		printf("   Unused Space : before=%llu sectors, ",
+		       info.space_before);
+		if (info.space_after < INT64_MAX)
+			printf("after=%llu sectors\n", info.space_after);
+		else
+			printf("after=-%llu sectors DEVICE TOO SMALL\n",
+			       UINT64_MAX - info.space_after);
+	}
+	printf("          State : %s%s\n",
+	       (__le64_to_cpu(sb->resync_offset)+1) ? "active":"clean",
+	       (info.space_after > INT64_MAX)       ? " TRUNCATED DEVICE" : "");
 	printf("    Device UUID : ");
 	for (i=0; i<16; i++) {
 		if ((i&3)==0 && i != 0)
@@ -2206,6 +2212,7 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 		tst.ss = &super1;
 		for (tst.minor_version = 0; tst.minor_version <= 2;
 		     tst.minor_version++) {
+			tst.ignore_hw_compat = st->ignore_hw_compat;
 			switch(load_super1(&tst, fd, devname)) {
 			case 0: super = tst.sb;
 				if (bestvers == -1 ||
@@ -2312,7 +2319,6 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 		free(super);
 		return 2;
 	}
-	st->sb = super;
 
 	bsb = (struct bitmap_super_s *)(((char*)super)+MAX_SB_SIZE);
 
@@ -2321,6 +2327,21 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 	misc->device_size = dsize;
 	if (st->data_offset == INVALID_SECTORS)
 		st->data_offset = __le64_to_cpu(super->data_offset);
+
+	if (st->minor_version >= 1 &&
+	    st->ignore_hw_compat == 0 &&
+	    (dsize < (__le64_to_cpu(super->data_offset) +
+		      __le64_to_cpu(super->size))
+	     ||
+	     dsize < (__le64_to_cpu(super->data_offset) +
+		      __le64_to_cpu(super->data_size)))) {
+		if (devname)
+			pr_err("Device %s is not large enough for data described in superblock\n",
+			       devname);
+		free(super);
+		return 2;
+	}
+	st->sb = super;
 
 	/* Now check on the bitmap superblock */
 	if ((__le32_to_cpu(super->feature_map)&MD_FEATURE_BITMAP_OFFSET) == 0)
