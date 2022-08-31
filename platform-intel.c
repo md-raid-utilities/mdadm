@@ -512,7 +512,8 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 #define AHCI_PROP "RstSataV"
 #define AHCI_SSATA_PROP "RstsSatV"
 #define AHCI_TSATA_PROP "RsttSatV"
-#define VMD_PROP "RstUefiV"
+#define VROC_VMD_PROP "RstUefiV"
+#define RST_VMD_PROP "RstVmdV"
 
 #define VENDOR_GUID \
 	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, 0x1a, 0x04, 0xc6)
@@ -605,6 +606,7 @@ const struct imsm_orom *find_imsm_efi(struct sys_dev *hba)
 	struct orom_entry *ret;
 	static const char * const sata_efivars[] = {AHCI_PROP, AHCI_SSATA_PROP,
 						    AHCI_TSATA_PROP};
+	static const char * const vmd_efivars[] = {VROC_VMD_PROP, RST_VMD_PROP};
 	unsigned long i;
 
 	if (check_env("IMSM_TEST_AHCI_EFI") || check_env("IMSM_TEST_SCU_EFI"))
@@ -636,10 +638,16 @@ const struct imsm_orom *find_imsm_efi(struct sys_dev *hba)
 
 		break;
 	case SYS_DEV_VMD:
-		if (!read_efi_variable(&orom, sizeof(orom), VMD_PROP,
-				       VENDOR_GUID))
-			break;
-		return NULL;
+		for (i = 0; i < ARRAY_SIZE(vmd_efivars); i++) {
+			if (!read_efi_variable(&orom, sizeof(orom),
+						vmd_efivars[i], VENDOR_GUID))
+				break;
+		}
+
+		if (i == ARRAY_SIZE(vmd_efivars))
+			return NULL;
+
+		break;
 	default:
 		return NULL;
 	}
