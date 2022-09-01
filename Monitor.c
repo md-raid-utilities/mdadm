@@ -74,6 +74,7 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist,
 			  int test, struct alert_info *info);
 static void try_spare_migration(struct state *statelist, struct alert_info *info);
 static void link_containers_with_subarrays(struct state *list);
+static void free_statelist(struct state *statelist);
 #ifndef NO_LIBUDEV
 static int check_udev_activity(void);
 #endif
@@ -128,7 +129,6 @@ int Monitor(struct mddev_dev *devlist,
 	 */
 
 	struct state *statelist = NULL;
-	struct state *st2;
 	int finished = 0;
 	struct mdstat_ent *mdstat = NULL;
 	char *mailfrom;
@@ -185,12 +185,14 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 			if (strcasecmp(mdlist->devname, "<ignore>") == 0)
 				continue;
+			if (!is_mddev(mdlist->devname)) {
+				free_statelist(statelist);
+				return 1;
+			}
 
 			st = xcalloc(1, sizeof *st);
 			snprintf(st->devname, MD_NAME_MAX + sizeof("/dev/md/"),
 				 "/dev/md/%s", basename(mdlist->devname));
-			if (!is_mddev(mdlist->devname))
-				return 1;
 			st->next = statelist;
 			st->devnm[0] = 0;
 			st->percent = RESYNC_UNKNOWN;
@@ -206,8 +208,10 @@ int Monitor(struct mddev_dev *devlist,
 		for (dv = devlist; dv; dv = dv->next) {
 			struct state *st;
 
-			if (!is_mddev(dv->devname))
+			if (!is_mddev(dv->devname)) {
+				free_statelist(statelist);
 				return 1;
+			}
 
 			st = xcalloc(1, sizeof *st);
 			mdlist = conf_get_ident(dv->devname);
@@ -294,16 +298,16 @@ int Monitor(struct mddev_dev *devlist,
 		for (stp = &statelist; (st = *stp) != NULL; ) {
 			if (st->from_auto && st->err > 5) {
 				*stp = st->next;
-				free(st->spare_group);
+				if (st->spare_group)
+					free(st->spare_group);
+
 				free(st);
 			} else
 				stp = &st->next;
 		}
 	}
-	for (st2 = statelist; st2; st2 = statelist) {
-		statelist = st2->next;
-		free(st2);
-	}
+
+	free_statelist(statelist);
 
 	if (pidfile)
 		unlink(pidfile);
@@ -1054,6 +1058,24 @@ static void link_containers_with_subarrays(struct state *list)
 					cont->subarray = st;
 					break;
 				}
+}
+
+/**
+ * free_statelist() - Frees statelist.
+ * @statelist: statelist to free
+ */
+static void free_statelist(struct state *statelist)
+{
+	struct state *tmp = NULL;
+
+	while (statelist) {
+		if (statelist->spare_group)
+			free(statelist->spare_group);
+
+		tmp = statelist;
+		statelist = statelist->next;
+		free(tmp);
+	}
 }
 
 #ifndef NO_LIBUDEV
