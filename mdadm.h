@@ -1924,3 +1924,17 @@ enum r0layout {
  * This is true for native and DDF, IMSM allows 16.
  */
 #define MD_NAME_MAX 32
+
+/**
+ * is_container() - check if @level is &LEVEL_CONTAINER
+ * @level: level value
+ *
+ * return:
+ * 1 if level is equal to &LEVEL_CONTAINER, 0 otherwise.
+ */
+static inline int is_container(const int level)
+{
+	if (level == LEVEL_CONTAINER)
+		return 1;
+	return 0;
+}

@@ -1120,7 +1120,7 @@ static int start_array(int mdfd,
 			       i/2, mddev);
 	}
 
-	if (content->array.level == LEVEL_CONTAINER) {
+	if (is_container(content->array.level)) {
 		sysfs_rules_apply(mddev, content);
 		if (c->verbose >= 0) {
 			pr_err("Container %s has been assembled with %d drive%s",
@@ -1549,8 +1549,7 @@ try_again:
 			 */
 			trustworthy = LOCAL;
 
-		if (name[0] == 0 &&
-		    content->array.level == LEVEL_CONTAINER) {
+		if (!name[0] && is_container(content->array.level)) {
 			name = content->text_version;
 			trustworthy = METADATA;
 		}
@@ -1809,7 +1808,7 @@ try_again:
 		}
 #endif
 	}
-	if (c->force && !clean && content->array.level != LEVEL_CONTAINER &&
+	if (c->force && !clean && !is_container(content->array.level) &&
 	    !enough(content->array.level, content->array.raid_disks,
 		    content->array.layout, clean, avail)) {
 		change += st->ss->update_super(st, content, "force-array",
