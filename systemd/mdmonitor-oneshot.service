@@ -7,6 +7,7 @@
 
 [Unit]
 Description=Reminder for degraded MD arrays
+Documentation=man:mdadm(8)
 
 [Service]
 Environment=MDADM_MONITOR_ARGS=--scan

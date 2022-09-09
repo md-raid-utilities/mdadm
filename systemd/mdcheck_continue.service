@@ -7,7 +7,8 @@
 
 [Unit]
 Description=MD array scrubbing - continuation
-ConditionPathExistsGlob = /var/lib/mdcheck/MD_UUID_*
+ConditionPathExistsGlob=/var/lib/mdcheck/MD_UUID_*
+Documentation=man:mdadm(8)
 
 [Service]
 Type=oneshot

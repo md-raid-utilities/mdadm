@@ -8,6 +8,7 @@
 [Unit]
 Description=MD array monitor
 DefaultDependencies=no
+Documentation=man:mdadm(8)
 
 [Service]
 Environment=  MDADM_MONITOR_ARGS=--scan

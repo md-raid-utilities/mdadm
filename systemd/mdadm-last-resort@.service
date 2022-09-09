@@ -2,6 +2,7 @@
 Description=Activate md array %I even though degraded
 DefaultDependencies=no
 ConditionPathExists=!/sys/devices/virtual/block/%i/md/sync_action
+Documentation=man:mdadm(8)
 
 [Service]
 Type=oneshot

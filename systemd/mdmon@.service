@@ -9,6 +9,7 @@
 Description=MD Metadata Monitor on /dev/%I
 DefaultDependencies=no
 Before=initrd-switch-root.target
+Documentation=man:mdmon(8)
 
 [Service]
 # mdmon should never complain due to lack of a platform,
