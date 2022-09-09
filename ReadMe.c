@@ -477,7 +477,7 @@ char Help_assemble[] =
 ;
 
 char Help_manage[] =
-"Usage: mdadm arraydevice options component devices...\n"
+"Usage: mdadm [mode] arraydevice [options] <component devices...>\n"
 "\n"
 "This usage is for managing the component devices within an array.\n"
 "The --manage option is not needed and is assumed if the first argument\n"
