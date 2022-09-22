@@ -185,10 +185,8 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 			if (strcasecmp(mdlist->devname, "<ignore>") == 0)
 				continue;
-			if (!is_mddev(mdlist->devname)) {
-				free_statelist(statelist);
-				return 1;
-			}
+			if (!is_mddev(mdlist->devname))
+				continue;
 
 			st = xcalloc(1, sizeof *st);
 			snprintf(st->devname, MD_NAME_MAX + sizeof("/dev/md/"),
@@ -208,10 +206,8 @@ int Monitor(struct mddev_dev *devlist,
 		for (dv = devlist; dv; dv = dv->next) {
 			struct state *st;
 
-			if (!is_mddev(dv->devname)) {
-				free_statelist(statelist);
-				return 1;
-			}
+			if (!is_mddev(dv->devname))
+				continue;
 
 			st = xcalloc(1, sizeof *st);
 			mdlist = conf_get_ident(dv->devname);
