@@ -7719,11 +7719,11 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 		struct intel_super *super = st->sb;
 
 		/*
-		 * Autolayout mode, st->sb and freesize must be set.
+		 * Autolayout mode, st->sb must be set.
 		 */
-		if (!super || !freesize) {
-			pr_vrb("freesize and superblock must be set for autolayout, aborting\n");
-			return 1;
+		if (!super) {
+			pr_vrb("superblock must be set for autolayout, aborting\n");
+			return 0;
 		}
 
 		if (!validate_geometry_imsm_orom(st->sb, level, layout,
@@ -7731,7 +7731,7 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 						 verbose))
 			return 0;
 
-		if (super->orom) {
+		if (super->orom && freesize) {
 			imsm_status_t rv;
 			int count = count_volumes(super->hba, super->orom->dpa,
 					      verbose);
