@@ -123,7 +123,7 @@ int Monitor(struct mddev_dev *devlist,
 	 *  and if we can get_disk_info and find a name
 	 *  Then we hot-remove and hot-add to the other array
 	 *
-	 * If devlist is NULL, then we can monitor everything because --scan
+	 * If devlist is NULL, then we can monitor everything if --scan
 	 * was given.  We get an initial list from config file and add anything
 	 * that appears in /proc/mdstat
 	 */
@@ -135,6 +135,11 @@ int Monitor(struct mddev_dev *devlist,
 	struct alert_info info;
 	struct mddev_ident *mdlist;
 	int delay_for_event = c->delay;
+
+	if (devlist && c->scan) {
+		pr_err("Devices list and --scan option cannot be combined - not monitoring.\n");
+		return 1;
+	}
 
 	if (!mailaddr)
 		mailaddr = conf_get_mailaddr();
