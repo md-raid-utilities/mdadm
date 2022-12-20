@@ -432,6 +432,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 			if (((disk.state & (1 << MD_DISK_WRITEMOSTLY)) == 0) &&
 			   (strcmp(s->bitmap_file, "clustered") == 0)) {
 				pr_err("%s disks marked write-mostly are not supported with clustered bitmap\n",devname);
+				free(mdi);
 				return 1;
 			}
 			fd2 = dev_open(dv, O_RDWR);
@@ -453,8 +454,10 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 				pr_err("failed to load super-block.\n");
 			}
 			close(fd2);
-			if (rv)
+			if (rv) {
+				free(mdi);
 				return 1;
+			}
 		}
 		if (offset_setable) {
 			st->ss->getinfo_super(st, mdi, NULL);
