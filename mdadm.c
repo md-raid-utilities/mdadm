@@ -107,24 +107,12 @@ int main(int argc, char *argv[])
 
 	srandom(time(0) ^ getpid());
 
-	ident.uuid_set = 0;
-	ident.level = UnSet;
-	ident.raid_disks = UnSet;
-	ident.super_minor = UnSet;
-	ident.devices = 0;
-	ident.spare_group = NULL;
-	ident.autof = 0;
-	ident.st = NULL;
-	ident.bitmap_fd = -1;
-	ident.bitmap_file = NULL;
-	ident.name[0] = 0;
-	ident.container = NULL;
-	ident.member = NULL;
-
 	if (get_linux_version() < 2006015) {
 		pr_err("This version of mdadm does not support kernels older than 2.6.15\n");
 		exit(1);
 	}
+
+	ident_init(&ident);
 
 	while ((option_index = -1),
 	       (opt = getopt_long(argc, argv, shortopt, long_options,

@@ -33,8 +33,10 @@ extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
 # endif
 #endif
 
+#include	<assert.h>
 #include	<sys/types.h>
 #include	<sys/stat.h>
+#include	<stdarg.h>
 #include	<stdint.h>
 #include	<stdlib.h>
 #include	<time.h>
@@ -1552,6 +1554,8 @@ extern void enable_fds(int devices);
 extern void manage_fork_fds(int close_all);
 extern int continue_via_systemd(char *devnm, char *service_name);
 
+extern void ident_init(struct mddev_ident *ident);
+
 extern int parse_auto(char *str, char *msg, int config);
 extern struct mddev_ident *conf_get_ident(char *dev);
 extern struct mddev_dev *conf_get_devs(void);
@@ -1779,8 +1783,7 @@ static inline sighandler_t signal_s(int sig, sighandler_t handler)
 #define dprintf_cont(fmt, arg...) \
         ({ if (0) fprintf(stderr, fmt, ##arg); 0; })
 #endif
-#include <assert.h>
-#include <stdarg.h>
+
 static inline int xasprintf(char **strp, const char *fmt, ...) {
 	va_list ap;
 	int ret;

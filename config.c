@@ -119,6 +119,34 @@ int match_keyword(char *word)
 	return -1;
 }
 
+/**
+ * ident_init() - Set defaults.
+ * @ident: ident pointer, not NULL.
+ */
+inline void ident_init(struct mddev_ident *ident)
+{
+	assert(ident);
+
+	ident->assembled = false;
+	ident->autof = 0;
+	ident->bitmap_fd = -1;
+	ident->bitmap_file = NULL;
+	ident->container = NULL;
+	ident->devices = NULL;
+	ident->devname = NULL;
+	ident->level = UnSet;
+	ident->member = NULL;
+	ident->name[0] = 0;
+	ident->next = NULL;
+	ident->raid_disks = UnSet;
+	ident->spare_group = NULL;
+	ident->spare_disks = 0;
+	ident->st = NULL;
+	ident->super_minor = UnSet;
+	ident->uuid[0] = 0;
+	ident->uuid_set = 0;
+}
+
 struct conf_dev {
 	struct conf_dev *next;
 	char *name;
@@ -363,22 +391,7 @@ void arrayline(char *line)
 	struct mddev_ident mis;
 	struct mddev_ident *mi;
 
-	mis.uuid_set = 0;
-	mis.super_minor = UnSet;
-	mis.level = UnSet;
-	mis.raid_disks = UnSet;
-	mis.spare_disks = 0;
-	mis.devices = NULL;
-	mis.devname = NULL;
-	mis.spare_group = NULL;
-	mis.autof = 0;
-	mis.next = NULL;
-	mis.st = NULL;
-	mis.bitmap_fd = -1;
-	mis.bitmap_file = NULL;
-	mis.name[0] = 0;
-	mis.container = NULL;
-	mis.member = NULL;
+	ident_init(&mis);
 
 	for (w = dl_next(line); w != line; w = dl_next(w)) {
 		if (w[0] == '/' || strchr(w, '=') == NULL) {
