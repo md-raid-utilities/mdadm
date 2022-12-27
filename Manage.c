@@ -1494,8 +1494,9 @@ int Manage_subdevs(char *devname, int fd,
 			/* Assume this is a kernel-internal name like 'sda1' */
 			int found = 0;
 			char dname[55];
-			if (dv->disposition != 'r' && dv->disposition != 'f') {
-				pr_err("%s only meaningful with -r or -f, not -%c\n",
+			if (dv->disposition != 'r' && dv->disposition != 'f' &&
+			    dv->disposition != 'I') {
+				pr_err("%s only meaningful with -r, -f or -I, not -%c\n",
 					dv->devname, dv->disposition);
 				goto abort;
 			}
@@ -1647,7 +1648,7 @@ int Manage_subdevs(char *devname, int fd,
 					close(sysfd);
 				goto abort;
 			}
-
+		case 'I': /* incremental fail */
 			if ((sysfd >= 0 && write(sysfd, "faulty", 6) != 6) ||
 			    (sysfd < 0 && ioctl(fd, SET_DISK_FAULTY,
 						rdev))) {
