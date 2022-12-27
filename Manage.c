@@ -1321,8 +1321,7 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
 	sysfs_free(mdi);
 
 	bool is_enough = enough(array->level, array->raid_disks,
-				array->layout, (array->state & 1),
-				avail);
+				array->layout, 1, avail);
 
 	free(avail);
 	return is_enough;
