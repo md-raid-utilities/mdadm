@@ -1478,7 +1478,7 @@ extern int Manage_stop(char *devname, int fd, int quiet,
 		       int will_retry);
 extern int Manage_subdevs(char *devname, int fd,
 			  struct mddev_dev *devlist, int verbose, int test,
-			  char *update, int force);
+			  enum update_opt update, int force);
 extern int autodetect(void);
 extern int Grow_Add_device(char *devname, int fd, char *newdev);
 extern int Grow_addbitmap(char *devname, int fd,
@@ -1532,7 +1532,7 @@ extern int Monitor(struct mddev_dev *devlist,
 
 extern int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl);
 extern int Kill_subarray(char *dev, char *subarray, int verbose);
-extern int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident *ident, int quiet);
+extern int Update_subarray(char *dev, char *subarray, enum update_opt update, struct mddev_ident *ident, int quiet);
 extern int Wait(char *dev);
 extern int WaitClean(char *dev, int verbose);
 extern int SetAction(char *dev, char *action);

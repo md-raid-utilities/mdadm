@@ -1025,7 +1025,7 @@ static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 			close(dfd);
 			*dfdp = -1;
 			rv =  Manage_subdevs(chosen->sys_name, mdfd, &devlist,
-					     -1, 0, NULL, 0);
+					     -1, 0, UOPT_UNDEFINED, 0);
 			close(mdfd);
 		}
 		if (verbose > 0) {
@@ -1666,7 +1666,7 @@ static void remove_from_member_array(struct mdstat_ent *memb,
 
 	if (subfd >= 0) {
 		rv = Manage_subdevs(memb->devnm, subfd, devlist, verbose,
-				    0, NULL, 0);
+				    0, UOPT_UNDEFINED, 0);
 		if (rv & 2) {
 			if (sysfs_init(&mmdi, -1, memb->devnm))
 				pr_err("unable to initialize sysfs for: %s\n",
@@ -1758,7 +1758,7 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		free_mdstat(mdstat);
 	} else {
 		rv |= Manage_subdevs(ent->devnm, mdfd, &devlist,
-				    verbose, 0, NULL, 0);
+				    verbose, 0, UOPT_UNDEFINED, 0);
 		if (rv & 2) {
 		/* Failed due to EBUSY, try to stop the array.
 		 * Give udisks a chance to unmount it first.
@@ -1770,7 +1770,7 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 
 	devlist.disposition = 'r';
 	rv = Manage_subdevs(ent->devnm, mdfd, &devlist,
-			    verbose, 0, NULL, 0);
+			    verbose, 0, UOPT_UNDEFINED, 0);
 end:
 	close(mdfd);
 	free_mdstat(ent);

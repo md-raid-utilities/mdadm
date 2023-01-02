@@ -605,12 +605,12 @@ int Grow_consistency_policy(char *devname, int fd, struct context *c, struct sha
 	}
 
 	if (subarray) {
-		char *update;
+		enum update_opt update;
 
 		if (s->consistency_policy == CONSISTENCY_POLICY_PPL)
-			update = "ppl";
+			update = UOPT_PPL;
 		else
-			update = "no-ppl";
+			update = UOPT_NO_PPL;
 
 		sprintf(container_dev, "/dev/%s", st->container_devnm);
 
@@ -3243,7 +3243,7 @@ static int reshape_array(char *container, int fd, char *devname,
 	 * level and frozen, we can safely add them.
 	 */
 	if (devlist) {
-		if (Manage_subdevs(devname, fd, devlist, verbose, 0, NULL, 0))
+		if (Manage_subdevs(devname, fd, devlist, verbose, 0, UOPT_UNDEFINED, 0))
 			goto release;
 	}
 

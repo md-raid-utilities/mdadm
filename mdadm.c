@@ -1402,10 +1402,22 @@ int main(int argc, char *argv[])
 		/* readonly, add/remove, readwrite, runstop */
 		if (c.readonly > 0)
 			rv = Manage_ro(devlist->devname, mdfd, c.readonly);
-		if (!rv && devs_found>1)
-			rv = Manage_subdevs(devlist->devname, mdfd,
-					    devlist->next, c.verbose, c.test,
-					    c.update, c.force);
+		if (!rv && devs_found > 1) {
+			/*
+			 * This is temporary and will be removed in next patches
+			 * Null c.update will cause segfault
+			 */
+			if (c.update)
+				rv = Manage_subdevs(devlist->devname, mdfd,
+						devlist->next, c.verbose, c.test,
+						map_name(update_options, c.update),
+						c.force);
+			else
+				rv = Manage_subdevs(devlist->devname, mdfd,
+						devlist->next, c.verbose, c.test,
+						UOPT_UNDEFINED,
+						c.force);
+		}
 		if (!rv && c.readonly < 0)
 			rv = Manage_ro(devlist->devname, mdfd, c.readonly);
 		if (!rv && c.runstop > 0)
@@ -1931,7 +1943,8 @@ static int misc_list(struct mddev_dev *devlist,
 				continue;
 			}
 			rv |= Update_subarray(dv->devname, c->subarray,
-					      c->update, ident, c->verbose);
+					      map_name(update_options, c->update),
+					      ident, c->verbose);
 			continue;
 		case Dump:
 			rv |= Dump_metadata(dv->devname, dump_directory, c, ss);
