@@ -1011,7 +1011,7 @@ extern struct superswitch {
 	 *                    it will resume going in the opposite direction.
 	 */
 	int (*update_super)(struct supertype *st, struct mdinfo *info,
-			    char *update,
+			    enum update_opt update,
 			    char *devname, int verbose,
 			    int uuid_set, char *homehost);
 
@@ -1137,9 +1137,15 @@ extern struct superswitch {
 	/* Permit subarray's to be deleted from inactive containers */
 	int (*kill_subarray)(struct supertype *st,
 			     char *subarray_id); /* optional */
-	/* Permit subarray's to be modified */
+	/**
+	 * update_subarray() - Permit subarray to be modified.
+	 * @st: Supertype.
+	 * @subarray: Subarray name.
+	 * @update: Update option.
+	 * @ident: Optional identifiers.
+	 */
 	int (*update_subarray)(struct supertype *st, char *subarray,
-			       char *update, struct mddev_ident *ident); /* optional */
+			       enum update_opt update, struct mddev_ident *ident);
 	/* Check if reshape is supported for this external format.
 	 * st is obtained from super_by_fd() where st->subarray[0] is
 	 * initialized to indicate if reshape is being performed at the

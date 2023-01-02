@@ -695,12 +695,16 @@ static int load_devices(struct devs *devices, char *devmap,
 			} else if (strcmp(c->update, "revert-reshape") == 0 &&
 				   c->invalid_backup)
 				err = tst->ss->update_super(tst, content,
-							    "revert-reshape-nobackup",
+							    UOPT_SPEC_REVERT_RESHAPE_NOBACKUP,
 							    devname, c->verbose,
 							    ident->uuid_set,
 							    c->homehost);
 			else
-				err = tst->ss->update_super(tst, content, c->update,
+				/*
+				 * Mapping is temporary, will be removed in this patchset
+				 */
+				err = tst->ss->update_super(tst, content,
+							    map_name(update_options, c->update),
 							    devname, c->verbose,
 							    ident->uuid_set,
 							    c->homehost);
@@ -960,7 +964,7 @@ static int force_array(struct mdinfo *content,
 			continue;
 		}
 		content->events = devices[most_recent].i.events;
-		tst->ss->update_super(tst, content, "force-one",
+		tst->ss->update_super(tst, content, UOPT_SPEC_FORCE_ONE,
 				      devices[chosen_drive].devname, c->verbose,
 				      0, NULL);
 
@@ -1788,7 +1792,7 @@ try_again:
 		if (!(devices[j].i.array.state & 1))
 			clean = 0;
 
-		if (st->ss->update_super(st, &devices[j].i, "assemble", NULL,
+		if (st->ss->update_super(st, &devices[j].i, UOPT_SPEC_ASSEMBLE, NULL,
 					 c->verbose, 0, NULL)) {
 			if (c->force) {
 				if (c->verbose >= 0)
@@ -1811,7 +1815,7 @@ try_again:
 	if (c->force && !clean && !is_container(content->array.level) &&
 	    !enough(content->array.level, content->array.raid_disks,
 		    content->array.layout, clean, avail)) {
-		change += st->ss->update_super(st, content, "force-array",
+		change += st->ss->update_super(st, content, UOPT_SPEC_FORCE_ARRAY,
 					       devices[chosen_drive].devname, c->verbose,
 					       0, NULL);
 		was_forced = 1;

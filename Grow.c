@@ -196,7 +196,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	info.disk.minor = minor(rdev);
 	info.disk.raid_disk = d;
 	info.disk.state = (1 << MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE);
-	if (st->ss->update_super(st, &info, "linear-grow-new", newdev,
+	if (st->ss->update_super(st, &info, UOPT_SPEC_LINEAR_GROW_NEW, newdev,
 				 0, 0, NULL) != 0) {
 		pr_err("Preparing new metadata failed on %s\n", newdev);
 		close(nfd);
@@ -254,7 +254,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 		info.array.active_disks = nd+1;
 		info.array.working_disks = nd+1;
 
-		if (st->ss->update_super(st, &info, "linear-grow-update", dv,
+		if (st->ss->update_super(st, &info, UOPT_SPEC_LINEAR_GROW_UPDATE, dv,
 				     0, 0, NULL) != 0) {
 			pr_err("Updating metadata failed on %s\n", dv);
 			close(fd2);
@@ -668,7 +668,7 @@ int Grow_consistency_policy(char *devname, int fd, struct context *c, struct sha
 					goto free_info;
 				}
 
-				ret = st->ss->update_super(st, sra, "ppl",
+				ret = st->ss->update_super(st, sra, UOPT_PPL,
 							   devname,
 							   c->verbose, 0, NULL);
 				if (ret) {
@@ -4950,7 +4950,8 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 				continue;
 			st->ss->getinfo_super(st, &dinfo, NULL);
 			dinfo.reshape_progress = info->reshape_progress;
-			st->ss->update_super(st, &dinfo, "_reshape_progress",
+			st->ss->update_super(st, &dinfo,
+					     UOPT_SPEC__RESHAPE_PROGRESS,
 					     NULL,0, 0, NULL);
 			st->ss->store_super(st, fdlist[j]);
 			st->ss->free_super(st);

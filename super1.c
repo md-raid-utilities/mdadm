@@ -1208,7 +1208,7 @@ static struct mdinfo *container_content1(struct supertype *st, char *subarray)
 }
 
 static int update_super1(struct supertype *st, struct mdinfo *info,
-			 char *update, char *devname, int verbose,
+			 enum update_opt update, char *devname, int verbose,
 			 int uuid_set, char *homehost)
 {
 	/* NOTE: for 'assemble' and 'force' we need to return non-zero
@@ -1218,15 +1218,14 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 	int rv = 0;
 	struct mdp_superblock_1 *sb = st->sb;
 	bitmap_super_t *bms = (bitmap_super_t*)(((char*)sb) + MAX_SB_SIZE);
-	enum update_opt update_enum = map_name(update_options, update);
 
-	if (update_enum == UOPT_HOMEHOST && homehost) {
+	if (update == UOPT_HOMEHOST && homehost) {
 		/*
 		 * Note that 'homehost' is special as it is really
 		 * a "name" update.
 		 */
 		char *c;
-		update_enum = UOPT_NAME;
+		update = UOPT_NAME;
 		c = strchr(sb->set_name, ':');
 		if (c)
 			snprintf(info->name, sizeof(info->name), "%s", c+1);
@@ -1234,7 +1233,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			snprintf(info->name, sizeof(info->name), "%s", sb->set_name);
 	}
 
-	switch (update_enum) {
+	switch (update) {
 	case UOPT_NAME: {
 		int namelen;
 
@@ -1534,7 +1533,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			 * If that couldn't happen, the "-nobackup" version
 			 * will be used.
 			 */
-			if (update_enum == UOPT_SPEC_REVERT_RESHAPE_NOBACKUP &&
+			if (update == UOPT_SPEC_REVERT_RESHAPE_NOBACKUP &&
 			    sb->reshape_position == 0 &&
 			    (__le32_to_cpu(sb->delta_disks) > 0 ||
 			     (__le32_to_cpu(sb->delta_disks) == 0 &&
@@ -1618,14 +1617,14 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 	case UOPT_LAYOUT_UNSPECIFIED:
 		if (__le32_to_cpu(sb->level) != 0) {
 			pr_err("%s: %s only supported for RAID0\n",
-			       devname ?: "", map_num(update_options, update_enum));
+			       devname ?: "", map_num(update_options, update));
 			rv = -1;
-		} else if (update_enum == UOPT_LAYOUT_UNSPECIFIED) {
+		} else if (update == UOPT_LAYOUT_UNSPECIFIED) {
 			sb->feature_map &= ~__cpu_to_le32(MD_FEATURE_RAID0_LAYOUT);
 			sb->layout = 0;
 		} else {
 			sb->feature_map |= __cpu_to_le32(MD_FEATURE_RAID0_LAYOUT);
-			sb->layout = __cpu_to_le32(update_enum == UOPT_LAYOUT_ORIGINAL ? 1 : 2);
+			sb->layout = __cpu_to_le32(update == UOPT_LAYOUT_ORIGINAL ? 1 : 2);
 		}
 		break;
 	default:

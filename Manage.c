@@ -605,6 +605,7 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 	struct mdinfo mdi;
 	int duuid[4];
 	int ouuid[4];
+	enum update_opt update_enum = map_name(update_options, update);
 
 	dev_st->ss->getinfo_super(dev_st, &mdi, NULL);
 	dev_st->ss->uuid_from_super(dev_st, ouuid);
@@ -666,23 +667,23 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 
 			if (dv->writemostly == FlagSet)
 				rv = dev_st->ss->update_super(
-					dev_st, NULL, "writemostly",
+					dev_st, NULL, UOPT_SPEC_WRITEMOSTLY,
 					devname, verbose, 0, NULL);
 			if (dv->writemostly == FlagClear)
 				rv = dev_st->ss->update_super(
-					dev_st, NULL, "readwrite",
+					dev_st, NULL, UOPT_SPEC_READWRITE,
 					devname, verbose, 0, NULL);
 			if (dv->failfast == FlagSet)
 				rv = dev_st->ss->update_super(
-					dev_st, NULL, "failfast",
+					dev_st, NULL, UOPT_SPEC_FAILFAST,
 					devname, verbose, 0, NULL);
 			if (dv->failfast == FlagClear)
 				rv = dev_st->ss->update_super(
-					dev_st, NULL, "nofailfast",
+					dev_st, NULL, UOPT_SPEC_NOFAILFAST,
 					devname, verbose, 0, NULL);
 			if (update)
 				rv = dev_st->ss->update_super(
-					dev_st, NULL, update,
+					dev_st, NULL, update_enum,
 					devname, verbose, 0, NULL);
 			if (rv == 0)
 				rv = dev_st->ss->store_super(dev_st, tfd);
@@ -1731,6 +1732,7 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 	struct supertype supertype, *st = &supertype;
 	int fd, rv = 2;
 	struct mdinfo *info = NULL;
+	enum update_opt update_enum = map_name(update_options, update);
 
 	memset(st, 0, sizeof(*st));
 
@@ -1762,7 +1764,7 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 		goto free_super;
 	}
 
-	rv = st->ss->update_subarray(st, subarray, update, ident);
+	rv = st->ss->update_subarray(st, subarray, update_enum, ident);
 
 	if (rv) {
 		if (verbose >= 0)

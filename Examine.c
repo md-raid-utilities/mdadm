@@ -117,7 +117,7 @@ int Examine(struct mddev_dev *devlist,
 		}
 
 		if (c->SparcAdjust)
-			st->ss->update_super(st, NULL, "sparc2.2",
+			st->ss->update_super(st, NULL, UOPT_SPARC22,
 					     devlist->devname, 0, 0, NULL);
 		/* Ok, its good enough to try, though the checksum could be wrong */
 

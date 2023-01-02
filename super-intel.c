@@ -3893,8 +3893,8 @@ struct mdinfo *getinfo_super_disks_imsm(struct supertype *st)
 }
 
 static int update_super_imsm(struct supertype *st, struct mdinfo *info,
-			     char *update, char *devname, int verbose,
-			     int uuid_set, char *homehost)
+			     enum update_opt update, char *devname,
+			     int verbose, int uuid_set, char *homehost)
 {
 	/* For 'assemble' and 'force' we need to return non-zero if any
 	 * change was made.  For others, the return value is ignored.
@@ -3930,7 +3930,7 @@ static int update_super_imsm(struct supertype *st, struct mdinfo *info,
 
 	mpb = super->anchor;
 
-	switch (map_name(update_options, update)) {
+	switch (update) {
 	case UOPT_UUID:
 		/* We take this to mean that the family_num should be updated.
 		 * However that is much smaller than the uuid so we cannot really
@@ -6538,7 +6538,7 @@ static int validate_ppl_imsm(struct supertype *st, struct mdinfo *info,
 		if (mdmon_running(st->container_devnm))
 			st->update_tail = &st->updates;
 
-		if (st->ss->update_subarray(st, subarray, "ppl", NULL)) {
+		if (st->ss->update_subarray(st, subarray, UOPT_PPL, NULL)) {
 			pr_err("Failed to update subarray %s\n",
 			      subarray);
 		} else {
@@ -7916,13 +7916,13 @@ static int get_rwh_policy_from_update(enum update_opt update)
 }
 
 static int update_subarray_imsm(struct supertype *st, char *subarray,
-				char *update, struct mddev_ident *ident)
+				enum update_opt update, struct mddev_ident *ident)
 {
 	/* update the subarray currently referenced by ->current_vol */
 	struct intel_super *super = st->sb;
 	struct imsm_super *mpb = super->anchor;
 
-	if (map_name(update_options, update) == UOPT_NAME) {
+	if (update == UOPT_NAME) {
 		char *name = ident->name;
 		char *ep;
 		int vol;
@@ -7956,7 +7956,7 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 			}
 			super->updates_pending++;
 		}
-	} else if (get_rwh_policy_from_update(map_name(update_options, update)) != UOPT_UNDEFINED) {
+	} else if (get_rwh_policy_from_update(update) != UOPT_UNDEFINED) {
 		int new_policy;
 		char *ep;
 		int vol = strtoul(subarray, &ep, 10);
@@ -7964,7 +7964,7 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 		if (*ep != '\0' || vol >= super->anchor->num_raid_devs)
 			return 2;
 
-		new_policy = get_rwh_policy_from_update(map_name(update_options, update));
+		new_policy = get_rwh_policy_from_update(update);
 
 		if (st->update_tail) {
 			struct imsm_update_rwh_policy *u = xmalloc(sizeof(*u));

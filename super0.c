@@ -491,7 +491,7 @@ static struct mdinfo *container_content0(struct supertype *st, char *subarray)
 }
 
 static int update_super0(struct supertype *st, struct mdinfo *info,
-			 char *update,
+			 enum update_opt update,
 			 char *devname, int verbose,
 			 int uuid_set, char *homehost)
 {
@@ -502,20 +502,19 @@ static int update_super0(struct supertype *st, struct mdinfo *info,
 	int rv = 0;
 	int uuid[4];
 	mdp_super_t *sb = st->sb;
-	enum update_opt update_enum = map_name(update_options, update);
 
-	if (update_enum == UOPT_HOMEHOST && homehost) {
+	if (update == UOPT_HOMEHOST && homehost) {
 		/*
 		 * note that 'homehost' is special as it is really
 		 * a "uuid" update.
 		 */
 		uuid_set = 0;
-		update_enum = UOPT_UUID;
+		update = UOPT_UUID;
 		info->uuid[0] = sb->set_uuid0;
 		info->uuid[1] = sb->set_uuid1;
 	}
 
-	switch (update_enum) {
+	switch (update) {
 	case UOPT_UUID:
 		if (!uuid_set && homehost) {
 			char buf[20];
