@@ -1745,6 +1745,13 @@ int Update_subarray(char *dev, char *subarray, char *update, struct mddev_ident 
 		goto free_super;
 	}
 
+	if (is_subarray_active(subarray, st->devnm)) {
+		if (verbose >= 0)
+			pr_err("Subarray %s in %s is active, cannot update %s\n",
+			       subarray, dev, update);
+		goto free_super;
+	}
+
 	if (mdmon_running(st->devnm))
 		st->update_tail = &st->updates;
 

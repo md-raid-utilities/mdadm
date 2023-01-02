@@ -7914,11 +7914,6 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 		char *ep;
 		int vol;
 
-		if (is_subarray_active(subarray, st->devnm)) {
-			pr_err("Unable to update name of active subarray\n");
-			return 2;
-		}
-
 		if (!check_name(super, name, 0))
 			return 2;
 
