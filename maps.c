@@ -194,6 +194,27 @@ mapping_t update_options[] = {
 	{ "byteorder", UOPT_BYTEORDER },
 	{ "help", UOPT_HELP },
 	{ "?", UOPT_HELP },
+	/*
+	 * Those enries are temporary and will be removed in this patchset.
+	 *
+	 * Before update_super:update can be changed to enum,
+	 * all update_super sub-functions must be adapted first.
+	 * Update options will be passed as string (as it is for now),
+	 * and then mapped, so all options must be handled temporarily.
+	 *
+	 * Those options code specific and should not be accessible for user.
+	 */
+	{ "force-one", UOPT_SPEC_FORCE_ONE },
+	{ "force-array", UOPT_SPEC_FORCE_ARRAY },
+	{ "assemble", UOPT_SPEC_ASSEMBLE },
+	{ "linear-grow-new", UOPT_SPEC_LINEAR_GROW_NEW },
+	{ "linear-grow-update", UOPT_SPEC_LINEAR_GROW_UPDATE },
+	{ "_reshape_progress", UOPT_SPEC__RESHAPE_PROGRESS },
+	{ "writemostly", UOPT_SPEC_WRITEMOSTLY },
+	{ "readwrite", UOPT_SPEC_READWRITE },
+	{ "failfast", UOPT_SPEC_FAILFAST },
+	{ "nofailfast", UOPT_SPEC_NOFAILFAST },
+	{ "revert-reshape-nobackup", UOPT_SPEC_REVERT_RESHAPE_NOBACKUP },
 	{ NULL, UOPT_UNDEFINED}
 };
 
