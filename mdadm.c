@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 	char *dump_directory = NULL;
 
 	int print_help = 0;
-	FILE *outf;
+	FILE *outf = NULL;
 
 	int mdfd = -1;
 	int locked = 0;
@@ -723,7 +723,11 @@ int main(int argc, char *argv[])
 			continue;
 
 		case O(ASSEMBLE,'U'): /* update the superblock */
-		case O(MISC,'U'):
+		case O(MISC,'U'): {
+			enum update_opt updateopt = map_name(update_options, c.update);
+			enum update_opt print_mode = UOPT_HELP;
+			const char *error_addon = "update option";
+
 			if (c.update) {
 				pr_err("Can only update one aspect of superblock, both %s and %s given.\n",
 					c.update, optarg);
@@ -733,83 +737,37 @@ int main(int argc, char *argv[])
 				pr_err("Only subarrays can be updated in misc mode\n");
 				exit(2);
 			}
+
 			c.update = optarg;
-			if (strcmp(c.update, "sparc2.2") == 0)
-				continue;
-			if (strcmp(c.update, "super-minor") == 0)
-				continue;
-			if (strcmp(c.update, "summaries") == 0)
-				continue;
-			if (strcmp(c.update, "resync") == 0)
-				continue;
-			if (strcmp(c.update, "uuid") == 0)
-				continue;
-			if (strcmp(c.update, "name") == 0)
-				continue;
-			if (strcmp(c.update, "homehost") == 0)
-				continue;
-			if (strcmp(c.update, "home-cluster") == 0)
-				continue;
-			if (strcmp(c.update, "nodes") == 0)
-				continue;
-			if (strcmp(c.update, "devicesize") == 0)
-				continue;
-			if (strcmp(c.update, "bitmap") == 0)
-				continue;
-			if (strcmp(c.update, "no-bitmap") == 0)
-				continue;
-			if (strcmp(c.update, "bbl") == 0)
-				continue;
-			if (strcmp(c.update, "no-bbl") == 0)
-				continue;
-			if (strcmp(c.update, "force-no-bbl") == 0)
-				continue;
-			if (strcmp(c.update, "ppl") == 0)
-				continue;
-			if (strcmp(c.update, "no-ppl") == 0)
-				continue;
-			if (strcmp(c.update, "metadata") == 0)
-				continue;
-			if (strcmp(c.update, "revert-reshape") == 0)
-				continue;
-			if (strcmp(c.update, "layout-original") == 0 ||
-			    strcmp(c.update, "layout-alternate") == 0 ||
-			    strcmp(c.update, "layout-unspecified") == 0)
-				continue;
-			if (strcmp(c.update, "byteorder") == 0) {
+
+			if (devmode == UpdateSubarray) {
+				print_mode = UOPT_SUBARRAY_ONLY;
+				error_addon = "update-subarray option";
+
+				if (updateopt > UOPT_SUBARRAY_ONLY && updateopt < UOPT_HELP)
+					updateopt = UOPT_UNDEFINED;
+			}
+
+			switch (updateopt) {
+			case UOPT_UNDEFINED:
+				pr_err("'--update=%s' is invalid %s. ",
+					c.update, error_addon);
+				outf = stderr;
+			case UOPT_HELP:
+				if (!outf)
+					outf = stdout;
+				fprint_update_options(outf, print_mode);
+				exit(outf == stdout ? 0 : 2);
+			case UOPT_BYTEORDER:
 				if (ss) {
 					pr_err("must not set metadata type with --update=byteorder.\n");
 					exit(2);
 				}
-				for(i = 0; !ss && superlist[i]; i++)
-					ss = superlist[i]->match_metadata_desc(
-						"0.swap");
-				if (!ss) {
-					pr_err("INTERNAL ERROR cannot find 0.swap\n");
-					exit(2);
-				}
-
-				continue;
+			default:
+				break;
 			}
-			if (strcmp(c.update,"?") == 0 ||
-			    strcmp(c.update, "help") == 0) {
-				outf = stdout;
-				fprintf(outf, "%s: ", Name);
-			} else {
-				outf = stderr;
-				fprintf(outf,
-					"%s: '--update=%s' is invalid.  ",
-					Name, c.update);
-			}
-			fprintf(outf, "Valid --update options are:\n"
-		"     'sparc2.2', 'super-minor', 'uuid', 'name', 'nodes', 'resync',\n"
-		"     'summaries', 'homehost', 'home-cluster', 'byteorder', 'devicesize',\n"
-		"     'bitmap', 'no-bitmap', 'metadata', 'revert-reshape'\n"
-		"     'bbl', 'no-bbl', 'force-no-bbl', 'ppl', 'no-ppl'\n"
-		"     'layout-original', 'layout-alternate', 'layout-unspecified'\n"
-				);
-			exit(outf == stdout ? 0 : 2);
-
+			continue;
+		}
 		case O(MANAGE,'U'):
 			/* update=devicesize is allowed with --re-add */
 			if (devmode != 'A') {

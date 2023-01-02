@@ -165,6 +165,37 @@ mapping_t sysfs_array_states[] = {
 	{ "broken", ARRAY_BROKEN },
 	{ NULL, ARRAY_UNKNOWN_STATE }
 };
+/**
+ * mapping_t update_options - stores supported update options.
+ */
+mapping_t update_options[] = {
+	{ "name", UOPT_NAME },
+	{ "ppl", UOPT_PPL },
+	{ "no-ppl", UOPT_NO_PPL },
+	{ "bitmap", UOPT_BITMAP },
+	{ "no-bitmap", UOPT_NO_BITMAP },
+	{ "sparc2.2", UOPT_SPARC22 },
+	{ "super-minor", UOPT_SUPER_MINOR },
+	{ "summaries", UOPT_SUMMARIES },
+	{ "resync", UOPT_RESYNC },
+	{ "uuid", UOPT_UUID },
+	{ "homehost", UOPT_HOMEHOST },
+	{ "home-cluster", UOPT_HOME_CLUSTER },
+	{ "nodes", UOPT_NODES },
+	{ "devicesize", UOPT_DEVICESIZE },
+	{ "bbl", UOPT_BBL },
+	{ "no-bbl", UOPT_NO_BBL },
+	{ "force-no-bbl", UOPT_FORCE_NO_BBL },
+	{ "metadata", UOPT_METADATA },
+	{ "revert-reshape", UOPT_REVERT_RESHAPE },
+	{ "layout-original", UOPT_LAYOUT_ORIGINAL },
+	{ "layout-alternate", UOPT_LAYOUT_ALTERNATE },
+	{ "layout-unspecified", UOPT_LAYOUT_UNSPECIFIED },
+	{ "byteorder", UOPT_BYTEORDER },
+	{ "help", UOPT_HELP },
+	{ "?", UOPT_HELP },
+	{ NULL, UOPT_UNDEFINED}
+};
 
 /**
  * map_num_s() - Safer alternative of map_num() function.

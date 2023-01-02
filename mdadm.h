@@ -497,6 +497,36 @@ enum special_options {
 	ConsistencyPolicy,
 };
 
+enum update_opt {
+	UOPT_NAME = 1,
+	UOPT_PPL,
+	UOPT_NO_PPL,
+	UOPT_BITMAP,
+	UOPT_NO_BITMAP,
+	UOPT_SUBARRAY_ONLY,
+	UOPT_SPARC22,
+	UOPT_SUPER_MINOR,
+	UOPT_SUMMARIES,
+	UOPT_RESYNC,
+	UOPT_UUID,
+	UOPT_HOMEHOST,
+	UOPT_HOME_CLUSTER,
+	UOPT_NODES,
+	UOPT_DEVICESIZE,
+	UOPT_BBL,
+	UOPT_NO_BBL,
+	UOPT_FORCE_NO_BBL,
+	UOPT_METADATA,
+	UOPT_REVERT_RESHAPE,
+	UOPT_LAYOUT_ORIGINAL,
+	UOPT_LAYOUT_ALTERNATE,
+	UOPT_LAYOUT_UNSPECIFIED,
+	UOPT_BYTEORDER,
+	UOPT_HELP,
+	UOPT_UNDEFINED
+};
+extern void fprint_update_options(FILE *outf, enum update_opt update_mode);
+
 enum prefix_standard {
 	JEDEC,
 	IEC
@@ -777,7 +807,7 @@ extern char *map_num(mapping_t *map, int num);
 extern int map_name(mapping_t *map, char *name);
 extern mapping_t r0layout[], r5layout[], r6layout[],
 	pers[], modes[], faultylayout[];
-extern mapping_t consistency_policies[], sysfs_array_states[];
+extern mapping_t consistency_policies[], sysfs_array_states[], update_options[];
 
 extern char *map_dev_preferred(int major, int minor, int create,
 			       char *prefer);

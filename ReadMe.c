@@ -655,3 +655,34 @@ char *mode_help[mode_count] = {
 	[GROW]		= Help_grow,
 	[INCREMENTAL]	= Help_incr,
 };
+
+/**
+ * fprint_update_options() - Print valid update options depending on the mode.
+ * @outf: File (output stream)
+ * @update_mode: Used to distinguish update and update_subarray
+ */
+void fprint_update_options(FILE *outf, enum update_opt update_mode)
+{
+	int counter = UOPT_NAME, breakpoint = UOPT_HELP;
+	mapping_t *map = update_options;
+
+	if (!outf)
+		return;
+	if (update_mode == UOPT_SUBARRAY_ONLY) {
+		breakpoint = UOPT_SUBARRAY_ONLY;
+		fprintf(outf, "Valid --update options for update-subarray are:\n\t");
+	} else
+		fprintf(outf, "Valid --update options are:\n\t");
+	while (map->num) {
+		if (map->num >= breakpoint)
+			break;
+		fprintf(outf, "'%s', ", map->name);
+		if (counter % 5 == 0)
+			fprintf(outf, "\n\t");
+		counter++;
+		map++;
+	}
+	if ((counter - 1) % 5)
+		fprintf(outf, "\n");
+	fprintf(outf, "\r");
+}
