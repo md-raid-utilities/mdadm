@@ -363,14 +363,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (all == 0 && container_name == NULL) {
-		if (argv[optind])
-			container_name = argv[optind];
+		if (argv[optind]) {
+			container_name = get_md_name(argv[optind]);
+			if (!container_name)
+				container_name = argv[optind];
+		}
 	}
 
-	if (container_name == NULL)
-		usage();
-
-	if (argc - optind > 1)
+	if (container_name == NULL || argc - optind > 1)
 		usage();
 
 	if (strcmp(container_name, "/proc/mdstat") == 0)
@@ -402,21 +402,19 @@ int main(int argc, char *argv[])
 		free_mdstat(mdstat);
 
 		return status;
-	} else if (strncmp(container_name, "md", 2) == 0) {
-		int id = devnm2devid(container_name);
-		if (id)
-			devnm = container_name;
 	} else {
-		struct stat st;
+		int mdfd = open_mddev(container_name, 1);
 
-		if (stat(container_name, &st) == 0)
-			devnm = xstrdup(stat2devnm(&st));
+		if (mdfd < 0)
+			return 1;
+		devnm = fd2devnm(mdfd);
+		close(mdfd);
 	}
 
 	if (!devnm) {
 		pr_err("%s is not a valid md device name\n",
 			container_name);
-		exit(1);
+		return 1;
 	}
 	return mdmon(devnm, dofork && do_fork(), takeover);
 }
