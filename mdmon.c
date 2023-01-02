@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
 		if (argv[optind]) {
 			container_name = get_md_name(argv[optind]);
 			if (!container_name)
-				container_name = argv[optind];
+				return 1;
 		}
 	}
 
@@ -403,11 +403,9 @@ int main(int argc, char *argv[])
 
 		return status;
 	} else {
-		int mdfd = open_mddev(container_name, 1);
-
-		if (mdfd < 0)
-			return 1;
+		int mdfd = open_mddev(container_name, 0);
 		devnm = fd2devnm(mdfd);
+
 		close(mdfd);
 	}
 

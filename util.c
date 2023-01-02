@@ -968,47 +968,30 @@ dev_t devnm2devid(char *devnm)
 	return 0;
 }
 
+/**
+ * get_md_name() - Get main dev node of the md device.
+ * @devnm: Md device name or path.
+ *
+ * Function checks if the full name was passed and returns md name
+ * if it is the MD device.
+ *
+ * Return: Main dev node of the md device or NULL if not found.
+ */
 char *get_md_name(char *devnm)
 {
-	/* find /dev/md%d or /dev/md/%d or make a device /dev/.tmp.md%d */
-	/* if dev < 0, want /dev/md/d%d or find mdp in /proc/devices ... */
-
-	static char devname[50];
+	static char devname[NAME_MAX];
 	struct stat stb;
-	dev_t rdev = devnm2devid(devnm);
-	char *dn;
 
-	if (rdev == 0)
-		return 0;
-	if (strncmp(devnm, "md_", 3) == 0) {
-		snprintf(devname, sizeof(devname), "/dev/md/%s",
-			devnm + 3);
-		if (stat(devname, &stb) == 0 &&
-		    (S_IFMT&stb.st_mode) == S_IFBLK && (stb.st_rdev == rdev))
-			return devname;
-	}
-	snprintf(devname, sizeof(devname), "/dev/%s", devnm);
-	if (stat(devname, &stb) == 0 && (S_IFMT&stb.st_mode) == S_IFBLK &&
-	    (stb.st_rdev == rdev))
+	if (strncmp(devnm, "/dev/", 5) == 0)
+		snprintf(devname, sizeof(devname), "%s", devnm);
+	else
+		snprintf(devname, sizeof(devname), "/dev/%s", devnm);
+
+	if (!is_mddev(devname))
+		return NULL;
+	if (stat(devname, &stb) == 0 && (S_IFMT&stb.st_mode) == S_IFBLK)
 		return devname;
 
-	snprintf(devname, sizeof(devname), "/dev/md/%s", devnm+2);
-	if (stat(devname, &stb) == 0 && (S_IFMT&stb.st_mode) == S_IFBLK &&
-	    (stb.st_rdev == rdev))
-		return devname;
-
-	dn = map_dev(major(rdev), minor(rdev), 0);
-	if (dn)
-		return dn;
-	snprintf(devname, sizeof(devname), "/dev/.tmp.%s", devnm);
-	if (mknod(devname, S_IFBLK | 0600, rdev) == -1)
-		if (errno != EEXIST)
-			return NULL;
-
-	if (stat(devname, &stb) == 0 && (S_IFMT&stb.st_mode) == S_IFBLK &&
-	    (stb.st_rdev == rdev))
-		return devname;
-	unlink(devname);
 	return NULL;
 }
 
