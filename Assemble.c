@@ -135,17 +135,17 @@ static int ident_matches(struct mddev_ident *ident,
 			 struct mdinfo *content,
 			 struct supertype *tst,
 			 char *homehost, int require_homehost,
-			 char *update, char *devname)
+			 enum update_opt update, char *devname)
 {
 
-	if (ident->uuid_set && (!update || strcmp(update, "uuid")!= 0) &&
+	if (ident->uuid_set && update != UOPT_UUID &&
 	    same_uuid(content->uuid, ident->uuid, tst->ss->swapuuid)==0 &&
 	    memcmp(content->uuid, uuid_zero, sizeof(int[4])) != 0) {
 		if (devname)
 			pr_err("%s has wrong uuid.\n", devname);
 		return 0;
 	}
-	if (ident->name[0] && (!update || strcmp(update, "name")!= 0) &&
+	if (ident->name[0] && update != UOPT_NAME &&
 	    name_matches(content->name, ident->name, homehost, require_homehost)==0) {
 		if (devname)
 			pr_err("%s has wrong name.\n", devname);
@@ -648,11 +648,10 @@ static int load_devices(struct devs *devices, char *devmap,
 			int err;
 			fstat(mdfd, &stb2);
 
-			if (strcmp(c->update, "uuid") == 0 && !ident->uuid_set)
+			if (c->update == UOPT_UUID && !ident->uuid_set)
 				random_uuid((__u8 *)ident->uuid);
 
-			if (strcmp(c->update, "ppl") == 0 &&
-			    ident->bitmap_fd >= 0) {
+			if (c->update == UOPT_PPL && ident->bitmap_fd >= 0) {
 				pr_err("PPL is not compatible with bitmap\n");
 				close(mdfd);
 				free(devices);
@@ -684,34 +683,30 @@ static int load_devices(struct devs *devices, char *devmap,
 			strcpy(content->name, ident->name);
 			content->array.md_minor = minor(stb2.st_rdev);
 
-			if (strcmp(c->update, "byteorder") == 0)
+			if (c->update == UOPT_BYTEORDER)
 				err = 0;
-			else if (strcmp(c->update, "home-cluster") == 0) {
+			else if (c->update == UOPT_HOME_CLUSTER) {
 				tst->cluster_name = c->homecluster;
 				err = tst->ss->write_bitmap(tst, dfd, NameUpdate);
-			} else if (strcmp(c->update, "nodes") == 0) {
+			} else if (c->update == UOPT_NODES) {
 				tst->nodes = c->nodes;
 				err = tst->ss->write_bitmap(tst, dfd, NodeNumUpdate);
-			} else if (strcmp(c->update, "revert-reshape") == 0 &&
-				   c->invalid_backup)
+			} else if (c->update == UOPT_REVERT_RESHAPE && c->invalid_backup)
 				err = tst->ss->update_super(tst, content,
 							    UOPT_SPEC_REVERT_RESHAPE_NOBACKUP,
 							    devname, c->verbose,
 							    ident->uuid_set,
 							    c->homehost);
 			else
-				/*
-				 * Mapping is temporary, will be removed in this patchset
-				 */
 				err = tst->ss->update_super(tst, content,
-							    map_name(update_options, c->update),
+							    c->update,
 							    devname, c->verbose,
 							    ident->uuid_set,
 							    c->homehost);
 			if (err < 0) {
 				if (err == -1)
 					pr_err("--update=%s not understood for %s metadata\n",
-					       c->update, tst->ss->name);
+					       map_num(update_options, c->update), tst->ss->name);
 				tst->ss->free_super(tst);
 				free(tst);
 				close(mdfd);
@@ -721,7 +716,7 @@ static int load_devices(struct devs *devices, char *devmap,
 				*stp = st;
 				return -1;
 			}
-			if (strcmp(c->update, "uuid")==0 &&
+			if (c->update == UOPT_UUID &&
 			    !ident->uuid_set) {
 				ident->uuid_set = 1;
 				memcpy(ident->uuid, content->uuid, 16);
@@ -730,7 +725,7 @@ static int load_devices(struct devs *devices, char *devmap,
 				pr_err("Could not re-write superblock on %s.\n",
 				       devname);
 
-			if (strcmp(c->update, "uuid")==0 &&
+			if (c->update == UOPT_UUID &&
 			    ident->bitmap_fd >= 0 && !bitmap_done) {
 				if (bitmap_update_uuid(ident->bitmap_fd,
 						       content->uuid,
@@ -1188,8 +1183,7 @@ static int start_array(int mdfd,
 				pr_err("%s: Need a backup file to complete reshape of this array.\n",
 				       mddev);
 				pr_err("Please provided one with \"--backup-file=...\"\n");
-				if (c->update &&
-				    strcmp(c->update, "revert-reshape") == 0)
+				if (c->update == UOPT_REVERT_RESHAPE)
 					pr_err("(Don't specify --update=revert-reshape again, that part succeeded.)\n");
 				return 1;
 			}
@@ -1487,7 +1481,7 @@ try_again:
 	 */
 	if (map_lock(&map))
 		pr_err("failed to get exclusive lock on mapfile - continue anyway...\n");
-	if (c->update && strcmp(c->update,"uuid") == 0)
+	if (c->update == UOPT_UUID)
 		mp = NULL;
 	else
 		mp = map_by_uuid(&map, content->uuid);
@@ -1634,7 +1628,7 @@ try_again:
 		goto out;
 	}
 
-	if (c->update && strcmp(c->update, "byteorder")==0)
+	if (c->update == UOPT_BYTEORDER)
 		st->minor_version = 90;
 
 	st->ss->getinfo_super(st, content, NULL);
@@ -1902,7 +1896,7 @@ try_again:
 	/* First, fill in the map, so that udev can find our name
 	 * as soon as we become active.
 	 */
-	if (c->update && strcmp(c->update, "metadata")==0) {
+	if (c->update == UOPT_METADATA) {
 		content->array.major_version = 1;
 		content->array.minor_version = 0;
 		strcpy(content->text_version, "1.0");

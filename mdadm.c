@@ -724,13 +724,12 @@ int main(int argc, char *argv[])
 
 		case O(ASSEMBLE,'U'): /* update the superblock */
 		case O(MISC,'U'): {
-			enum update_opt updateopt = map_name(update_options, c.update);
 			enum update_opt print_mode = UOPT_HELP;
 			const char *error_addon = "update option";
 
 			if (c.update) {
 				pr_err("Can only update one aspect of superblock, both %s and %s given.\n",
-					c.update, optarg);
+					map_num(update_options, c.update), optarg);
 				exit(2);
 			}
 			if (mode == MISC && !c.subarray) {
@@ -738,20 +737,20 @@ int main(int argc, char *argv[])
 				exit(2);
 			}
 
-			c.update = optarg;
+			c.update = map_name(update_options, optarg);
 
 			if (devmode == UpdateSubarray) {
 				print_mode = UOPT_SUBARRAY_ONLY;
 				error_addon = "update-subarray option";
 
-				if (updateopt > UOPT_SUBARRAY_ONLY && updateopt < UOPT_HELP)
-					updateopt = UOPT_UNDEFINED;
+				if (c.update > UOPT_SUBARRAY_ONLY && c.update < UOPT_HELP)
+					c.update = UOPT_UNDEFINED;
 			}
 
-			switch (updateopt) {
+			switch (c.update) {
 			case UOPT_UNDEFINED:
 				pr_err("'--update=%s' is invalid %s. ",
-					c.update, error_addon);
+					optarg, error_addon);
 				outf = stderr;
 			case UOPT_HELP:
 				if (!outf)
@@ -776,14 +775,14 @@ int main(int argc, char *argv[])
 			}
 			if (c.update) {
 				pr_err("Can only update one aspect of superblock, both %s and %s given.\n",
-					c.update, optarg);
+					map_num(update_options, c.update), optarg);
 				exit(2);
 			}
-			c.update = optarg;
-			if (strcmp(c.update, "devicesize") != 0 &&
-			    strcmp(c.update, "bbl") != 0 &&
-			    strcmp(c.update, "force-no-bbl") != 0 &&
-			    strcmp(c.update, "no-bbl") != 0) {
+			c.update = map_name(update_options, optarg);
+			if (c.update != UOPT_DEVICESIZE &&
+			    c.update != UOPT_BBL &&
+			    c.update != UOPT_NO_BBL &&
+			    c.update != UOPT_FORCE_NO_BBL) {
 				pr_err("only 'devicesize', 'bbl', 'no-bbl', and 'force-no-bbl' can be updated with --re-add\n");
 				exit(2);
 			}
@@ -1357,7 +1356,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (c.update && strcmp(c.update, "nodes") == 0 && c.nodes == 0) {
+	if (c.update && c.update == UOPT_NODES && c.nodes == 0) {
 		pr_err("Please specify nodes number with --nodes\n");
 		exit(1);
 	}
@@ -1402,22 +1401,10 @@ int main(int argc, char *argv[])
 		/* readonly, add/remove, readwrite, runstop */
 		if (c.readonly > 0)
 			rv = Manage_ro(devlist->devname, mdfd, c.readonly);
-		if (!rv && devs_found > 1) {
-			/*
-			 * This is temporary and will be removed in next patches
-			 * Null c.update will cause segfault
-			 */
-			if (c.update)
-				rv = Manage_subdevs(devlist->devname, mdfd,
-						devlist->next, c.verbose, c.test,
-						map_name(update_options, c.update),
-						c.force);
-			else
-				rv = Manage_subdevs(devlist->devname, mdfd,
-						devlist->next, c.verbose, c.test,
-						UOPT_UNDEFINED,
-						c.force);
-		}
+		if (!rv && devs_found > 1)
+			rv = Manage_subdevs(devlist->devname, mdfd,
+					    devlist->next, c.verbose,
+					    c.test, c.update, c.force);
 		if (!rv && c.readonly < 0)
 			rv = Manage_ro(devlist->devname, mdfd, c.readonly);
 		if (!rv && c.runstop > 0)
@@ -1937,14 +1924,13 @@ static int misc_list(struct mddev_dev *devlist,
 			rv |= Kill_subarray(dv->devname, c->subarray, c->verbose);
 			continue;
 		case UpdateSubarray:
-			if (c->update == NULL) {
+			if (!c->update) {
 				pr_err("-U/--update must be specified with --update-subarray\n");
 				rv |= 1;
 				continue;
 			}
 			rv |= Update_subarray(dv->devname, c->subarray,
-					      map_name(update_options, c->update),
-					      ident, c->verbose);
+					      c->update, ident, c->verbose);
 			continue;
 		case Dump:
 			rv |= Dump_metadata(dv->devname, dump_directory, c, ss);

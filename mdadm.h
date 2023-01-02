@@ -616,7 +616,7 @@ struct context {
 	int	export;
 	int	test;
 	char	*subarray;
-	char	*update;
+	enum	update_opt update;
 	int	scan;
 	int	SparcAdjust;
 	int	autof;
