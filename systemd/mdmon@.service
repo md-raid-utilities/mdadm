@@ -26,3 +26,4 @@ Type=forking
 # it out) and systemd will remove it when transitioning from
 # initramfs to rootfs.
 #PIDFile=/run/mdadm/%I.pid
+KillMode=none
