@@ -1777,6 +1777,8 @@ extern void set_dlm_hooks(void);
 #define MSEC_TO_NSEC(msec) ((msec) * 1000000)
 #define USEC_TO_NSEC(usec) ((usec) * 1000)
 extern void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt);
+extern bool is_directory(const char *path);
+extern bool is_file(const char *path);
 
 #define _ROUND_UP(val, base)	(((val) + (base) - 1) & ~(base - 1))
 #define ROUND_UP(val, base)	_ROUND_UP(val, (typeof(val))(base))
