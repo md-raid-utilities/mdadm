@@ -627,7 +627,8 @@ static const char *_sys_dev_type[] = {
 	[SYS_DEV_SAS] = "SAS",
 	[SYS_DEV_SATA] = "SATA",
 	[SYS_DEV_NVME] = "NVMe",
-	[SYS_DEV_VMD] = "VMD"
+	[SYS_DEV_VMD] = "VMD",
+	[SYS_DEV_SATA_VMD] = "SATA VMD"
 };
 
 static int no_platform = -1;
@@ -2598,6 +2599,8 @@ static void print_found_intel_controllers(struct sys_dev *elem)
 
 		if (elem->type == SYS_DEV_VMD)
 			fprintf(stderr, "VMD domain");
+		else if (elem->type == SYS_DEV_SATA_VMD)
+			fprintf(stderr, "SATA VMD domain");
 		else
 			fprintf(stderr, "RAID controller");
 
@@ -2768,8 +2771,9 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 		if (!find_imsm_capability(hba)) {
 			char buf[PATH_MAX];
 			pr_err("imsm capabilities not found for controller: %s (type %s)\n",
-				  hba->type == SYS_DEV_VMD ? vmd_domain_to_controller(hba, buf) : hba->path,
-				  get_sys_dev_type(hba->type));
+				  hba->type == SYS_DEV_VMD || hba->type == SYS_DEV_SATA_VMD ?
+				  vmd_domain_to_controller(hba, buf) :
+				  hba->path, get_sys_dev_type(hba->type));
 			continue;
 		}
 		result = 0;
@@ -2822,11 +2826,12 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 
 			printf(" I/O Controller : %s (%s)\n",
 				hba->path, get_sys_dev_type(hba->type));
-			if (hba->type == SYS_DEV_SATA) {
+			if (hba->type == SYS_DEV_SATA || hba->type == SYS_DEV_SATA_VMD) {
 				host_base = ahci_get_port_count(hba->path, &port_count);
 				if (ahci_enumerate_ports(hba->path, port_count, host_base, verbose)) {
 					if (verbose > 0)
-						pr_err("failed to enumerate ports on SATA controller at %s.\n", hba->pci_id);
+						pr_err("failed to enumerate ports on %s controller at %s.\n",
+							get_sys_dev_type(hba->type), hba->pci_id);
 					result |= 2;
 				}
 			}
@@ -2856,7 +2861,8 @@ static int export_detail_platform_imsm(int verbose, char *controller_path)
 		if (!find_imsm_capability(hba) && verbose > 0) {
 			char buf[PATH_MAX];
 			pr_err("IMSM_DETAIL_PLATFORM_ERROR=NO_IMSM_CAPABLE_DEVICE_UNDER_%s\n",
-			hba->type == SYS_DEV_VMD ? vmd_domain_to_controller(hba, buf) : hba->path);
+				hba->type == SYS_DEV_VMD || hba->type == SYS_DEV_SATA_VMD ?
+				vmd_domain_to_controller(hba, buf) : hba->path);
 		}
 		else
 			result = 0;
@@ -2865,7 +2871,7 @@ static int export_detail_platform_imsm(int verbose, char *controller_path)
 	const struct orom_entry *entry;
 
 	for (entry = orom_entries; entry; entry = entry->next) {
-		if (entry->type == SYS_DEV_VMD) {
+		if (entry->type == SYS_DEV_VMD || entry->type == SYS_DEV_SATA_VMD) {
 			for (hba = list; hba; hba = hba->next)
 				print_imsm_capability_export(&entry->orom);
 			continue;
@@ -4782,10 +4788,12 @@ static int find_intel_hba_capability(int fd, struct intel_super *super, char *de
 				"    but the container is assigned to Intel(R) %s %s (",
 				devname,
 				get_sys_dev_type(hba_name->type),
-				hba_name->type == SYS_DEV_VMD ? "domain" : "RAID controller",
+				hba_name->type == SYS_DEV_VMD || hba_name->type == SYS_DEV_SATA_VMD ?
+					"domain" : "RAID controller",
 				hba_name->pci_id ? : "Err!",
 				get_sys_dev_type(super->hba->type),
-				hba->type == SYS_DEV_VMD ? "domain" : "RAID controller");
+				hba->type == SYS_DEV_VMD || hba_name->type == SYS_DEV_SATA_VMD ?
+					"domain" : "RAID controller");
 
 			while (hba) {
 				fprintf(stderr, "%s", hba->pci_id ? : "Err!");
@@ -11274,7 +11282,7 @@ static const char *imsm_get_disk_controller_domain(const char *path)
 		hba = find_disk_attached_hba(-1, path);
 		if (hba && hba->type == SYS_DEV_SAS)
 			drv = "isci";
-		else if (hba && hba->type == SYS_DEV_SATA)
+		else if (hba && (hba->type == SYS_DEV_SATA || hba->type == SYS_DEV_SATA_VMD))
 			drv = "ahci";
 		else if (hba && hba->type == SYS_DEV_VMD)
 			drv = "vmd";

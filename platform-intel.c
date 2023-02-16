@@ -64,9 +64,10 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 
 	if (strcmp(driver, "isci") == 0)
 		type = SYS_DEV_SAS;
-	else if (strcmp(driver, "ahci") == 0)
+	else if (strcmp(driver, "ahci") == 0) {
+		vmd = find_driver_devices("pci", "vmd");
 		type = SYS_DEV_SATA;
-	else if (strcmp(driver, "nvme") == 0) {
+	} else if (strcmp(driver, "nvme") == 0) {
 		/* if looking for nvme devs, first look for vmd */
 		vmd = find_driver_devices("pci", "vmd");
 		type = SYS_DEV_NVME;
@@ -111,6 +112,17 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 			for (dev = vmd; dev; dev = dev->next) {
 				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0))
 					skip = 1;
+			}
+			free(rp);
+		}
+
+		/* change sata type if under a vmd controller */
+		if (type == SYS_DEV_SATA) {
+			struct sys_dev *dev;
+			char *rp = realpath(path, NULL);
+			for (dev = vmd; dev; dev = dev->next) {
+				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0))
+					type = SYS_DEV_SATA_VMD;
 			}
 			free(rp);
 		}
@@ -166,7 +178,8 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 	}
 	closedir(driver_dir);
 
-	if (vmd) {
+	/* nvme vmd needs a list separate from sata vmd */
+	if (vmd && type == SYS_DEV_NVME) {
 		if (list)
 			list->next = vmd;
 		else
@@ -273,6 +286,7 @@ struct sys_dev *find_intel_devices(void)
 		free_sys_dev(&intel_devices);
 
 	isci = find_driver_devices("pci", "isci");
+	/* Searching for AHCI will return list of SATA and SATA VMD controllers */
 	ahci = find_driver_devices("pci", "ahci");
 	/* Searching for NVMe will return list of NVMe and VMD controllers */
 	nvme = find_driver_devices("pci", "nvme");
@@ -638,6 +652,7 @@ const struct imsm_orom *find_imsm_efi(struct sys_dev *hba)
 
 		break;
 	case SYS_DEV_VMD:
+	case SYS_DEV_SATA_VMD:
 		for (i = 0; i < ARRAY_SIZE(vmd_efivars); i++) {
 			if (!read_efi_variable(&orom, sizeof(orom),
 						vmd_efivars[i], VENDOR_GUID))

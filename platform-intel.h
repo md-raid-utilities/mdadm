@@ -196,6 +196,7 @@ enum sys_dev_type {
 	SYS_DEV_SATA,
 	SYS_DEV_NVME,
 	SYS_DEV_VMD,
+	SYS_DEV_SATA_VMD,
 	SYS_DEV_MAX
 };
 
