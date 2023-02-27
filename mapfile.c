@@ -292,6 +292,10 @@ struct map_ent *map_by_uuid(struct map_ent **map, int uuid[4])
 struct map_ent *map_by_devnm(struct map_ent **map, char *devnm)
 {
 	struct map_ent *mp;
+
+	if (!devnm)
+		return NULL;
+
 	if (!*map)
 		map_read(map);
 

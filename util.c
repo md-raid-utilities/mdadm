@@ -1160,6 +1160,11 @@ struct supertype *super_by_fd(int fd, char **subarrayp)
 	int i;
 	char *subarray = NULL;
 	char container[32] = "";
+	char *devnm = NULL;
+
+	devnm = fd2devnm(fd);
+	if (!devnm)
+		return NULL;
 
 	sra = sysfs_read(fd, NULL, GET_VERSION);
 
@@ -1205,7 +1210,7 @@ struct supertype *super_by_fd(int fd, char **subarrayp)
 		if (subarrayp)
 			*subarrayp = subarray;
 		strcpy(st->container_devnm, container);
-		strcpy(st->devnm, fd2devnm(fd));
+		strncpy(st->devnm, devnm, MD_NAME_MAX - 1);
 	} else
 		free(subarray);
 
