@@ -838,6 +838,22 @@ array is resynced at creation.  From Linux version 3.0,
 can be used with that command to avoid the automatic resync.
 
 .TP
+.BR \-\-write-zeroes
+When creating an array, send write zeroes requests to all the block
+devices.  This should zero the data area on all disks such that the
+initial sync is not necessary and, if successfull, will behave
+as if
+.B \-\-assume\-clean
+was specified.
+.IP
+This is intended for use with devices that have hardware offload for
+zeroing, but despite this zeroing can still take several minutes for
+large disks.  Thus a message is printed before and after zeroing and
+each disk is zeroed in parallel with the others.
+.IP
+This is only meaningful with --create.
+
+.TP
 .BR \-\-backup\-file=
 This is needed when
 .B \-\-grow
@@ -1370,7 +1386,7 @@ and
 .B layout\-alternate
 options are for RAID0 arrays with non-uniform devices size that were in
 use before Linux 5.4.  If the array was being used with Linux 3.13 or
-earlier, then to assemble the array on a new kernel, 
+earlier, then to assemble the array on a new kernel,
 .B \-\-update=layout\-original
 must be given.  If the array was created and used with a kernel from Linux 3.14 to
 Linux 5.3, then
