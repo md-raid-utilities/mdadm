@@ -590,6 +590,10 @@ int main(int argc, char *argv[])
 			s.assume_clean = 1;
 			continue;
 
+		case O(CREATE, WriteZeroes):
+			s.write_zeroes = 1;
+			continue;
+
 		case O(GROW,'n'):
 		case O(CREATE,'n'):
 		case O(BUILD,'n'): /* number of raid disks */
@@ -1249,6 +1253,11 @@ int main(int argc, char *argv[])
 			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		}
+	}
+
+	if (s.write_zeroes && !s.assume_clean) {
+		pr_info("Disk zeroing requested, setting --assume-clean to skip resync\n");
+		s.assume_clean = 1;
 	}
 
 	if (!mode && devs_found) {
