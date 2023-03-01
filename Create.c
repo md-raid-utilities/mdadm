@@ -984,11 +984,12 @@ int Create(struct supertype *st, char *mddev,
 
 			mdi = sysfs_read(-1, devnm, GET_VERSION);
 
-			pr_err("Creating array inside %s container %s\n",
+			pr_info("Creating array inside %s container %s\n",
 				mdi?mdi->text_version:"managed", devnm);
 			sysfs_free(mdi);
 		} else
-			pr_err("Defaulting to version %s metadata\n", info.text_version);
+			pr_info("Defaulting to version %s metadata\n",
+				info.text_version);
 	}
 
 	map_update(&map, fd2devnm(mdfd), info.text_version,
@@ -1145,7 +1146,7 @@ int Create(struct supertype *st, char *mddev,
 			ioctl(mdfd, RESTART_ARRAY_RW, NULL);
 		}
 		if (c->verbose >= 0)
-			pr_err("array %s started.\n", mddev);
+			pr_info("array %s started.\n", mddev);
 		if (st->ss->external && st->container_devnm[0]) {
 			if (need_mdmon)
 				start_mdmon(st->container_devnm);
