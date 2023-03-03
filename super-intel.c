@@ -713,12 +713,12 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 
 	for (elem = list; elem; elem = elem->next)
 		if (path_attached_to_hba(disk_path, elem->path))
-			return elem;
+			break;
 
 	if (disk_path != devname)
 		free(disk_path);
 
-	return NULL;
+	return elem;
 }
 
 static int find_intel_hba_capability(int fd, struct intel_super *super,
