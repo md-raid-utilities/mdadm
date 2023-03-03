@@ -4515,6 +4515,7 @@ static int load_imsm_mpb(int fd, struct intel_super *super, char *devname)
 	    MIGR_REC_BUF_SECTORS*MAX_SECTOR_SIZE) != 0) {
 		pr_err("could not allocate migr_rec buffer\n");
 		free(super->buf);
+		super->buf = NULL;
 		return 2;
 	}
 	super->clean_migration_record_by_mdmon = 0;
