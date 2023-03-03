@@ -1592,15 +1592,20 @@ static unsigned int get_vd_num_of_subarray(struct supertype *st)
 	sra = sysfs_read(-1, st->devnm, GET_VERSION);
 	if (!sra || sra->array.major_version != -1 ||
 	    sra->array.minor_version != -2 ||
-	    !is_subarray(sra->text_version))
+	    !is_subarray(sra->text_version)) {
+		if (sra)
+			sysfs_free(sra);
 		return DDF_NOTFOUND;
+	}
 
 	sub = strchr(sra->text_version + 1, '/');
 	if (sub != NULL)
 		vcnum = strtoul(sub + 1, &end, 10);
 	if (sub == NULL || *sub == '\0' || *end != '\0' ||
-	    vcnum >= be16_to_cpu(ddf->active->max_vd_entries))
+	    vcnum >= be16_to_cpu(ddf->active->max_vd_entries)) {
+		sysfs_free(sra);
 		return DDF_NOTFOUND;
+	}
 
 	return vcnum;
 }
