@@ -421,12 +421,15 @@ int parse_layout_10(char *layout)
 
 int parse_layout_faulty(char *layout)
 {
+	int ln, mode;
+	char *m;
+
 	if (!layout)
 		return -1;
+
 	/* Parse the layout string for 'faulty' */
-	int ln = strcspn(layout, "0123456789");
-	char *m = xstrdup(layout);
-	int mode;
+	ln = strcspn(layout, "0123456789");
+	m = xstrdup(layout);
 	m[ln] = 0;
 	mode = map_name(faultylayout, m);
 	if (mode == UnSet)
