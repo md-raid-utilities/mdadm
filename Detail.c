@@ -303,6 +303,7 @@ int Detail(char *dev, struct context *c)
 				if (path)
 					printf("MD_DEVICE_%s_DEV=%s\n",
 					       sysdev, path);
+				free(sysdev);
 			}
 		}
 		goto out;
