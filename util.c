@@ -432,6 +432,8 @@ int parse_layout_faulty(char *layout)
 	m = xstrdup(layout);
 	m[ln] = 0;
 	mode = map_name(faultylayout, m);
+	free(m);
+
 	if (mode == UnSet)
 		return -1;
 
