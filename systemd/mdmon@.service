@@ -6,7 +6,7 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=MD Metadata Monitor on /dev/%I
+Description=MD Metadata Monitor on %I
 DefaultDependencies=no
 Before=initrd-switch-root.target
 Documentation=man:mdmon(8)

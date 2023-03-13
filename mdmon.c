@@ -362,7 +362,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (!all && argv[optind]) {
-		container_name = get_md_name(argv[optind]);
+		static const char prefix[] = "initrd/";
+		container_name = argv[optind];
+		if (strncmp(container_name, prefix,
+			    sizeof(prefix) - 1) == 0)
+			container_name += sizeof(prefix)-1;
+		container_name = get_md_name(container_name);
 		if (!container_name)
 			return 1;
 	}

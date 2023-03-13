@@ -1916,6 +1916,7 @@ int start_mdmon(char *devnm)
 	int len;
 	pid_t pid;
 	int status;
+	char *prefix = in_initrd() ? "initrd-" : "";
 	char pathbuf[1024];
 	char *paths[4] = {
 		pathbuf,
@@ -1926,7 +1927,7 @@ int start_mdmon(char *devnm)
 
 	if (check_env("MDADM_NO_MDMON"))
 		return 0;
-	if (continue_via_systemd(devnm, MDMON_SERVICE))
+	if (continue_via_systemd(devnm, MDMON_SERVICE, prefix))
 		return 0;
 
 	/* That failed, try running mdmon directly */
@@ -2197,7 +2198,7 @@ void manage_fork_fds(int close_all)
  *	1- if systemd service has been started
  *	0- otherwise
  */
-int continue_via_systemd(char *devnm, char *service_name)
+int continue_via_systemd(char *devnm, char *service_name, char *prefix)
 {
 	int pid, status;
 	char pathbuf[1024];
@@ -2209,7 +2210,7 @@ int continue_via_systemd(char *devnm, char *service_name)
 	case  0:
 		manage_fork_fds(1);
 		snprintf(pathbuf, sizeof(pathbuf),
-			 "%s@%s.service", service_name, devnm);
+			 "%s@%s%s.service", service_name, prefix ?: "", devnm);
 		status = execl("/usr/bin/systemctl", "systemctl", "restart",
 			       pathbuf, NULL);
 		status = execl("/bin/systemctl", "systemctl", "restart",

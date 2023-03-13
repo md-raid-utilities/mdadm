@@ -3516,7 +3516,7 @@ started:
 
 	if (!forked)
 		if (continue_via_systemd(container ?: sra->sys_name,
-					 GROW_SERVICE)) {
+					 GROW_SERVICE, NULL)) {
 			free(fdlist);
 			free(offsets);
 			sysfs_free(sra);
@@ -3714,7 +3714,7 @@ int reshape_container(char *container, char *devname,
 	ping_monitor(container);
 
 	if (!forked && !freeze_reshape)
-		if (continue_via_systemd(container, GROW_SERVICE))
+		if (continue_via_systemd(container, GROW_SERVICE, NULL))
 			return 0;
 
 	switch (forked ? 0 : fork()) {
