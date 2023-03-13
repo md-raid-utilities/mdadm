@@ -352,7 +352,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-
 	if (in_initrd()) {
 		/*
 		 * set first char of argv[0] to @. This is used by
@@ -362,12 +361,10 @@ int main(int argc, char *argv[])
 		argv[0][0] = '@';
 	}
 
-	if (all == 0 && container_name == NULL) {
-		if (argv[optind]) {
-			container_name = get_md_name(argv[optind]);
-			if (!container_name)
-				return 1;
-		}
+	if (!all && argv[optind]) {
+		container_name = get_md_name(argv[optind]);
+		if (!container_name)
+			return 1;
 	}
 
 	if (container_name == NULL || argc - optind > 1)
