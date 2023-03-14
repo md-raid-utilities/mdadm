@@ -370,6 +370,7 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 		}
 		if (block_udev)
 			udev_block(devnm);
+		create_named_array(devnm);
 	}
 
 	sprintf(devname, "/dev/%s", devnm);
