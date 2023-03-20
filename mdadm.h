@@ -1263,6 +1263,8 @@ extern struct superswitch super0, super1;
 extern struct superswitch super_imsm, super_ddf;
 extern struct superswitch mbr, gpt;
 
+void imsm_set_no_platform(int v);
+
 struct metadata_update {
 	int	len;
 	char	*buf;

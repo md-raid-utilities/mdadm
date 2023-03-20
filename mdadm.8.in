@@ -3197,6 +3197,11 @@ environment.  This can be useful for testing or for disaster
 recovery.  You should be aware that interoperability may be
 compromised by setting this value.
 
+These change can also be suppressed by adding 
+.B mdadm.imsm.test=1
+to the kernel command line. This makes it easy to test IMSM
+code in a virtual machine that doesn't have IMSM virtual hardware.
+
 .TP
 .B MDADM_GROW_ALLOW_OLD
 If an array is stopped while it is performing a reshape and that

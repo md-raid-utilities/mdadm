@@ -20,6 +20,7 @@
 #define HAVE_STDINT_H 1
 #include "mdadm.h"
 #include "mdmon.h"
+#include "dlink.h"
 #include "sha1.h"
 #include "platform-intel.h"
 #include <values.h>
@@ -628,6 +629,44 @@ static const char *_sys_dev_type[] = {
 	[SYS_DEV_NVME] = "NVMe",
 	[SYS_DEV_VMD] = "VMD"
 };
+
+static int no_platform = -1;
+
+static int check_no_platform(void)
+{
+	static const char search[] = "mdadm.imsm.test=1";
+	FILE *fp;
+
+	if (no_platform >= 0)
+		return no_platform;
+
+	if (check_env("IMSM_NO_PLATFORM")) {
+		no_platform = 1;
+		return 1;
+	}
+	fp = fopen("/proc/cmdline", "r");
+	if (fp) {
+		char *l = conf_line(fp);
+		char *w = l;
+
+		do {
+			if (strcmp(w, search) == 0)
+				no_platform = 1;
+			w = dl_next(w);
+		} while (w != l);
+		free_line(l);
+		fclose(fp);
+		if (no_platform >= 0)
+			return no_platform;
+	}
+	no_platform = 0;
+	return 0;
+}
+
+void imsm_set_no_platform(int v)
+{
+	no_platform = v;
+}
 
 const char *get_sys_dev_type(enum sys_dev_type type)
 {
@@ -2699,7 +2738,7 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 	int result=1;
 
 	if (enumerate_only) {
-		if (check_env("IMSM_NO_PLATFORM"))
+		if (check_no_platform())
 			return 0;
 		list = find_intel_devices();
 		if (!list)
@@ -4722,7 +4761,7 @@ static int find_intel_hba_capability(int fd, struct intel_super *super, char *de
 		       devname);
 		return 1;
 	}
-	if (!is_fd_valid(fd) || check_env("IMSM_NO_PLATFORM")) {
+	if (!is_fd_valid(fd) || check_no_platform()) {
 		super->orom = NULL;
 		super->hba = NULL;
 		return 0;
@@ -10697,7 +10736,7 @@ static int imsm_get_allowed_degradation(int level, int raid_disks,
  ******************************************************************************/
 int validate_container_imsm(struct mdinfo *info)
 {
-	if (check_env("IMSM_NO_PLATFORM"))
+	if (check_no_platform())
 		return 0;
 
 	struct sys_dev *idev;
