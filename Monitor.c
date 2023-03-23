@@ -250,7 +250,7 @@ int Monitor(struct mddev_dev *devlist,
 
 			if (mdlist->devname == NULL)
 				continue;
-			if (strcasecmp(mdlist->devname, "<ignore>") == 0)
+			if (is_devname_ignore(mdlist->devname) == true)
 				continue;
 			if (!is_mddev(mdlist->devname))
 				continue;

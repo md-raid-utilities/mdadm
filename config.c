@@ -120,6 +120,18 @@ int match_keyword(char *word)
 }
 
 /**
+ * is_devname_ignore() - check if &devname is a special "<ignore>" keyword.
+ */
+bool is_devname_ignore(char *devname)
+{
+	static const char keyword[] = "<ignore>";
+
+	if (strcasecmp(devname, keyword) == 0)
+		return true;
+	return false;
+}
+
+/**
  * ident_init() - Set defaults.
  * @ident: ident pointer, not NULL.
  */
@@ -404,7 +416,7 @@ void arrayline(char *line)
 			 *  <ignore>
 			 *  or anything that doesn't start '/' or '<'
 			 */
-			if (strcasecmp(w, "<ignore>") == 0 ||
+			if (is_devname_ignore(w) == true ||
 			    strncmp(w, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 ||
 			    (w[0] != '/' && w[0] != '<') ||
 			    (strncmp(w, DEV_NUM_PREF, DEV_NUM_PREF_LEN) == 0 &&
@@ -571,7 +583,7 @@ void homehostline(char *line)
 	char *w;
 
 	for (w = dl_next(line); w != line; w = dl_next(w)) {
-		if (strcasecmp(w, "<ignore>") == 0)
+		if (is_devname_ignore(w) == true)
 			require_homehost = 0;
 		else if (home_host == NULL) {
 			if (strcasecmp(w, "<none>") == 0)

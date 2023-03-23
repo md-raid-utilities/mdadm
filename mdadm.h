@@ -1650,6 +1650,7 @@ extern void print_escape(char *str);
 extern int use_udev(void);
 extern unsigned long GCD(unsigned long a, unsigned long b);
 extern int conf_name_is_free(char *name);
+extern bool is_devname_ignore(char *devname);
 extern int conf_verify_devnames(struct mddev_ident *array_list);
 extern int devname_matches(char *name, char *match);
 extern struct mddev_ident *conf_match(struct supertype *st,

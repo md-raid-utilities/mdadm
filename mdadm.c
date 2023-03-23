@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 			continue;
 
 		case HomeHost:
-			if (strcasecmp(optarg, "<ignore>") == 0)
+			if (is_devname_ignore(optarg) == true)
 				c.require_homehost = 0;
 			else
 				c.homehost = optarg;
@@ -1749,8 +1749,7 @@ static int scan_assemble(struct supertype *ss,
 			int r;
 			if (a->assembled)
 				continue;
-			if (a->devname &&
-			    strcasecmp(a->devname, "<ignore>") == 0)
+			if (a->devname && is_devname_ignore(a->devname) == true)
 				continue;
 
 			r = Assemble(ss, a->devname,

@@ -202,8 +202,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	if (!match && rv == 2)
 		goto out;
 
-	if (match && match->devname &&
-	    strcasecmp(match->devname, "<ignore>") == 0) {
+	if (match && match->devname && is_devname_ignore(match->devname) == true) {
 		if (c->verbose >= 0)
 			pr_err("array containing %s is explicitly ignored by mdadm.conf\n",
 				devname);
@@ -1567,8 +1566,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 				break;
 			}
 
-			if (match && match->devname &&
-			    strcasecmp(match->devname, "<ignore>") == 0) {
+			if (match && match->devname && is_devname_ignore(match->devname) == true) {
 				if (c->verbose > 0)
 					pr_err("array %s/%s is explicitly ignored by mdadm.conf\n",
 					       match->container, match->member);
