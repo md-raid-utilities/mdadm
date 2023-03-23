@@ -15,4 +15,3 @@ ExecStart=BINDIR/mdadm --grow --continue /dev/%I
 StandardInput=null
 StandardOutput=null
 StandardError=null
-KillMode=none
