@@ -407,8 +407,8 @@ void arrayline(char *line)
 			if (strcasecmp(w, "<ignore>") == 0 ||
 			    strncmp(w, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 ||
 			    (w[0] != '/' && w[0] != '<') ||
-			    (strncmp(w, "/dev/md", 7) == 0 &&
-			     is_number(w + 7)) ||
+			    (strncmp(w, DEV_NUM_PREF, DEV_NUM_PREF_LEN) == 0 &&
+			     is_number(w + DEV_NUM_PREF_LEN)) ||
 			    (strncmp(w, "/dev/md_d", 9) == 0 &&
 			     is_number(w + 9))) {
 				/* This is acceptable */;

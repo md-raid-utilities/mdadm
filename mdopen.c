@@ -412,11 +412,11 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 			make_parts(devname, parts);
 
 		if (strcmp(chosen, devname) != 0) {
-			if (mkdir("/dev/md",0700) == 0) {
-				if (chown("/dev/md", ci->uid, ci->gid))
-					perror("chown /dev/md");
-				if (chmod("/dev/md", ci->mode| ((ci->mode>>2) & 0111)))
-					perror("chmod /dev/md");
+			if (mkdir(DEV_NUM_PREF, 0700) == 0) {
+				if (chown(DEV_NUM_PREF, ci->uid, ci->gid))
+					perror("chown " DEV_NUM_PREF);
+				if (chmod(DEV_NUM_PREF, ci->mode | ((ci->mode >> 2) & 0111)))
+					perror("chmod " DEV_NUM_PREF);
 			}
 
 			if (dev && strcmp(chosen, dev) == 0)

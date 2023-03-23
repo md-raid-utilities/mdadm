@@ -100,6 +100,14 @@ struct dlm_lksb {
 #define DEFAULT_BITMAP_DELAY 5
 #define DEFAULT_MAX_WRITE_BEHIND 256
 
+/* DEV_NUM_PREF is a subpath to numbered MD devices, e.g. /dev/md1 or directory name.
+ * DEV_NUM_PREF_LEN is a length with Null byte excluded.
+ */
+#ifndef DEV_NUM_PREF
+#define DEV_NUM_PREF "/dev/md"
+#define DEV_NUM_PREF_LEN (sizeof(DEV_NUM_PREF) - 1)
+#endif /* DEV_NUM_PREF */
+
 /* DEV_MD_DIR points to named MD devices directory.
  * DEV_MD_DIR_LEN is a length with Null byte excluded.
  */
