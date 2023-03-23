@@ -328,7 +328,7 @@ static int update_metadata(int mdfd, struct shape *s, struct supertype *st,
 	 * again returns container info.
 	 */
 	st->ss->getinfo_super(st, &info_new, NULL);
-	if (st->ss->external && is_container(s->level) &&
+	if (st->ss->external && !is_container(s->level) &&
 	    !same_uuid(info_new.uuid, info->uuid, 0)) {
 		map_update(map, fd2devnm(mdfd),
 			   info_new.text_version,
