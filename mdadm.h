@@ -1601,7 +1601,7 @@ int default_layout(struct supertype *st, int level, int verbose);
 extern int is_near_layout_10(int layout);
 extern int parse_layout_10(char *layout);
 extern int parse_layout_faulty(char *layout);
-extern int parse_num(int *dest, char *num);
+extern int parse_num(int *dest, const char *num);
 extern int parse_cluster_confirm_arg(char *inp, char **devname, int *slot);
 extern int check_ext2(int fd, char *name);
 extern int check_reiser(int fd, char *name);
@@ -1651,6 +1651,8 @@ extern int use_udev(void);
 extern unsigned long GCD(unsigned long a, unsigned long b);
 extern int conf_name_is_free(char *name);
 extern bool is_devname_ignore(char *devname);
+extern bool is_devname_md_numbered(const char *devname);
+extern bool is_devname_md_d_numbered(const char *devname);
 extern int conf_verify_devnames(struct mddev_ident *array_list);
 extern int devname_matches(char *name, char *match);
 extern struct mddev_ident *conf_match(struct supertype *st,

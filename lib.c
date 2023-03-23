@@ -570,7 +570,7 @@ void free_line(char *line)
  *
  * Return: 0 on success, 1 otherwise.
  */
-int parse_num(int *dest, char *num)
+int parse_num(int *dest, const char *num)
 {
 	char *c = NULL;
 	long temp;

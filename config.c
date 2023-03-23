@@ -385,17 +385,6 @@ void devline(char *line)
 struct mddev_ident *mddevlist = NULL;
 struct mddev_ident **mddevlp = &mddevlist;
 
-static int is_number(char *w)
-{
-	/* check if there are 1 or more digits and nothing else */
-	int digits = 0;
-	while (*w && isdigit(*w)) {
-		digits++;
-		w++;
-	}
-	return (digits && ! *w);
-}
-
 void arrayline(char *line)
 {
 	char *w;
@@ -419,10 +408,8 @@ void arrayline(char *line)
 			if (is_devname_ignore(w) == true ||
 			    strncmp(w, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 ||
 			    (w[0] != '/' && w[0] != '<') ||
-			    (strncmp(w, DEV_NUM_PREF, DEV_NUM_PREF_LEN) == 0 &&
-			     is_number(w + DEV_NUM_PREF_LEN)) ||
-			    (strncmp(w, "/dev/md_d", 9) == 0 &&
-			     is_number(w + 9))) {
+			    is_devname_md_numbered(w) == true ||
+			    is_devname_md_d_numbered(w) == true) {
 				/* This is acceptable */;
 				if (mis.devname)
 					pr_err("only give one device per ARRAY line: %s and %s\n",

@@ -974,6 +974,50 @@ dev_t devnm2devid(char *devnm)
 }
 
 /**
+ * is_devname_numbered() - helper for numbered devname verification.
+ * @devname: path or name to check.
+ * @pref: expected devname prefix.
+ * @pref_len: prefix len.
+ */
+static bool is_devname_numbered(const char *devname, const char *pref, const int pref_len)
+{
+	int val;
+
+	assert(devname && pref);
+
+	if (strncmp(devname, pref, pref_len) != 0)
+		return false;
+
+	if (parse_num(&val, devname + pref_len) != 0)
+		return false;
+
+	if (val > 127)
+		return false;
+
+	return true;
+}
+
+/**
+ * is_devname_md_numbered() - check if &devname is numbered MD device (md).
+ * @devname: path or name to check.
+ */
+bool is_devname_md_numbered(const char *devname)
+{
+	return is_devname_numbered(devname, DEV_NUM_PREF, DEV_NUM_PREF_LEN);
+}
+
+/**
+ * is_devname_md_d_numbered() - check if &devname is secondary numbered MD device (md_d).
+ * @devname: path or name to check.
+ */
+bool is_devname_md_d_numbered(const char *devname)
+{
+	static const char d_dev[] = DEV_NUM_PREF "_d";
+
+	return is_devname_numbered(devname, d_dev, sizeof(d_dev) - 1);
+}
+
+/**
  * get_md_name() - Get main dev node of the md device.
  * @devnm: Md device name or path.
  *
