@@ -1648,7 +1648,7 @@ static void brief_examine_subarrays_ddf(struct supertype *st, int verbose)
 		fname_from_uuid(st, &info, nbuf1, ':');
 		_ddf_array_name(namebuf, ddf, i);
 		printf("ARRAY%s%s container=%s member=%d UUID=%s\n",
-		       namebuf[0] == '\0' ? "" : " /dev/md/", namebuf,
+		       namebuf[0] == '\0' ? "" : " " DEV_MD_DIR, namebuf,
 		       nbuf+5, i, nbuf1+5);
 	}
 }

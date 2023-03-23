@@ -188,12 +188,12 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 	parts = autof >> 3;
 	autof &= 7;
 
-	strcpy(chosen, "/dev/md/");
+	strcpy(chosen, DEV_MD_DIR);
 	cname = chosen + strlen(chosen);
 
 	if (dev) {
-		if (strncmp(dev, "/dev/md/", 8) == 0) {
-			strcpy(cname, dev+8);
+		if (strncmp(dev, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
+			strcpy(cname, dev + DEV_MD_DIR_LEN);
 		} else if (strncmp(dev, "/dev/", 5) == 0) {
 			char *e = dev + strlen(dev);
 			while (e > dev && isdigit(e[-1]))

@@ -100,6 +100,14 @@ struct dlm_lksb {
 #define DEFAULT_BITMAP_DELAY 5
 #define DEFAULT_MAX_WRITE_BEHIND 256
 
+/* DEV_MD_DIR points to named MD devices directory.
+ * DEV_MD_DIR_LEN is a length with Null byte excluded.
+ */
+#ifndef DEV_MD_DIR
+#define DEV_MD_DIR "/dev/md/"
+#define DEV_MD_DIR_LEN (sizeof(DEV_MD_DIR) - 1)
+#endif /* DEV_MD_DIR */
+
 /* MAP_DIR should be somewhere that persists across the pivotroot
  * from early boot to late boot.
  * /run  seems to have emerged as the best standard.

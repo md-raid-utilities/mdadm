@@ -2309,7 +2309,7 @@ static void brief_examine_subarrays_imsm(struct supertype *st, int verbose)
 		super->current_vol = i;
 		getinfo_super_imsm(st, &info, NULL);
 		fname_from_uuid(st, &info, nbuf1, ':');
-		printf("ARRAY /dev/md/%.16s container=%s member=%d UUID=%s\n",
+		printf("ARRAY " DEV_MD_DIR "%.16s container=%s member=%d UUID=%s\n",
 		       dev->volume, nbuf + 5, i, nbuf1 + 5);
 	}
 }

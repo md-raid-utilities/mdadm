@@ -460,8 +460,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			info.array.working_disks ++;
 
 	}
-	if (strncmp(chosen_name, "/dev/md/", 8) == 0)
-		md_devname = chosen_name+8;
+	if (strncmp(chosen_name, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+		md_devname = chosen_name + DEV_MD_DIR_LEN;
 	else
 		md_devname = chosen_name;
 	if (c->export) {

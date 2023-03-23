@@ -405,7 +405,7 @@ void arrayline(char *line)
 			 *  or anything that doesn't start '/' or '<'
 			 */
 			if (strcasecmp(w, "<ignore>") == 0 ||
-			    strncmp(w, "/dev/md/", 8) == 0 ||
+			    strncmp(w, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 ||
 			    (w[0] != '/' && w[0] != '<') ||
 			    (strncmp(w, "/dev/md", 7) == 0 &&
 			     is_number(w + 7)) ||
@@ -1102,13 +1102,13 @@ int devname_matches(char *name, char *match)
 	 *  mdNN with NN
 	 * then just strcmp
 	 */
-	if (strncmp(name, "/dev/md/", 8) == 0)
-		name += 8;
+	if (strncmp(name, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+		name += DEV_MD_DIR_LEN;
 	else if (strncmp(name, "/dev/", 5) == 0)
 		name += 5;
 
-	if (strncmp(match, "/dev/md/", 8) == 0)
-		match += 8;
+	if (strncmp(match, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+		match += DEV_MD_DIR_LEN;
 	else if (strncmp(match, "/dev/", 5) == 0)
 		match += 5;
 

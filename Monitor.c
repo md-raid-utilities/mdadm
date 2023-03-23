@@ -36,9 +36,18 @@
 #define EVENT_NAME_MAX 32
 #define AUTOREBUILD_PID_PATH MDMON_DIR "/autorebuild.pid"
 
+/**
+ * struct state - external array or container properties.
+ * @devname: has length of %DEV_MD_DIR + device name + terminating byte
+ * @devnm: to sync with mdstat info
+ * @parent_devnm: or subarray, devnm of parent, for others, ""
+ * @subarray: for a container it is a link to first subarray, for a subarray it is a link to next
+ *	      subarray in the same container
+ * @parent: for a subarray it is a link to its container
+ */
 struct state {
-	char devname[MD_NAME_MAX + sizeof("/dev/md/")];	/* length of "/dev/md/" + device name + terminating byte*/
-	char devnm[MD_NAME_MAX];	/* to sync with mdstat info */
+	char devname[MD_NAME_MAX + sizeof(DEV_MD_DIR)];
+	char devnm[MD_NAME_MAX];
 	unsigned int utime;
 	int err;
 	char *spare_group;
@@ -49,15 +58,10 @@ struct state {
 	int devstate[MAX_DISKS];
 	dev_t devid[MAX_DISKS];
 	int percent;
-	char parent_devnm[MD_NAME_MAX]; /* For subarray, devnm of parent.
-					* For others, ""
-					*/
+	char parent_devnm[MD_NAME_MAX];
 	struct supertype *metadata;
-	struct state *subarray;/* for a container it is a link to first subarray
-				* for a subarray it is a link to next subarray
-				* in the same container */
-	struct state *parent;  /* for a subarray it is a link to its container
-				*/
+	struct state *subarray;
+	struct state *parent;
 	struct state *next;
 };
 
@@ -252,8 +256,8 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 
 			st = xcalloc(1, sizeof *st);
-			snprintf(st->devname, MD_NAME_MAX + sizeof("/dev/md/"),
-				 "/dev/md/%s", basename(mdlist->devname));
+			snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), DEV_MD_DIR "%s",
+				 basename(mdlist->devname));
 			st->next = statelist;
 			st->devnm[0] = 0;
 			st->percent = RESYNC_UNKNOWN;
@@ -274,7 +278,7 @@ int Monitor(struct mddev_dev *devlist,
 
 			st = xcalloc(1, sizeof *st);
 			mdlist = conf_get_ident(dv->devname);
-			snprintf(st->devname, MD_NAME_MAX + sizeof("/dev/md/"), "%s", dv->devname);
+			snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), "%s", dv->devname);
 			st->next = statelist;
 			st->devnm[0] = 0;
 			st->percent = RESYNC_UNKNOWN;
@@ -942,7 +946,7 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 				continue;
 			}
 
-			snprintf(st->devname, MD_NAME_MAX + sizeof("/dev/md/"), "%s", name);
+			snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), "%s", name);
 			if ((fd = open(st->devname, O_RDONLY)) < 0 ||
 			    md_get_array_info(fd, &array) < 0) {
 				/* no such array */

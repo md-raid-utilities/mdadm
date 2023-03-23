@@ -254,10 +254,9 @@ int Detail(char *dev, struct context *c)
 			fname_from_uuid(st, info, nbuf, ':');
 			printf("MD_UUID=%s\n", nbuf + 5);
 			mp = map_by_uuid(&map, info->uuid);
-			if (mp && mp->path &&
-			    strncmp(mp->path, "/dev/md/", 8) == 0) {
+			if (mp && mp->path && strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
 				printf("MD_DEVNAME=");
-				print_escape(mp->path + 8);
+				print_escape(mp->path + DEV_MD_DIR_LEN);
 				putchar('\n');
 			}
 
@@ -273,9 +272,9 @@ int Detail(char *dev, struct context *c)
 				printf("MD_UUID=%s\n", nbuf+5);
 			}
 			if (mp && mp->path &&
-			    strncmp(mp->path, "/dev/md/", 8) == 0) {
+			    strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
 				printf("MD_DEVNAME=");
-				print_escape(mp->path+8);
+				print_escape(mp->path + DEV_MD_DIR_LEN);
 				putchar('\n');
 			}
 			map_free(map);

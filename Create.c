@@ -1024,10 +1024,9 @@ int Create(struct supertype *st, char *mddev,
 	 * it could be in conflict with already existing device
 	 * e.g. container, array
 	 */
-	if (strncmp(chosen_name, "/dev/md/", 8) == 0 &&
-	    map_by_name(&map, chosen_name+8) != NULL) {
-		pr_err("Array name %s is in use already.\n",
-			chosen_name);
+	if (strncmp(chosen_name, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 &&
+	    map_by_name(&map, chosen_name + DEV_MD_DIR_LEN)) {
+		pr_err("Array name %s is in use already.\n", chosen_name);
 		close(mdfd);
 		map_unlock(&map);
 		udev_unblock();
