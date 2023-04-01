@@ -2359,8 +2359,9 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 
 	if (st->minor_version >= 1 &&
 	    st->ignore_hw_compat == 0 &&
-	    (dsize < (__le64_to_cpu(super->data_offset) +
-		      __le64_to_cpu(super->size))
+	    ((role_from_sb(super) != MD_DISK_ROLE_JOURNAL &&
+		  dsize < (__le64_to_cpu(super->data_offset) +
+		      __le64_to_cpu(super->size)))
 	     ||
 	     dsize < (__le64_to_cpu(super->data_offset) +
 		      __le64_to_cpu(super->data_size)))) {
