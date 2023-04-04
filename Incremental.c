@@ -507,6 +507,9 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 				    GET_OFFSET | GET_SIZE));
 	active_disks = count_active(st, sra, mdfd, &avail, &info);
 
+	if (!avail)
+		goto out_unlock;
+
 	journal_device_missing = (info.journal_device_required) && (info.journal_clean == 0);
 
 	if (info.consistency_policy == CONSISTENCY_POLICY_PPL)
