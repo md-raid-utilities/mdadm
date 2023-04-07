@@ -13,6 +13,4 @@ Documentation=man:mdadm(8)
 [Service]
 Type=oneshot
 Environment="MDADM_CHECK_DURATION=6 hours"
-EnvironmentFile=-/run/sysconfig/mdadm
-ExecStartPre=-/usr/lib/mdadm/mdadm_env.sh
 ExecStart=/usr/share/mdadm/mdcheck --continue --duration ${MDADM_CHECK_DURATION}
