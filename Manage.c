@@ -461,17 +461,6 @@ done:
 		goto out;
 	}
 
-	if (get_linux_version() < 2006028) {
-		/* prior to 2.6.28, KOBJ_CHANGE was not sent when an md array
-		 * was stopped, so We'll do it here just to be sure.  Drop any
-		 * partitions as well...
-		 */
-		if (fd >= 0)
-			ioctl(fd, BLKRRPART, 0);
-		if (mdi)
-			sysfs_uevent(mdi, "change");
-	}
-
 	if (devnm[0] && use_udev()) {
 		struct map_ent *mp = map_by_devnm(&map, devnm);
 		remove_devices(devnm, mp ? mp->path : NULL);
@@ -621,12 +610,6 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		 * though.
 		 */
 		mdu_disk_info_t disc;
-		/* re-add doesn't work for version-1 superblocks
-		 * before 2.6.18 :-(
-		 */
-		if (array->major_version == 1 &&
-		    get_linux_version() <= 2006018)
-			goto skip_re_add;
 		disc.number = mdi.disk.number;
 		if (md_get_disk_info(fd, &disc) != 0 ||
 		    disc.major != 0 || disc.minor != 0)

@@ -107,8 +107,8 @@ int main(int argc, char *argv[])
 
 	srandom(time(0) ^ getpid());
 
-	if (get_linux_version() < 2006015) {
-		pr_err("This version of mdadm does not support kernels older than 2.6.15\n");
+	if (get_linux_version() < 2006032) {
+		pr_err("This version of mdadm does not support kernels older than 2.6.32\n");
 		exit(1);
 	}
 

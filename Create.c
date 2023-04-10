@@ -636,11 +636,6 @@ int Create(struct supertype *st, char *mddev,
 		break;
 	case LEVEL_LINEAR:
 		/* a chunksize of zero 0s perfectly valid (and preferred) since 2.6.16 */
-		if (get_linux_version() < 2006016 && s->chunk == 0) {
-			s->chunk = 64;
-			if (c->verbose > 0)
-				pr_err("chunk size defaults to 64K\n");
-		}
 		break;
 	case 1:
 	case LEVEL_FAULTY:

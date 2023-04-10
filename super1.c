@@ -2033,11 +2033,6 @@ static int write_init_super1(struct supertype *st)
 				/* same array, so preserve events and
 				 * dev_number */
 				sb->events = refsb->events;
-				/* bugs in 2.6.17 and earlier mean the
-				 * dev_number chosen in Manage must be preserved
-				 */
-				if (get_linux_version() >= 2006018)
-					sb->dev_number = refsb->dev_number;
 			}
 			free_super1(refst);
 		}
