@@ -341,8 +341,10 @@ static int select_devices(struct mddev_dev *devlist,
 				st->ss->free_super(st);
 			dev_policy_free(pol);
 			domain_free(domains);
-			if (tst)
+			if (tst) {
 				tst->ss->free_super(tst);
+				free(tst);
+			}
 			return -1;
 		}
 
@@ -417,6 +419,7 @@ static int select_devices(struct mddev_dev *devlist,
 				st->ss->free_super(st);
 				dev_policy_free(pol);
 				domain_free(domains);
+				free(st);
 				return -1;
 			}
 			if (c->verbose > 0)
@@ -425,6 +428,8 @@ static int select_devices(struct mddev_dev *devlist,
 
 			/* make sure we finished the loop */
 			tmpdev = NULL;
+			free(st);
+			st = NULL;
 			goto loop;
 		} else {
 			content = *contentp;
@@ -533,6 +538,7 @@ static int select_devices(struct mddev_dev *devlist,
 				st->ss->free_super(st);
 				dev_policy_free(pol);
 				domain_free(domains);
+				free(tst);
 				return -1;
 			}
 			tmpdev->used = 1;
@@ -546,8 +552,10 @@ static int select_devices(struct mddev_dev *devlist,
 		}
 		dev_policy_free(pol);
 		pol = NULL;
-		if (tst)
+		if (tst) {
 			tst->ss->free_super(tst);
+			free(tst);
+		}
 	}
 
 	/* Check if we found some imsm spares but no members */
@@ -839,6 +847,7 @@ static int load_devices(struct devs *devices, char *devmap,
 				close(mdfd);
 				free(devices);
 				free(devmap);
+				free(best);
 				*stp = st;
 				return -1;
 			}
@@ -1950,6 +1959,7 @@ out:
 	} else if (mdfd >= 0)
 		close(mdfd);
 
+	free(best);
 	/* '2' means 'OK, but not started yet' */
 	if (rv == -1) {
 		free(devices);
