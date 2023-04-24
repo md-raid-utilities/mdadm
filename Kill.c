@@ -41,6 +41,7 @@ int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 	 *  4 - failed to find a superblock.
 	 */
 
+	bool free_super = false;
 	int fd, rv = 0;
 
 	if (force)
@@ -52,8 +53,10 @@ int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 				dev);
 		return 2;
 	}
-	if (st == NULL)
+	if (st == NULL) {
 		st = guess_super(fd);
+		free_super = true;
+	}
 	if (st == NULL || st->ss->init_super == NULL) {
 		if (verbose >= 0)
 			pr_err("Unrecognised md component device - %s\n", dev);
@@ -76,6 +79,10 @@ int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 				pr_err("superblock zeroed anyway\n");
 			rv = 0;
 		}
+	}
+	if (free_super && st) {
+		st->ss->free_super(st);
+		free(st);
 	}
 	close(fd);
 	return rv;
