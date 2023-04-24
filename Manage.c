@@ -222,6 +222,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 		if (verbose >= 0)
 			pr_err("Cannot get exclusive access to %s:Perhaps a running process, mounted filesystem or active volume group?\n",
 			       devname);
+		sysfs_free(mdi);
 		return 1;
 	}
 	/* If this is an mdmon managed array, just write 'inactive'
@@ -801,8 +802,14 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 						    rdev, update, devname,
 						    verbose, array);
 				dev_st->ss->free_super(dev_st);
-				if (rv)
+				if (rv) {
+					free(dev_st);
 					return rv;
+				}
+			}
+			if (dev_st) {
+				dev_st->ss->free_super(dev_st);
+				free(dev_st);
 			}
 		}
 		if (dv->disposition == 'M') {
@@ -1362,7 +1369,7 @@ int Manage_subdevs(char *devname, int fd,
 	unsigned long long array_size;
 	struct mddev_dev *dv;
 	int tfd = -1;
-	struct supertype *tst;
+	struct supertype *tst = NULL;
 	char *subarray = NULL;
 	int sysfd = -1;
 	int count = 0; /* number of actions taken */
@@ -1699,6 +1706,7 @@ int Manage_subdevs(char *devname, int fd,
 			break;
 		}
 	}
+	free(tst);
 	if (frozen > 0)
 		sysfs_set_str(&info, NULL, "sync_action","idle");
 	if (test && count == 0)
@@ -1706,6 +1714,7 @@ int Manage_subdevs(char *devname, int fd,
 	return 0;
 
 abort:
+	free(tst);
 	if (frozen > 0)
 		sysfs_set_str(&info, NULL, "sync_action","idle");
 	return !test && busy ? 2 : 1;
