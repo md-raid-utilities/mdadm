@@ -510,9 +510,6 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 	return get_orom_by_device_id(hba->dev_id);
 }
 
-#define GUID_STR_MAX	37  /* according to GUID format:
-			     * xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" */
-
 #define EFI_GUID(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7) \
 ((struct efi_guid) \
 {{ (a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff, \

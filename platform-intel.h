@@ -19,6 +19,9 @@
 #include <asm/types.h>
 #include <strings.h>
 
+/* according to GUID format: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" */
+#define GUID_STR_MAX	37
+
 /* The IMSM Capability (IMSM AHCI and ISCU OROM/EFI variable) Version Table definition */
 struct imsm_orom {
 	__u8 signature[4];
@@ -229,7 +232,7 @@ extern struct orom_entry *orom_entries;
 
 static inline char *guid_str(char *buf, struct efi_guid guid)
 {
-	sprintf(buf, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+	snprintf(buf, GUID_STR_MAX, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		 guid.b[3], guid.b[2], guid.b[1], guid.b[0],
 		 guid.b[5], guid.b[4], guid.b[7], guid.b[6],
 		 guid.b[8], guid.b[9], guid.b[10], guid.b[11],
