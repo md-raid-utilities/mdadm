@@ -240,7 +240,7 @@ static int make_control_sock(char *devname)
 		return -1;
 
 	addr.sun_family = PF_LOCAL;
-	strcpy(addr.sun_path, path);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
 	umask(077); /* ensure no world write access */
 	if (bind(sfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		close(sfd);
@@ -389,7 +389,7 @@ int main(int argc, char *argv[])
 
 	if (all) {
 		struct mdstat_ent *mdstat, *e;
-		int container_len = strlen(container_name);
+		int container_len = strnlen(container_name, MD_NAME_MAX);
 
 		/* launch an mdmon instance for each container found */
 		mdstat = mdstat_read(0, 0);
@@ -472,7 +472,7 @@ static int mdmon(char *devnm, int must_fork, int takeover)
 		pfd[0] = pfd[1] = -1;
 
 	container = xcalloc(1, sizeof(*container));
-	strcpy(container->devnm, devnm);
+	snprintf(container->devnm, MD_NAME_MAX, "%s", devnm);
 	container->arrays = NULL;
 	container->sock = -1;
 

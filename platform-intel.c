@@ -214,7 +214,7 @@ struct sys_dev *device_by_id_and_path(__u16 device_id, const char *path)
 
 static int devpath_to_ll(const char *dev_path, const char *entry, unsigned long long *val)
 {
-	char path[strlen(dev_path) + strlen(entry) + 2];
+	char path[strnlen(dev_path, PATH_MAX) + strnlen(entry, PATH_MAX) + 2];
 	int fd;
 	int n;
 

@@ -7043,7 +7043,7 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 			int fd = -1;
 			while (dev && !is_fd_valid(fd)) {
 				char *path = xmalloc(strlen(dev->name) + strlen("/dev/") + 1);
-				num = sprintf(path, "%s%s", "/dev/", dev->name);
+				num = snprintf(path, PATH_MAX, "%s%s", "/dev/", dev->name);
 				if (num > 0)
 					fd = open(path, O_RDONLY, 0);
 				if (num <= 0 || !is_fd_valid(fd)) {
@@ -7935,7 +7935,7 @@ static int kill_subarray_imsm(struct supertype *st, char *subarray_id)
 
 		if (i < current_vol)
 			continue;
-		sprintf(subarray, "%u", i);
+		snprintf(subarray, sizeof(subarray), "%u", i);
 		if (is_subarray_active(subarray, st->devnm)) {
 			pr_err("deleting subarray-%d would change the UUID of active subarray-%d, aborting\n",
 			       current_vol, i);
@@ -11308,7 +11308,7 @@ static const char *imsm_get_disk_controller_domain(const char *path)
 	char *drv=NULL;
 	struct stat st;
 
-	strcpy(disk_path, disk_by_path);
+	strncpy(disk_path, disk_by_path, PATH_MAX);
 	strncat(disk_path, path, PATH_MAX - strlen(disk_path) - 1);
 	if (stat(disk_path, &st) == 0) {
 		struct sys_dev* hba;

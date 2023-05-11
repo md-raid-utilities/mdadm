@@ -193,14 +193,14 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 
 	if (dev) {
 		if (strncmp(dev, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
-			strcpy(cname, dev + DEV_MD_DIR_LEN);
+			snprintf(cname, MD_NAME_MAX, "%s", dev + DEV_MD_DIR_LEN);
 		} else if (strncmp(dev, "/dev/", 5) == 0) {
 			char *e = dev + strlen(dev);
 			while (e > dev && isdigit(e[-1]))
 				e--;
 			if (e[0])
 				num = strtoul(e, NULL, 10);
-			strcpy(cname, dev+5);
+			snprintf(cname, MD_NAME_MAX, "%s", dev + 5);
 			cname[e-(dev+5)] = 0;
 			/* name *must* be mdXX or md_dXX in this context */
 			if (num < 0 ||
