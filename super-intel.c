@@ -1644,17 +1644,29 @@ static int is_journal(struct imsm_disk *disk)
 	return (disk->status & JOURNAL_DISK) == JOURNAL_DISK;
 }
 
-/* round array size down to closest MB and ensure it splits evenly
- * between members
+/**
+ * round_member_size_to_mb()- Round given size to closest MiB.
+ * @size: size to round in sectors.
  */
-static unsigned long long round_size_to_mb(unsigned long long size, unsigned int
-					   disk_count)
+static inline unsigned long long round_member_size_to_mb(unsigned long long size)
 {
-	size /= disk_count;
-	size = (size >> SECT_PER_MB_SHIFT) << SECT_PER_MB_SHIFT;
-	size *= disk_count;
+	return (size >> SECT_PER_MB_SHIFT) << SECT_PER_MB_SHIFT;
+}
 
-	return size;
+/**
+ * round_size_to_mb()- Round given size.
+ * @array_size: size to round in sectors.
+ * @disk_count: count of data members.
+ *
+ * Get size per each data member and round it to closest MiB to ensure that data
+ * splits evenly between members.
+ *
+ * Return: Array size, rounded down.
+ */
+static inline unsigned long long round_size_to_mb(unsigned long long array_size,
+						  unsigned int disk_count)
+{
+	return round_member_size_to_mb(array_size / disk_count) * disk_count;
 }
 
 static int able_to_resync(int raid_level, int missing_disks)
@@ -11810,8 +11822,7 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 		} else {
 			/* round size due to metadata compatibility
 			*/
-			geo->size = (geo->size >> SECT_PER_MB_SHIFT)
-				    << SECT_PER_MB_SHIFT;
+			geo->size = round_member_size_to_mb(geo->size);
 			dprintf("Prepare update for size change to %llu\n",
 				geo->size );
 			if (current_size >= geo->size) {
