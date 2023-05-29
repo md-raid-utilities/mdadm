@@ -107,8 +107,12 @@ do_test() {
 		echo -ne "$_script... "
 		if ( set -ex ; . $_script ) &> $targetdir/log
 		then
-			dmesg | grep -iq "error\|call trace\|segfault" &&
-				die "dmesg prints errors when testing $_basename!"
+			if [ -f "${_script}.inject_error" ]; then
+				echo "dmesg checking is skipped because test inject error"
+			else
+				dmesg | grep -iq "error\|call trace\|segfault" &&
+					die "dmesg prints errors when testing $_basename!"
+			fi
 			echo "succeeded"
 			_fail=0
 		else
