@@ -6882,20 +6882,30 @@ static unsigned long long find_size(struct extent *e, int *idx, int num_extents)
 	return end - base_start;
 }
 
-static unsigned long long merge_extents(struct intel_super *super, int sum_extents)
+/** merge_extents() - analyze extents and get max common free size.
+ * @super: Intel metadata, not NULL.
+ *
+ * Build a composite disk with all known extents and generate a new maxsize
+ * given the "all disks in an array must share a common start offset"
+ * constraint.
+ *
+ * Return: Max free space or 0 on failure.
+ */
+static unsigned long long merge_extents(struct intel_super *super)
 {
-	/* build a composite disk with all known extents and generate a new
-	 * 'maxsize' given the "all disks in an array must share a common start
-	 * offset" constraint
-	 */
-	struct extent *e = xcalloc(sum_extents, sizeof(*e));
+	struct extent *e;
 	struct dl *dl;
 	int i, j;
-	int start_extent;
+	int start_extent, sum_extents = 0;
 	unsigned long long pos;
 	unsigned long long start = 0;
 	unsigned long long maxsize;
 	unsigned long reserve;
+
+	for (dl = super->disks; dl; dl = dl->next)
+		if (dl->e)
+			sum_extents += dl->extent_cnt;
+	e = xcalloc(sum_extents, sizeof(struct extent));
 
 	/* coalesce and sort all extents. also, check to see if we need to
 	 * reserve space between member arrays
@@ -7555,13 +7565,7 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
 		return 0;
 	}
 
-	/* count total number of extents for merge */
-	i = 0;
-	for (dl = super->disks; dl; dl = dl->next)
-		if (dl->e)
-			i += dl->extent_cnt;
-
-	maxsize = merge_extents(super, i);
+	maxsize = merge_extents(super);
 
 	if (mpb->num_raid_devs > 0 && size && size != maxsize)
 		pr_err("attempting to create a second volume with size less then remaining space.\n");
@@ -7615,7 +7619,6 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 	struct imsm_super *mpb = super->anchor;
 	struct dl *dl;
 	int i;
-	int extent_cnt;
 	struct extent *e;
 	unsigned long long maxsize;
 	unsigned long long minsize;
@@ -7624,7 +7627,6 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 
 	/* find the largest common start free region of the possible disks */
 	used = 0;
-	extent_cnt = 0;
 	cnt = 0;
 	for (dl = super->disks; dl; dl = dl->next) {
 		dl->raiddisk = -1;
@@ -7645,11 +7647,10 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 			;
 		dl->e = e;
 		dl->extent_cnt = i;
-		extent_cnt += i;
 		cnt++;
 	}
 
-	maxsize = merge_extents(super, extent_cnt);
+	maxsize = merge_extents(super);
 	minsize = size;
 	if (size == 0)
 		/* chunk is in K */
