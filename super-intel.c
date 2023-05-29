@@ -11643,6 +11643,102 @@ static void imsm_update_metadata_locally(struct supertype *st,
 	}
 }
 
+/**
+ * imsm_analyze_expand() - check expand properties and calculate new size.
+ * @st: imsm supertype.
+ * @geo: new geometry params.
+ * @array: array info.
+ * @direction: reshape direction.
+ *
+ * Obtain free space after the &array and verify if expand to requested size is
+ * possible. If geo->size is set to %MAX_SIZE, assume that max free size is
+ * requested.
+ *
+ * Return:
+ * On success %IMSM_STATUS_OK is returned, geo->size and geo->raid_disks are
+ * updated.
+ * On error, %IMSM_STATUS_ERROR is returned.
+ */
+static imsm_status_t imsm_analyze_expand(struct supertype *st,
+					 struct geo_params *geo,
+					 struct mdinfo *array,
+					 int direction)
+{
+	struct intel_super *super = st->sb;
+	struct imsm_dev *dev = get_imsm_dev(super, super->current_vol);
+	struct imsm_map *map = get_imsm_map(dev, MAP_0);
+	int data_disks = imsm_num_data_members(map);
+
+	unsigned long long current_size;
+	unsigned long long free_size;
+	unsigned long long new_size;
+	unsigned long long max_size;
+
+	const int chunk_kib = geo->chunksize / 1024;
+	imsm_status_t rv;
+
+	if (direction == ROLLBACK_METADATA_CHANGES) {
+		/**
+		 * Accept size for rollback only.
+		 */
+		new_size = geo->size * 2;
+		goto success;
+	}
+
+	if (super->current_vol + 1 != super->anchor->num_raid_devs) {
+		pr_err("imsm: The last volume in container can be expanded only (%i/%s).\n",
+		       super->current_vol, st->devnm);
+		return IMSM_STATUS_ERROR;
+	}
+
+	if (data_disks == 0) {
+		pr_err("imsm: Cannot retrieve data disks.\n");
+		return IMSM_STATUS_ERROR;
+	}
+	current_size = array->custom_array_size / data_disks;
+
+	rv = imsm_get_free_size(super, dev->vol.map->num_members, 0, chunk_kib, &free_size);
+	if (rv != IMSM_STATUS_OK) {
+		pr_err("imsm: Cannot find free space for expand.\n");
+		return IMSM_STATUS_ERROR;
+	}
+	max_size = round_member_size_to_mb(free_size + current_size);
+
+	if (geo->size == MAX_SIZE)
+		new_size = max_size;
+	else
+		new_size = round_member_size_to_mb(geo->size * 2);
+
+	if (new_size == 0) {
+		pr_err("imsm: Rounded requested size is 0.\n");
+		return IMSM_STATUS_ERROR;
+	}
+
+	if (new_size > max_size) {
+		pr_err("imsm: Rounded requested size (%llu) is larger than free space available (%llu).\n",
+		       new_size, max_size);
+		return IMSM_STATUS_ERROR;
+	}
+
+	if (new_size == current_size) {
+		pr_err("imsm: Rounded requested size (%llu) is same as current size (%llu).\n",
+		       new_size, current_size);
+		return IMSM_STATUS_ERROR;
+	}
+
+	if (new_size < current_size) {
+		pr_err("imsm: Size reduction is not supported, rounded requested size (%llu) is smaller than current (%llu).\n",
+		       new_size, current_size);
+		return IMSM_STATUS_ERROR;
+	}
+
+success:
+	dprintf("imsm: New size per member is %llu.\n", new_size);
+	geo->size = data_disks * new_size;
+	geo->raid_disks = dev->vol.map->num_members;
+	return IMSM_STATUS_OK;
+}
+
 /***************************************************************************
 * Function:	imsm_analyze_change
 * Description:	Function analyze change for single volume
@@ -11663,13 +11759,6 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 	int devNumChange = 0;
 	/* imsm compatible layout value for array geometry verification */
 	int imsm_layout = -1;
-	int data_disks;
-	struct imsm_dev *dev;
-	struct imsm_map *map;
-	struct intel_super *super;
-	unsigned long long current_size;
-	unsigned long long free_size;
-	unsigned long long max_size;
 	imsm_status_t rv;
 
 	getinfo_super_imsm_volume(st, &info, NULL);
@@ -11752,94 +11841,20 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 		geo->chunksize = info.array.chunk_size;
 	}
 
-	chunk = geo->chunksize / 1024;
-
-	super = st->sb;
-	dev = get_imsm_dev(super, super->current_vol);
-	map = get_imsm_map(dev, MAP_0);
-	data_disks = imsm_num_data_members(map);
-	/* compute current size per disk member
-	 */
-	current_size = info.custom_array_size / data_disks;
-
-	if (geo->size > 0 && geo->size != MAX_SIZE) {
-		/* align component size
-		 */
-		geo->size = imsm_component_size_alignment_check(
-				    get_imsm_raid_level(dev->vol.map),
-				    chunk * 1024, super->sector_size,
-				    geo->size * 2);
-		if (geo->size == 0) {
-			pr_err("Error. Size expansion is supported only (current size is %llu, requested size /rounded/ is 0).\n",
-				   current_size);
-			goto analyse_change_exit;
-		}
-	}
-
-	if (current_size != geo->size && geo->size > 0) {
+	if (geo->size > 0) {
 		if (change != -1) {
 			pr_err("Error. Size change should be the only one at a time.\n");
 			change = -1;
 			goto analyse_change_exit;
 		}
-		if ((super->current_vol + 1) != super->anchor->num_raid_devs) {
-			pr_err("Error. The last volume in container can be expanded only (%i/%s).\n",
-			       super->current_vol, st->devnm);
-			goto analyse_change_exit;
-		}
-		/* check the maximum available size
-		 */
-		rv = imsm_get_free_size(super, dev->vol.map->num_members,
-					0, chunk, &free_size);
 
+		rv = imsm_analyze_expand(st, geo, &info, direction);
 		if (rv != IMSM_STATUS_OK)
-			/* Cannot find maximum available space
-			 */
-			max_size = 0;
-		else {
-			max_size = free_size + current_size;
-			/* align component size
-			 */
-			max_size = imsm_component_size_alignment_check(
-					get_imsm_raid_level(dev->vol.map),
-					chunk * 1024, super->sector_size,
-					max_size);
-		}
-		if (geo->size == MAX_SIZE) {
-			/* requested size change to the maximum available size
-			 */
-			if (max_size == 0) {
-				pr_err("Error. Cannot find maximum available space.\n");
-				change = -1;
-				goto analyse_change_exit;
-			} else
-				geo->size = max_size;
-		}
-
-		if (direction == ROLLBACK_METADATA_CHANGES) {
-			/* accept size for rollback only
-			*/
-		} else {
-			/* round size due to metadata compatibility
-			*/
-			geo->size = round_member_size_to_mb(geo->size);
-			dprintf("Prepare update for size change to %llu\n",
-				geo->size );
-			if (current_size >= geo->size) {
-				pr_err("Error. Size expansion is supported only (current size is %llu, requested size /rounded/ is %llu).\n",
-				       current_size, geo->size);
-				goto analyse_change_exit;
-			}
-			if (max_size && geo->size > max_size) {
-				pr_err("Error. Requested size is larger than maximum available size (maximum available size is %llu, requested size /rounded/ is %llu).\n",
-				       max_size, geo->size);
-				goto analyse_change_exit;
-			}
-		}
-		geo->size *= data_disks;
-		geo->raid_disks = dev->vol.map->num_members;
+			goto analyse_change_exit;
 		change = CH_ARRAY_SIZE;
 	}
+
+	chunk = geo->chunksize / 1024;
 	if (!validate_geometry_imsm(st,
 				    geo->level,
 				    imsm_layout,
