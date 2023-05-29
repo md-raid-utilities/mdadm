@@ -6919,8 +6919,11 @@ static unsigned long long merge_extents(struct intel_super *super, const bool ex
 	int sum_extents = 0;
 	unsigned long long pos = 0;
 	unsigned long long start = 0;
-	unsigned long long maxsize = 0;
-	unsigned long reserve;
+	unsigned long long free_size = 0;
+
+	unsigned long pre_reservation = 0;
+	unsigned long post_reservation = IMSM_RESERVED_SECTORS;
+	unsigned long reservation_size;
 
 	for (dl = super->disks; dl; dl = dl->next)
 		if (dl->e)
@@ -6955,8 +6958,8 @@ static unsigned long long merge_extents(struct intel_super *super, const bool ex
 	do {
 		unsigned long long esize = e[i].start - pos;
 
-		if (expanding ? pos_vol_idx == super->current_vol : esize >= maxsize) {
-			maxsize = esize;
+		if (expanding ? pos_vol_idx == super->current_vol : esize >= free_size) {
+			free_size = esize;
 			start = pos;
 			extent_idx = i;
 		}
@@ -6966,28 +6969,35 @@ static unsigned long long merge_extents(struct intel_super *super, const bool ex
 
 		i++;
 	} while (e[i-1].size);
+
+	if (free_size == 0) {
+		dprintf("imsm: Cannot find free size.\n");
+		free(e);
+		return 0;
+	}
+
+	if (!expanding && extent_idx != 0)
+		/*
+		 * Not a real first volume in a container is created, pre_reservation is needed.
+		 */
+		pre_reservation = IMSM_RESERVED_SECTORS;
+
+	if (e[extent_idx].size == 0)
+		/*
+		 * extent_idx points to the metadata, post_reservation is allready done.
+		 */
+		post_reservation = 0;
 	free(e);
 
-	if (maxsize == 0)
+	reservation_size = pre_reservation + post_reservation;
+
+	if (free_size < reservation_size) {
+		dprintf("imsm: Reservation size is greater than free space.\n");
 		return 0;
+	}
 
-	/* FIXME assumes volume at offset 0 is the first volume in a
-	 * container
-	 */
-	if (extent_idx > 0)
-		reserve = IMSM_RESERVED_SECTORS; /* gap between raid regions */
-	else
-		reserve = 0;
-
-	if (maxsize < reserve)
-		return 0;
-
-	super->create_offset = ~((unsigned long long) 0);
-	if (start + reserve > super->create_offset)
-		return 0; /* start overflows create_offset */
-	super->create_offset = start + reserve;
-
-	return maxsize - reserve;
+	super->create_offset = start + pre_reservation;
+	return free_size - reservation_size;
 }
 
 static int is_raid_level_supported(const struct imsm_orom *orom, int level, int raiddisks)
