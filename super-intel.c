@@ -7600,7 +7600,7 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
  * @super: &intel_super pointer, not NULL.
  * @raiddisks: number of raid disks.
  * @size: requested size, could be 0 (means max size).
- * @chunk: requested chunk.
+ * @chunk: requested chunk size in KiB.
  * @freesize: pointer for returned size value.
  *
  * Return: &IMSM_STATUS_OK or &IMSM_STATUS_ERROR.
@@ -7620,14 +7620,15 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 	struct dl *dl;
 	int i;
 	struct extent *e;
+	int cnt = 0;
+	int used = 0;
 	unsigned long long maxsize;
-	unsigned long long minsize;
-	int cnt;
-	int used;
+	unsigned long long minsize = size;
+
+	if (minsize == 0)
+		minsize = chunk * 2;
 
 	/* find the largest common start free region of the possible disks */
-	used = 0;
-	cnt = 0;
 	for (dl = super->disks; dl; dl = dl->next) {
 		dl->raiddisk = -1;
 
@@ -7651,14 +7652,14 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 	}
 
 	maxsize = merge_extents(super);
-	minsize = size;
-	if (size == 0)
-		/* chunk is in K */
-		minsize = chunk * 2;
+	if (maxsize < minsize)  {
+		pr_err("imsm: Free space is %llu but must be equal or larger than %llu.\n",
+		       maxsize, minsize);
+		return IMSM_STATUS_ERROR;
+	}
 
-	if (cnt < raiddisks || (super->orom && used && used != raiddisks) ||
-	    maxsize < minsize || maxsize == 0) {
-		pr_err("not enough devices with space to create array.\n");
+	if (cnt < raiddisks || (super->orom && used && used != raiddisks)) {
+		pr_err("imsm: Not enough devices with space to create array.\n");
 		return IMSM_STATUS_ERROR;
 	}
 
