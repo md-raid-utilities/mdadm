@@ -199,9 +199,9 @@ inline void ident_init(struct mddev_ident *ident)
  *	/dev/md_d{number} (legacy)
  *	/dev/md_{name}
  *	/dev/md/{name}
- *	{name} - anything that doesn't start from '/' or '<'.
+ *	{name}
  *
- * {name} must follow name's criteria.
+ * {name} must follow name's criteria and be POSIX compatible.
  * If criteria passed, duplicate memory and set devname in @ident.
  *
  * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
@@ -241,8 +241,8 @@ mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname
 	else
 		name = devname;
 
-	if (*name == '/' || *name == '<') {
-		ident_log(prop_name, devname, "Cannot be started from \'/\' or \'<\'", cmdline);
+	if (is_name_posix_compatible(name) == false) {
+		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
 		return MDADM_STATUS_ERROR;
 	}
 
@@ -280,6 +280,11 @@ static mdadm_status_t _ident_set_name(struct mddev_ident *ident, const char *nam
 
 	if (is_string_lq(name, MD_NAME_MAX + 1) == false) {
 		ident_log(prop_name, name, "Too long or empty", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (is_name_posix_compatible(name) == false) {
+		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
 		return MDADM_STATUS_ERROR;
 	}
 

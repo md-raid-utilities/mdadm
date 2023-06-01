@@ -5561,40 +5561,37 @@ static void imsm_update_version_info(struct intel_super *super)
 	}
 }
 
-static int check_name(struct intel_super *super, char *name, int quiet)
+/**
+ * imsm_check_name() - check imsm naming criteria.
+ * @super: &intel_super pointer, not NULL.
+ * @name: name to check.
+ * @verbose: verbose level.
+ *
+ * Name must be no longer than &MAX_RAID_SERIAL_LEN and must be unique across volumes.
+ *
+ * Returns: &true if @name matches, &false otherwise.
+ */
+static bool imsm_is_name_allowed(struct intel_super *super, const char * const name,
+				 const int verbose)
 {
 	struct imsm_super *mpb = super->anchor;
-	char *reason = NULL;
-	char *start = name;
-	size_t len = strlen(name);
 	int i;
 
-	if (len > 0) {
-		while (isspace(start[len - 1]))
-			start[--len] = 0;
-		while (*start && isspace(*start))
-			++start, --len;
-		memmove(name, start, len + 1);
+	if (is_string_lq(name, MAX_RAID_SERIAL_LEN + 1) == false) {
+		pr_vrb("imsm: Name \"%s\" is too long\n", name);
+		return false;
 	}
-
-	if (len > MAX_RAID_SERIAL_LEN)
-		reason = "must be 16 characters or less";
-	else if (len == 0)
-		reason = "must be a non-empty string";
 
 	for (i = 0; i < mpb->num_raid_devs; i++) {
 		struct imsm_dev *dev = get_imsm_dev(super, i);
 
 		if (strncmp((char *) dev->volume, name, MAX_RAID_SERIAL_LEN) == 0) {
-			reason = "already exists";
-			break;
+			pr_vrb("imsm: Name \"%s\" already exists\n", name);
+			return false;
 		}
 	}
 
-	if (reason && !quiet)
-		pr_err("imsm volume name %s\n", reason);
-
-	return !reason;
+	return true;
 }
 
 static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
@@ -5689,8 +5686,9 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 		}
 	}
 
-	if (!check_name(super, name, 0))
+	if (imsm_is_name_allowed(super, name, 1) == false)
 		return 0;
+
 	dv = xmalloc(sizeof(*dv));
 	dev = xcalloc(1, sizeof(*dev) + sizeof(__u32) * (info->raid_disks - 1));
 	/*
@@ -8018,7 +8016,7 @@ static int update_subarray_imsm(struct supertype *st, char *subarray,
 		char *ep;
 		int vol;
 
-		if (!check_name(super, name, 0))
+		if (imsm_is_name_allowed(super, name, 1) == false)
 			return 2;
 
 		vol = strtoul(subarray, &ep, 10);
@@ -10345,7 +10343,8 @@ static void imsm_process_update(struct supertype *st,
 			if (a->info.container_member == target)
 				break;
 		dev = get_imsm_dev(super, u->dev_idx);
-		if (a || !check_name(super, name, 1)) {
+
+		if (a || !dev || imsm_is_name_allowed(super, name, 0) == false) {
 			dprintf("failed to rename subarray-%d\n", target);
 			break;
 		}

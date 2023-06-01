@@ -254,11 +254,9 @@ int Detail(char *dev, struct context *c)
 			fname_from_uuid(st, info, nbuf, ':');
 			printf("MD_UUID=%s\n", nbuf + 5);
 			mp = map_by_uuid(&map, info->uuid);
-			if (mp && mp->path && strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
-				printf("MD_DEVNAME=");
-				print_escape(mp->path + DEV_MD_DIR_LEN);
-				putchar('\n');
-			}
+
+			if (mp && mp->path && strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+				printf("MD_DEVNAME=%s\n", mp->path + DEV_MD_DIR_LEN);
 
 			if (st->ss->export_detail_super)
 				st->ss->export_detail_super(st);
@@ -271,12 +269,9 @@ int Detail(char *dev, struct context *c)
 				__fname_from_uuid(mp->uuid, 0, nbuf, ':');
 				printf("MD_UUID=%s\n", nbuf+5);
 			}
-			if (mp && mp->path &&
-			    strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0) {
-				printf("MD_DEVNAME=");
-				print_escape(mp->path + DEV_MD_DIR_LEN);
-				putchar('\n');
-			}
+			if (mp && mp->path && strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+				printf("MD_DEVNAME=%s\n", mp->path + DEV_MD_DIR_LEN);
+
 			map_free(map);
 		}
 		if (!c->no_devices && sra) {

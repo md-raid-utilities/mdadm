@@ -717,10 +717,6 @@ ARRAY /dev/md/home UUID=9187a482:5dde19d9:eea3cc4a:d646ab8b
 .br
            auto=part
 .br
-# The name of this array contains a space.
-.br
-ARRAY /dev/md9 name='Data Storage'
-.sp
 POLICY domain=domain1 metadata=imsm path=pci-0000:00:1f.2-scsi-*
 .br
            action=spare

@@ -483,24 +483,50 @@ void print_quoted(char *str)
 	putchar(q);
 }
 
-void print_escape(char *str)
+/**
+ * is_alphanum() - Check if sign is letter or digit.
+ * @c: char to analyze.
+ *
+ * Similar to isalnum() but additional locales are excluded.
+ *
+ * Return: %true on success, %false otherwise.
+ */
+bool is_alphanum(const char c)
 {
-	/* print str, but change space and tab to '_'
-	 * as is suitable for device names
-	 */
-	for (; *str; str++) {
-		switch (*str) {
-		case ' ':
-		case '\t':
-			putchar('_');
-			break;
-		case '/':
-			putchar('-');
-			break;
-		default:
-			putchar(*str);
-		}
+	if (isupper(c) || islower(c) || isdigit(c) != 0)
+		return true;
+	return false;
+}
+
+/**
+ * is_name_posix_compatible() - Check if name is POSIX compatible.
+ * @name: name to check.
+ *
+ *  POSIX portable file name character set contains ASCII letters,
+ *  digits, '_', '.', and '-'. Also forbid leading '-'.
+ *  The length of the name cannot exceed NAME_MAX - 1 (ensure NULL ending).
+ *
+ * Return: %true on success, %false otherwise.
+ */
+bool is_name_posix_compatible(const char * const name)
+{
+	assert(name);
+
+	char allowed_symbols[] = "-_.";
+	const char *n = name;
+
+	if (!is_string_lq(name, NAME_MAX))
+		return false;
+
+	if (*n == '-')
+		return false;
+
+	while (*n != '\0') {
+		if (!is_alphanum(*n) && !strchr(allowed_symbols, *n))
+			return false;
+		n++;
 	}
+	return true;
 }
 
 int check_env(char *name)

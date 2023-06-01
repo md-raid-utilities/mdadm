@@ -79,10 +79,10 @@ names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"
 
 # 11. <devname> with some special symbols and locales, no <name>.
-# It needs to wait a while for timeout because udev cannot create a link - known issue.
+# <devname> should be ignored.
 names_make_conf $_UUID "tźż-\.,<>st+-" "empty" $config
 mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "tźż-\.,<>st+-" "name"
+names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"
 
 # 12. No <devname> and <name> set.

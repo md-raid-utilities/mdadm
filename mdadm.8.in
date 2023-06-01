@@ -364,7 +364,7 @@ Use the Intel(R) Matrix Storage Manager metadata format.  This creates a
 which is managed in a similar manner to DDF, and is supported by an
 option-rom on some platforms:
 .IP
-.B https://www.intel.com/content/www/us/en/support/products/122484/memory-and-storage/ssd-software/intel-virtual-raid-on-cpu-intel-vroc.html
+.B https://www.intel.com/content/www/us/en/support/products/122484
 .PP
 .RE
 
@@ -932,17 +932,14 @@ option will be ignored.
 .BR \-N ", " \-\-name=
 Set a
 .B name
-for the array.  This is currently only effective when creating an
-array with a version-1 superblock, or an array in a DDF container.
-The name is a simple textual string that can be used to identify array
-components when assembling.  If name is needed but not specified, it
-is taken from the basename of the device that is being created.
-e.g. when creating
-.I /dev/md/home
-the
-.B name
-will default to
-.IR home .
+for the array. It must be
+.BR "POSIX PORTABLE NAME"
+compatible and cannot be longer than 32 chars. This is effective when creating an array
+with a v1 metadata, or an external array.
+
+If name is needed but not specified, it is taken from the basename of the device
+that is being created. See
+.BR "DEVICE NAMES"
 
 .TP
 .BR \-R ", " \-\-run
@@ -1132,8 +1129,10 @@ is much safer.
 
 .TP
 .BR \-N ", " \-\-name=
-Specify the name of the array to assemble.  This must be the name
-that was specified when creating the array.  It must either match
+Specify the name of the array to assemble. It must be
+.BR "POSIX PORTABLE NAME"
+compatible and cannot be longer than 32 chars. This must be the name
+that was specified when creating the array. It must either match
 the name stored in the superblock exactly, or it must match
 with the current
 .I homehost
@@ -2179,13 +2178,16 @@ Usage:
 .I md-device
 .BI \-\-chunk= X
 .BI \-\-level= Y
-.br
 .BI \-\-raid\-devices= Z
 .I devices
 
 .PP
-This usage will initialise a new md array, associate some devices with
+This usage will initialize a new md array, associate some devices with
 it, and activate the array.
+
+.I md-device
+is a new device. This could be standard name or chosen name. For details see:
+.BR "DEVICE NAMES"
 
 The named device will normally not exist when
 .I "mdadm \-\-create"
@@ -2226,24 +2228,6 @@ faster than resyncing the parity on a non-degraded, but not clean,
 array.  This feature can be overridden with the
 .B \-\-force
 option.
-
-When creating an array with version-1 metadata a name for the array is
-required.
-If this is not given with the
-.B \-\-name
-option,
-.I mdadm
-will choose a name based on the last component of the name of the
-device being created.  So if
-.B /dev/md3
-is being created, then the name
-.B 3
-will be chosen.
-If
-.B /dev/md/home
-is being created, then the name
-.B home
-will be used.
 
 When creating a partition based array, using
 .I mdadm
@@ -2429,12 +2413,10 @@ and
 
 The
 .B name
-option updates the subarray name in the metadata, it may not affect the
-device node name or the device node symlink until the subarray is
-re\-assembled.  If updating
-.B name
-would change the UUID of an active subarray this operation is blocked,
-and the command will end in an error.
+option updates the subarray name in the metadata. It must be
+.BR "POSIX PORTABLE NAME"
+compatible and cannot be longer than 32 chars. If successes, new value will be respected after
+next assembly.
 
 The
 .B ppl
@@ -3395,6 +3377,10 @@ When
 .B \-\-incremental
 mode is used, this file gets a list of arrays currently being created.
 
+.SH POSIX PORTABLE NAME
+A valid name can only consist of characters "A-Za-z0-9.-_".
+The name cannot start with a leading "-" and cannot exceed 255 chars.
+
 .SH DEVICE NAMES
 
 .I mdadm
@@ -3415,6 +3401,10 @@ or
 can be given, or just the suffix of the second sort of name, such as
 .I home
 can be given.
+
+In every style, raw name must be compatible with
+.BR "POSIX PORTABLE NAME"
+and has to be no longer than 32 chars.
 
 When
 .I mdadm
