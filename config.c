@@ -132,6 +132,34 @@ bool is_devname_ignore(char *devname)
 }
 
 /**
+ * ident_log() - generate and write message to the user.
+ * @param_name: name of the property.
+ * @value: value of the property.
+ * @reason: meaningful description.
+ * @cmdline: context dependent actions, see below.
+ *
+ * The function is made to provide similar error handling for both config and cmdline. The behavior
+ * is configurable via @cmdline. Message has following format:
+ * "Value "@value" cannot be set for @param_name. Reason: @reason."
+ *
+ * If cmdline is on:
+ * - message is written to stderr.
+ * otherwise:
+ * - message is written to stdout.
+ * - "Value ignored" is added at the end of the message.
+ */
+static void ident_log(const char *param_name, const char *value, const char *reason,
+		      const bool cmdline)
+{
+	if (cmdline == true)
+		pr_err("Value \"%s\" cannot be set as %s. Reason: %s.\n", value, param_name,
+		       reason);
+	else
+		pr_info("Value \"%s\" cannot be set as %s. Reason: %s. Value ignored.\n", value,
+			param_name, reason);
+}
+
+/**
  * ident_init() - Set defaults.
  * @ident: ident pointer, not NULL.
  */
@@ -157,6 +185,46 @@ inline void ident_init(struct mddev_ident *ident)
 	ident->super_minor = UnSet;
 	ident->uuid[0] = 0;
 	ident->uuid_set = 0;
+}
+
+/**
+ * _ident_set_name()- set name in &mddev_ident.
+ * @ident: pointer to &mddev_ident.
+ * @name: name to be set.
+ * @cmdline: context dependent actions.
+ *
+ * If criteria passed, set name in @ident.
+ *
+ * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
+ */
+static mdadm_status_t _ident_set_name(struct mddev_ident *ident, const char *name,
+				      const bool cmdline)
+{
+	assert(name);
+	assert(ident);
+
+	const char *prop_name = "name";
+
+	if (ident->name[0]) {
+		ident_log(prop_name, name, "Already defined", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (is_string_lq(name, MD_NAME_MAX + 1) == false) {
+		ident_log(prop_name, name, "Too long or empty", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	snprintf(ident->name, MD_NAME_MAX + 1, "%s", name);
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * ident_set_name()- exported, for cmdline.
+ */
+mdadm_status_t ident_set_name(struct mddev_ident *ident, const char *name)
+{
+	return _ident_set_name(ident, name, true);
 }
 
 struct conf_dev {
@@ -444,14 +512,7 @@ void arrayline(char *line)
 					mis.super_minor = minor;
 			}
 		} else if (strncasecmp(w, "name=", 5) == 0) {
-			if (mis.name[0])
-				pr_err("only specify name once, %s ignored.\n",
-					w);
-			else if (strlen(w + 5) > 32)
-				pr_err("name too long, ignoring %s\n", w);
-			else
-				strcpy(mis.name, w + 5);
-
+			_ident_set_name(&mis, w + 5, false);
 		} else if (strncasecmp(w, "bitmap=", 7) == 0) {
 			if (mis.bitmap_file)
 				pr_err("only specify bitmap file once. %s ignored\n",

@@ -27,6 +27,24 @@
 #include	<ctype.h>
 #include	<limits.h>
 
+/**
+ * is_string_lq() - Check if string length with NULL byte is lower or equal to requested.
+ * @str: string to check.
+ * @max_len: max length.
+ *
+ * @str length must be bigger than 0 and be lower or equal @max_len, including termination byte.
+ */
+bool is_string_lq(const char * const str, size_t max_len)
+{
+	assert(str);
+
+	size_t _len = strnlen(str, max_len);
+
+	if (_len > 0 && _len < max_len)
+		return true;
+	return false;
+}
+
 bool is_dev_alive(char *path)
 {
 	if (!path)

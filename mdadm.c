@@ -690,20 +690,14 @@ int main(int argc, char *argv[])
 		case O(CREATE,'N'):
 		case O(ASSEMBLE,'N'):
 		case O(MISC,'N'):
-			if (ident.name[0]) {
-				pr_err("name cannot be set twice.   Second value %s.\n", optarg);
-				exit(2);
-			}
 			if (mode == MISC && !c.subarray) {
 				pr_err("-N/--name only valid with --update-subarray in misc mode\n");
 				exit(2);
 			}
-			if (strlen(optarg) > 32) {
-				pr_err("name '%s' is too long, 32 chars max.\n",
-					optarg);
+
+			if (ident_set_name(&ident, optarg) != MDADM_STATUS_SUCCESS)
 				exit(2);
-			}
-			strcpy(ident.name, optarg);
+
 			continue;
 
 		case O(ASSEMBLE,'m'): /* super-minor for array */
