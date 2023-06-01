@@ -471,11 +471,8 @@ out:
 	return ret;
 }
 
-int Create(struct supertype *st, char *mddev,
-	   char *name, int *uuid,
-	   int subdevs, struct mddev_dev *devlist,
-	   struct shape *s,
-	   struct context *c)
+int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
+	   struct mddev_dev *devlist, struct shape *s, struct context *c)
 {
 	/*
 	 * Create a new raid array.
@@ -497,6 +494,8 @@ int Create(struct supertype *st, char *mddev,
 	unsigned long long minsize = 0, maxsize = 0;
 	char *mindisc = NULL;
 	char *maxdisc = NULL;
+	char *name = ident->name;
+	int *uuid = ident->uuid_set == 1 ? ident->uuid : NULL;
 	int dnum;
 	struct mddev_dev *dv;
 	dev_t rdev;
@@ -1015,7 +1014,7 @@ int Create(struct supertype *st, char *mddev,
 
 	/* We need to create the device */
 	map_lock(&map);
-	mdfd = create_mddev(mddev, name, c->autof, LOCAL, chosen_name, 1);
+	mdfd = create_mddev(ident->devname, ident->name, c->autof, LOCAL, chosen_name, 1);
 	if (mdfd < 0) {
 		map_unlock(&map);
 		return 1;
@@ -1032,7 +1031,6 @@ int Create(struct supertype *st, char *mddev,
 		udev_unblock();
 		return 1;
 	}
-	mddev = chosen_name;
 
 	memset(&inf, 0, sizeof(inf));
 	md_get_array_info(mdfd, &inf);
@@ -1050,7 +1048,7 @@ int Create(struct supertype *st, char *mddev,
 	 * with, but it chooses to trust me instead. Sigh
 	 */
 	info.array.md_minor = 0;
-	if (fstat_is_blkdev(mdfd, mddev, &rdev))
+	if (fstat_is_blkdev(mdfd, chosen_name, &rdev))
 		info.array.md_minor = minor(rdev);
 	info.array.not_persistent = 0;
 
@@ -1102,8 +1100,8 @@ int Create(struct supertype *st, char *mddev,
 	info.array.layout = s->layout;
 	info.array.chunk_size = s->chunk*1024;
 
-	if (name == NULL || *name == 0) {
-		/* base name on mddev */
+	if (*name == 0) {
+		/* base name on devname */
 		/*  /dev/md0 -> 0
 		 *  /dev/md_d0 -> d0
 		 *  /dev/md_foo -> foo
@@ -1113,15 +1111,16 @@ int Create(struct supertype *st, char *mddev,
 		 *  /dev/mdhome -> home
 		 */
 		/* FIXME compare this with rules in create_mddev */
-		name = strrchr(mddev, '/');
+		name = strrchr(chosen_name, '/');
+
 		if (name) {
 			name++;
 			if (strncmp(name, "md_", 3) == 0 &&
-			    strlen(name) > 3 && (name-mddev) == 5 /* /dev/ */)
+			    strlen(name) > 3 && (name - chosen_name) == 5 /* /dev/ */)
 				name += 3;
 			else if (strncmp(name, "md", 2) == 0 &&
 				 strlen(name) > 2 && isdigit(name[2]) &&
-				 (name-mddev) == 5 /* /dev/ */)
+				 (name - chosen_name) == 5 /* /dev/ */)
 				name += 2;
 		}
 	}
@@ -1215,8 +1214,7 @@ int Create(struct supertype *st, char *mddev,
 	}
 	rv = set_array_info(mdfd, st, &info);
 	if (rv) {
-		pr_err("failed to set array info for %s: %s\n",
-			mddev, strerror(errno));
+		pr_err("failed to set array info for %s: %s\n", chosen_name, strerror(errno));
 		goto abort_locked;
 	}
 
@@ -1237,8 +1235,7 @@ int Create(struct supertype *st, char *mddev,
 			goto abort_locked;
 		}
 		if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-			pr_err("Cannot set bitmap file for %s: %s\n",
-				mddev, strerror(errno));
+			pr_err("Cannot set bitmap file for %s: %s\n", chosen_name, strerror(errno));
 			goto abort_locked;
 		}
 	}
@@ -1254,7 +1251,7 @@ int Create(struct supertype *st, char *mddev,
 		 * create links */
 		sysfs_uevent(&info, "change");
 		if (c->verbose >= 0)
-			pr_err("container %s prepared.\n", mddev);
+			pr_err("container %s prepared.\n", chosen_name);
 		wait_for(chosen_name, mdfd);
 	} else if (c->runstop == 1 || subdevs >= s->raiddisks) {
 		if (st->ss->external) {
@@ -1312,7 +1309,7 @@ int Create(struct supertype *st, char *mddev,
 			ioctl(mdfd, RESTART_ARRAY_RW, NULL);
 		}
 		if (c->verbose >= 0)
-			pr_info("array %s started.\n", mddev);
+			pr_info("array %s started.\n", chosen_name);
 		if (st->ss->external && st->container_devnm[0]) {
 			if (need_mdmon)
 				start_mdmon(st->container_devnm);

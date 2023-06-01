@@ -1531,14 +1531,11 @@ extern int Assemble(struct supertype *st, char *mddev,
 		    struct mddev_dev *devlist,
 		    struct context *c);
 
-extern int Build(char *mddev, struct mddev_dev *devlist,
-		 struct shape *s, struct context *c);
+extern int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
+		 struct context *c);
 
-extern int Create(struct supertype *st, char *mddev,
-		  char *name, int *uuid,
-		  int subdevs, struct mddev_dev *devlist,
-		  struct shape *s,
-		  struct context *c);
+extern int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
+		  struct mddev_dev *devlist, struct shape *s, struct context *c);
 
 extern int Detail(char *dev, struct context *c);
 extern int Detail_Platform(struct superswitch *ss, int scan, int verbose, int export, char *controller_path);

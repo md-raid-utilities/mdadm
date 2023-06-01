@@ -24,8 +24,8 @@
 
 #include "mdadm.h"
 
-int Build(char *mddev, struct mddev_dev *devlist,
-	  struct shape *s, struct context *c)
+int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
+	  struct context *c)
 {
 	/* Build a linear or raid0 arrays without superblocks
 	 * We cannot really do any checks, we just do it.
@@ -75,13 +75,12 @@ int Build(char *mddev, struct mddev_dev *devlist,
 
 	/* We need to create the device.  It can have no name. */
 	map_lock(&map);
-	mdfd = create_mddev(mddev, NULL, c->autof, LOCAL,
+	mdfd = create_mddev(ident->devname, NULL, c->autof, LOCAL,
 			    chosen_name, 0);
 	if (mdfd < 0) {
 		map_unlock(&map);
 		return 1;
 	}
-	mddev = chosen_name;
 
 	map_update(&map, fd2devnm(mdfd), "none", uuid, chosen_name);
 	map_unlock(&map);
@@ -93,7 +92,7 @@ int Build(char *mddev, struct mddev_dev *devlist,
 	array.nr_disks = s->raiddisks;
 	array.raid_disks = s->raiddisks;
 	array.md_minor = 0;
-	if (fstat_is_blkdev(mdfd, mddev, &rdev))
+	if (fstat_is_blkdev(mdfd, chosen_name, &rdev))
 		array.md_minor = minor(rdev);
 	array.not_persistent = 1;
 	array.state = 0; /* not clean, but no errors */
@@ -108,8 +107,7 @@ int Build(char *mddev, struct mddev_dev *devlist,
 	array.chunk_size = s->chunk*1024;
 	array.layout = s->layout;
 	if (md_set_array_info(mdfd, &array)) {
-		pr_err("md_set_array_info() failed for %s: %s\n",
-		       mddev, strerror(errno));
+		pr_err("md_set_array_info() failed for %s: %s\n", chosen_name, strerror(errno));
 		goto abort;
 	}
 
@@ -178,8 +176,8 @@ int Build(char *mddev, struct mddev_dev *devlist,
 		}
 		if (bitmap_fd >= 0) {
 			if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-				pr_err("Cannot set bitmap file for %s: %s\n",
-				       mddev, strerror(errno));
+				pr_err("Cannot set bitmap file for %s: %s\n", chosen_name,
+				       strerror(errno));
 				goto abort;
 			}
 		}
@@ -193,9 +191,8 @@ int Build(char *mddev, struct mddev_dev *devlist,
 	}
 
 	if (c->verbose >= 0)
-		pr_err("array %s built and started.\n",
-			mddev);
-	wait_for(mddev, mdfd);
+		pr_err("array %s built and started.\n", chosen_name);
+	wait_for(chosen_name, mdfd);
 	close(mdfd);
 	return 0;
 
