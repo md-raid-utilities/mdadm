@@ -51,3 +51,23 @@ function names_verify() {
 		exit 1
 	fi
 }
+
+# Generate ARRAYLINE for tested array.
+names_make_conf() {
+	local UUID="$1"
+	local WANTED_DEVNAME="$2"
+	local WANTED_NAME="$3"
+	local CONF="$4"
+
+	local LINE="ARRAY metadata=1.2 UUID=$UUID"
+
+	if [[ "$WANTED_DEVNAME" != "empty" ]]; then
+		LINE="$LINE $WANTED_DEVNAME"
+	fi
+
+	if [[ "$WANTED_NAME" != "empty" ]]; then
+		LINE="$LINE name=$WANTED_NAME"
+	fi
+
+	echo $LINE > $CONF
+}
