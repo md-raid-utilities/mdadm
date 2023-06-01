@@ -1284,7 +1284,8 @@ int main(int argc, char *argv[])
 			pr_err("an md device must be given in this mode\n");
 			exit(2);
 		}
-		ident.devname = devlist->devname;
+		if (ident_set_devname(&ident, devlist->devname) != MDADM_STATUS_SUCCESS)
+			exit(1);
 
 		if ((int)ident.super_minor == -2 && c.autof) {
 			pr_err("--super-minor=dev is incompatible with --auto\n");
@@ -1301,13 +1302,6 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 		} else {
-			char *bname = basename(ident.devname);
-
-			if (strlen(bname) > MD_NAME_MAX) {
-				pr_err("Name %s is too long.\n", ident.devname);
-				exit(1);
-			}
-
 			ret = stat(ident.devname, &stb);
 			if (ident.super_minor == -2 && ret != 0) {
 				pr_err("--super-minor=dev given, and listed device %s doesn't exist.\n",

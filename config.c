@@ -122,7 +122,7 @@ int match_keyword(char *word)
 /**
  * is_devname_ignore() - check if &devname is a special "<ignore>" keyword.
  */
-bool is_devname_ignore(char *devname)
+bool is_devname_ignore(const char *devname)
 {
 	static const char keyword[] = "<ignore>";
 
@@ -188,6 +188,74 @@ inline void ident_init(struct mddev_ident *ident)
 }
 
 /**
+ * _ident_set_devname()- verify devname and set it in &mddev_ident.
+ * @ident: pointer to &mddev_ident.
+ * @devname: devname to be set.
+ * @cmdline: context dependent actions. If set, ignore keyword is not allowed.
+ *
+ * @devname can have following forms:
+ *	'<ignore>' keyword (if allowed)
+ *	/dev/md{number}
+ *	/dev/md_d{number} (legacy)
+ *	/dev/md_{name}
+ *	/dev/md/{name}
+ *	{name} - anything that doesn't start from '/' or '<'.
+ *
+ * {name} must follow name's criteria.
+ * If criteria passed, duplicate memory and set devname in @ident.
+ *
+ * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
+ */
+mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname,
+				  const bool cmdline)
+{
+	assert(ident);
+	assert(devname);
+
+	static const char named_dev_pref[] = DEV_NUM_PREF "_";
+	static const int named_dev_pref_size = sizeof(named_dev_pref) - 1;
+	const char *prop_name = "devname";
+	const char *name;
+
+	if (ident->devname) {
+		ident_log(prop_name, devname, "Already defined", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (is_devname_ignore(devname) == true) {
+		if (!cmdline)
+			goto pass;
+
+		ident_log(prop_name, devname, "Special keyword is invalid in this context",
+			  cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (is_devname_md_numbered(devname) == true || is_devname_md_d_numbered(devname) == true)
+		goto pass;
+
+	if (strncmp(devname, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
+		name = devname + DEV_MD_DIR_LEN;
+	else if (strncmp(devname, named_dev_pref, named_dev_pref_size) == 0)
+		name = devname + named_dev_pref_size;
+	else
+		name = devname;
+
+	if (*name == '/' || *name == '<') {
+		ident_log(prop_name, devname, "Cannot be started from \'/\' or \'<\'", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (is_string_lq(name, MD_NAME_MAX + 1) == false) {
+		ident_log(prop_name, devname, "Invalid length", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+pass:
+	ident->devname = xstrdup(devname);
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
  * _ident_set_name()- set name in &mddev_ident.
  * @ident: pointer to &mddev_ident.
  * @name: name to be set.
@@ -217,6 +285,14 @@ static mdadm_status_t _ident_set_name(struct mddev_ident *ident, const char *nam
 
 	snprintf(ident->name, MD_NAME_MAX + 1, "%s", name);
 	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * ident_set_devname()- exported, for cmdline.
+ */
+mdadm_status_t ident_set_devname(struct mddev_ident *ident, const char *name)
+{
+	return _ident_set_devname(ident, name, true);
 }
 
 /**
@@ -464,29 +540,7 @@ void arrayline(char *line)
 
 	for (w = dl_next(line); w != line; w = dl_next(w)) {
 		if (w[0] == '/' || strchr(w, '=') == NULL) {
-			/* This names the device, or is '<ignore>'.
-			 * The rules match those in create_mddev.
-			 * 'w' must be:
-			 *  /dev/md/{anything}
-			 *  /dev/mdNN
-			 *  /dev/md_dNN
-			 *  <ignore>
-			 *  or anything that doesn't start '/' or '<'
-			 */
-			if (is_devname_ignore(w) == true ||
-			    strncmp(w, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0 ||
-			    (w[0] != '/' && w[0] != '<') ||
-			    is_devname_md_numbered(w) == true ||
-			    is_devname_md_d_numbered(w) == true) {
-				/* This is acceptable */;
-				if (mis.devname)
-					pr_err("only give one device per ARRAY line: %s and %s\n",
-						mis.devname, w);
-				else
-					mis.devname = w;
-			}else {
-				pr_err("%s is an invalid name for an md device - ignored.\n", w);
-			}
+			_ident_set_devname(&mis, w, false);
 		} else if (strncasecmp(w, "uuid=", 5) == 0) {
 			if (mis.uuid_set)
 				pr_err("only specify uuid once, %s ignored.\n",

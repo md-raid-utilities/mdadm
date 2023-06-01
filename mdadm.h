@@ -1638,6 +1638,7 @@ extern void manage_fork_fds(int close_all);
 extern int continue_via_systemd(char *devnm, char *service_name, char *prefix);
 
 extern void ident_init(struct mddev_ident *ident);
+extern mdadm_status_t ident_set_devname(struct mddev_ident *ident, const char *devname);
 extern mdadm_status_t ident_set_name(struct mddev_ident *ident, const char *name);
 
 extern int parse_auto(char *str, char *msg, int config);
@@ -1660,7 +1661,7 @@ extern void print_escape(char *str);
 extern int use_udev(void);
 extern unsigned long GCD(unsigned long a, unsigned long b);
 extern int conf_name_is_free(char *name);
-extern bool is_devname_ignore(char *devname);
+extern bool is_devname_ignore(const char *devname);
 extern bool is_devname_md_numbered(const char *devname);
 extern bool is_devname_md_d_numbered(const char *devname);
 extern int conf_verify_devnames(struct mddev_ident *array_list);

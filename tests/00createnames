@@ -39,3 +39,6 @@ mdadm -S "/dev/md0"
 names_create "/dev/md0" "name"
 names_verify "/dev/md0" "empty" "name"
 mdadm -S "/dev/md0"
+
+# Devnode is a special ignore keyword. Should be rejected.
+names_create "<ignore>" "name", "true"
