@@ -222,11 +222,10 @@ int Monitor(struct mddev_dev *devlist,
 	info.dosyslog = dosyslog;
 	info.test = c->test;
 
-	if (gethostname(info.hostname, sizeof(info.hostname)) != 0) {
+	if (s_gethostname(info.hostname, sizeof(info.hostname)) != 0) {
 		pr_err("Cannot get hostname.\n");
 		return 1;
 	}
-	info.hostname[sizeof(info.hostname) - 1] = '\0';
 
 	if (share){
 		if (check_one_sharer(c->scan) == 2)

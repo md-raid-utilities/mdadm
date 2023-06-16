@@ -585,3 +585,22 @@ int parse_num(int *dest, const char *num)
 	*dest = temp;
 	return 0;
 }
+
+/**
+ * s_gethostname() - secure get hostname. Assure null-terminated string.
+ *
+ * @buf: buffer for hostname.
+ * @buf_len: buffer length.
+ *
+ * Return: gethostname() result.
+ */
+int s_gethostname(char *buf, int buf_len)
+{
+	assert(buf);
+
+	int ret = gethostname(buf, buf_len);
+
+	buf[buf_len - 1] = 0;
+
+	return ret;
+}

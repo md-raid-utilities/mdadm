@@ -363,8 +363,7 @@ void RebuildMap(void)
 	char *homehost = conf_get_homehost(&require_homehost);
 
 	if (homehost == NULL || strcmp(homehost, "<system>")==0) {
-		if (gethostname(sys_hostname, sizeof(sys_hostname)) == 0) {
-			sys_hostname[sizeof(sys_hostname)-1] = 0;
+		if (s_gethostname(sys_hostname, sizeof(sys_hostname)) == 0) {
 			homehost = sys_hostname;
 		}
 	}
