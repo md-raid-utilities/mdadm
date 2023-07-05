@@ -2672,9 +2672,14 @@ static void print_imsm_capability(const struct imsm_orom *orom)
 	else
 		printf("Rapid Storage Technology%s\n",
 			imsm_orom_is_enterprise(orom) ? " enterprise" : "");
-	if (orom->major_ver || orom->minor_ver || orom->hotfix_ver || orom->build)
-		printf("        Version : %d.%d.%d.%d\n", orom->major_ver,
-				orom->minor_ver, orom->hotfix_ver, orom->build);
+	if (orom->major_ver || orom->minor_ver || orom->hotfix_ver || orom->build) {
+		if (imsm_orom_is_vmd_without_efi(orom))
+			printf("        Version : %d.%d\n", orom->major_ver,
+			       orom->minor_ver);
+		else
+			printf("        Version : %d.%d.%d.%d\n", orom->major_ver,
+			       orom->minor_ver, orom->hotfix_ver, orom->build);
+	}
 	printf("    RAID Levels :%s%s%s%s%s\n",
 	       imsm_orom_has_raid0(orom) ? " raid0" : "",
 	       imsm_orom_has_raid1(orom) ? " raid1" : "",

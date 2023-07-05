@@ -27,6 +27,7 @@ struct imsm_orom {
 	__u8 signature[4];
 	#define IMSM_OROM_SIGNATURE "$VER"
 	#define IMSM_NVME_OROM_COMPAT_SIGNATURE "$NVM"
+	#define IMSM_VMD_OROM_COMPAT_SIGNATURE "$VMD"
 	__u8 table_ver_major; /* Currently 2 (can change with future revs) */
 	__u8 table_ver_minor; /* Currently 2 (can change with future revs) */
 	__u16 major_ver; /* Example: 8 as in 8.6.0.1020 */
@@ -68,11 +69,13 @@ struct imsm_orom {
 	__u16 tds; /* Total Disks Supported */
 	#define IMSM_OROM_TOTAL_DISKS 6
 	#define IMSM_OROM_TOTAL_DISKS_NVME 12
+	#define IMSM_OROM_TOTAL_DISKS_VMD 48
 	__u8 vpa; /* # Volumes Per Array supported */
 	#define IMSM_OROM_VOLUMES_PER_ARRAY 2
 	__u8 vphba; /* # Volumes Per Host Bus Adapter supported */
 	#define IMSM_OROM_VOLUMES_PER_HBA 4
 	#define IMSM_OROM_VOLUMES_PER_HBA_NVME 4
+	#define IMSM_OROM_VOLUMES_PER_HBA_VMD 24
 	/* Attributes supported. This should map to the
 	 * attributes in the MPB. Also, lower 16 bits
 	 * should match/duplicate RLC bits above.
@@ -185,7 +188,13 @@ static inline int imsm_orom_is_enterprise(const struct imsm_orom *orom)
 static inline int imsm_orom_is_nvme(const struct imsm_orom *orom)
 {
 	return memcmp(orom->signature, IMSM_NVME_OROM_COMPAT_SIGNATURE,
-			sizeof(orom->signature)) == 0;
+		      sizeof(orom->signature)) == 0;
+}
+
+static inline int imsm_orom_is_vmd_without_efi(const struct imsm_orom *orom)
+{
+	return memcmp(orom->signature, IMSM_VMD_OROM_COMPAT_SIGNATURE,
+		      sizeof(orom->signature)) == 0;
 }
 
 static inline int imsm_orom_has_tpv_support(const struct imsm_orom *orom)

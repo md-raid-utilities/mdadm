@@ -700,6 +700,106 @@ const struct imsm_orom *find_imsm_nvme(struct sys_dev *hba)
 	return &nvme_orom->orom;
 }
 
+#define VMD_REGISTER_OFFSET		0x3FC
+#define VMD_REGISTER_SKU_SHIFT		1
+#define VMD_REGISTER_SKU_MASK		(0x00000007)
+#define VMD_REGISTER_SKU_PREMIUM	2
+#define MD_REGISTER_VER_MAJOR_SHIFT	4
+#define MD_REGISTER_VER_MAJOR_MASK	(0x0000000F)
+#define MD_REGISTER_VER_MINOR_SHIFT	8
+#define MD_REGISTER_VER_MINOR_MASK	(0x0000000F)
+
+/*
+ * read_vmd_register() - Reads VMD register and writes contents to buff ptr
+ * @buff: buffer for vmd register data, should be the size of uint32_t
+ *
+ * Return: 0 on success, 1 on error
+ */
+int read_vmd_register(uint32_t *buff, struct sys_dev *hba)
+{
+	int fd;
+	char vmd_pci_config_path[PATH_MAX];
+
+	if (!vmd_domain_to_controller(hba, vmd_pci_config_path))
+		return 1;
+
+	strncat(vmd_pci_config_path, "/config", PATH_MAX - strnlen(vmd_pci_config_path, PATH_MAX));
+
+	fd = open(vmd_pci_config_path, O_RDONLY);
+	if (fd < 0)
+		return 1;
+
+	if (pread(fd, buff, sizeof(uint32_t), VMD_REGISTER_OFFSET) != sizeof(uint32_t)) {
+		close(fd);
+		return 1;
+	}
+	close(fd);
+	return 0;
+}
+
+/*
+ * add_vmd_orom() - Adds VMD orom cap to orom list, writes orom_entry ptr into vmd_orom
+ * @vmd_orom: pointer to orom entry pointer
+ *
+ * Return: 0 on success, 1 on error
+ */
+int add_vmd_orom(struct orom_entry **vmd_orom, struct sys_dev *hba)
+{
+	uint8_t sku;
+	uint32_t vmd_register_data;
+	struct imsm_orom vmd_orom_cap = {
+		.signature = IMSM_VMD_OROM_COMPAT_SIGNATURE,
+		.sss = IMSM_OROM_SSS_4kB | IMSM_OROM_SSS_8kB |
+					IMSM_OROM_SSS_16kB | IMSM_OROM_SSS_32kB |
+					IMSM_OROM_SSS_64kB | IMSM_OROM_SSS_128kB,
+		.dpa = IMSM_OROM_DISKS_PER_ARRAY_NVME,
+		.tds = IMSM_OROM_TOTAL_DISKS_VMD,
+		.vpa = IMSM_OROM_VOLUMES_PER_ARRAY,
+		.vphba = IMSM_OROM_VOLUMES_PER_HBA_VMD,
+		.attr = IMSM_OROM_ATTR_2TB | IMSM_OROM_ATTR_2TB_DISK,
+		.driver_features = IMSM_OROM_CAPABILITIES_EnterpriseSystem |
+				   IMSM_OROM_CAPABILITIES_TPV
+	};
+
+	if (read_vmd_register(&vmd_register_data, hba) != 0)
+		return 1;
+
+	sku = (uint8_t)((vmd_register_data >> VMD_REGISTER_SKU_SHIFT) &
+		VMD_REGISTER_SKU_MASK);
+
+	if (sku == VMD_REGISTER_SKU_PREMIUM)
+		vmd_orom_cap.rlc = IMSM_OROM_RLC_RAID0 | IMSM_OROM_RLC_RAID1 |
+				   IMSM_OROM_RLC_RAID10 | IMSM_OROM_RLC_RAID5;
+	else
+		vmd_orom_cap.rlc = IMSM_OROM_RLC_RAID_CNG;
+
+	vmd_orom_cap.major_ver = (uint8_t)
+		((vmd_register_data >> MD_REGISTER_VER_MAJOR_SHIFT) &
+			MD_REGISTER_VER_MAJOR_MASK);
+	vmd_orom_cap.minor_ver = (uint8_t)
+		((vmd_register_data >> MD_REGISTER_VER_MINOR_SHIFT) &
+			MD_REGISTER_VER_MINOR_MASK);
+
+	*vmd_orom = add_orom(&vmd_orom_cap);
+
+	return 0;
+}
+
+const struct imsm_orom *find_imsm_vmd(struct sys_dev *hba)
+{
+	static struct orom_entry *vmd_orom;
+
+	if (hba->type != SYS_DEV_VMD)
+		return NULL;
+
+	if (!vmd_orom && add_vmd_orom(&vmd_orom, hba) != 0)
+		return NULL;
+
+	add_orom_device_id(vmd_orom, hba->dev_id);
+	vmd_orom->type = SYS_DEV_VMD;
+	return &vmd_orom->orom;
+}
+
 const struct imsm_orom *find_imsm_capability(struct sys_dev *hba)
 {
 	const struct imsm_orom *cap = get_orom_by_device_id(hba->dev_id);
@@ -709,9 +809,19 @@ const struct imsm_orom *find_imsm_capability(struct sys_dev *hba)
 
 	if (hba->type == SYS_DEV_NVME)
 		return find_imsm_nvme(hba);
-	if ((cap = find_imsm_efi(hba)) != NULL)
+
+	cap = find_imsm_efi(hba);
+	if (cap)
 		return cap;
-	if ((cap = find_imsm_hba_orom(hba)) != NULL)
+
+	if (hba->type == SYS_DEV_VMD) {
+		cap = find_imsm_vmd(hba);
+		if (cap)
+			return cap;
+	}
+
+	cap = find_imsm_hba_orom(hba);
+	if (cap)
 		return cap;
 
 	return NULL;
