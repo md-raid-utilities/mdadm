@@ -650,6 +650,11 @@ static int check_no_platform(void)
 		char *l = conf_line(fp);
 		char *w = l;
 
+		if (l == NULL) {
+			fclose(fp);
+			return 0;
+		}
+
 		do {
 			if (strcmp(w, search) == 0)
 				no_platform = 1;
