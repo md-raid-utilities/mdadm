@@ -30,7 +30,7 @@
 
 # define "CXFLAGS" to give extra flags to CC.
 # e.g.  make CXFLAGS=-O to optimise
-CXFLAGS ?=-O2
+CXFLAGS ?=-O2 -D_FORTIFY_SOURCE=2
 TCC = tcc
 UCLIBC_GCC = $(shell for nm in i386-uclibc-linux-gcc i386-uclibc-gcc; do which $$nm > /dev/null && { echo $$nm ; exit; } ; done; echo false No uclibc found )
 #DIET_GCC = diet gcc
@@ -50,14 +50,30 @@ ifeq ($(origin CC),default)
 CC := $(CROSS_COMPILE)gcc
 endif
 CXFLAGS ?= -ggdb
-CWFLAGS = -Wall -Werror -Wstrict-prototypes -Wextra -Wno-unused-parameter
+CWFLAGS ?= -Wall -Werror -Wstrict-prototypes -Wextra -Wno-unused-parameter -Wformat -Wformat-security -Werror=format-security -fstack-protector-strong -fPIE -Warray-bounds
 ifdef WARN_UNUSED
-CWFLAGS += -Wp,-D_FORTIFY_SOURCE=2 -O3
+CWFLAGS += -Wp -O3
 endif
 
-FALLTHROUGH := $(shell gcc -v --help 2>&1 | grep "implicit-fallthrough" | wc -l)
-ifneq "$(FALLTHROUGH)"  "0"
-CWFLAGS += -Wimplicit-fallthrough=0
+ifeq ($(origin FALLTHROUGH), undefined)
+	FALLTHROUGH := $(shell gcc -Q --help=warnings 2>&1 | grep "implicit-fallthrough" | wc -l)
+	ifneq "$(FALLTHROUGH)"  "0"
+	CWFLAGS += -Wimplicit-fallthrough=0
+	endif
+endif
+
+ifeq ($(origin FORMATOVERFLOW), undefined)
+	FORMATOVERFLOW := $(shell gcc -Q --help=warnings 2>&1 | grep "format-overflow" | wc -l)
+	ifneq "$(FORMATOVERFLOW)"  "0"
+	CWFLAGS += -Wformat-overflow
+	endif
+endif
+
+ifeq ($(origin STRINGOPOVERFLOW), undefined)
+	STRINGOPOVERFLOW := $(shell gcc -Q --help=warnings 2>&1 | grep "stringop-overflow" | wc -l)
+	ifneq "$(STRINGOPOVERFLOW)"  "0"
+	CWFLAGS += -Wstringop-overflow
+	endif
 endif
 
 ifdef DEBIAN
@@ -116,10 +132,12 @@ CFLAGS += -DUSE_PTHREADS
 MON_LDFLAGS += -pthread
 endif
 
+LDFLAGS = -Wl,-z,now,-z,noexecstack
+
 # If you want a static binary, you might uncomment these
-# LDFLAGS = -static
+# LDFLAGS += -static
 # STRIP = -s
-LDLIBS = -ldl
+LDLIBS = -ldl -pie
 
 # To explicitly disable libudev, set -DNO_LIBUDEV in CXFLAGS
 ifeq (, $(findstring -DNO_LIBUDEV,  $(CXFLAGS)))
@@ -209,14 +227,13 @@ mdadm.Os : $(SRCS) $(INCL)
 	$(CC) -o mdadm.Os $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -DHAVE_STDINT_H -Os $(SRCS) $(LDLIBS)
 
 mdadm.O2 : $(SRCS) $(INCL) mdmon.O2
-	$(CC) -o mdadm.O2 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -DHAVE_STDINT_H -O2 -D_FORTIFY_SOURCE=2 $(SRCS) $(LDLIBS)
+	$(CC) -o mdadm.O2 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -DHAVE_STDINT_H -O2 $(SRCS) $(LDLIBS)
 
 mdmon.O2 : $(MON_SRCS) $(INCL) mdmon.h
-	$(CC) -o mdmon.O2 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(MON_LDFLAGS) -DHAVE_STDINT_H -O2 -D_FORTIFY_SOURCE=2 $(MON_SRCS) $(LDLIBS)
+	$(CC) -o mdmon.O2 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(MON_LDFLAGS) -DHAVE_STDINT_H -O2 $(MON_SRCS) $(LDLIBS)
 
-# use '-z now' to guarantee no dynamic linker interactions with the monitor thread
 mdmon : $(MON_OBJS) | check_rundir
-	$(CC) $(CFLAGS) $(LDFLAGS) $(MON_LDFLAGS) -Wl,-z,now -o mdmon $(MON_OBJS) $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(MON_LDFLAGS) -o mdmon $(MON_OBJS) $(LDLIBS)
 msg.o: msg.c msg.h
 
 test_stripe : restripe.c xmalloc.o mdadm.h
