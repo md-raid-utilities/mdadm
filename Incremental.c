@@ -1628,54 +1628,18 @@ release:
 	return rv;
 }
 
-static void run_udisks(char *arg1, char *arg2)
-{
-	int pid = fork();
-	int status;
-	if (pid == 0) {
-		manage_fork_fds(1);
-		execl("/usr/bin/udisks", "udisks", arg1, arg2, NULL);
-		execl("/bin/udisks", "udisks", arg1, arg2, NULL);
-		exit(1);
-	}
-	while (pid > 0 && wait(&status) != pid)
-		;
-}
-
-static int force_remove(char *devnm, int fd, struct mdinfo *mdi, int verbose)
-{
-	int rv;
-	int devid = devnm2devid(devnm);
-
-	run_udisks("--unmount", map_dev(major(devid), minor(devid), 0));
-	rv = Manage_stop(devnm, fd, verbose, 1);
-	if (rv) {
-		/* At least we can try to trigger a 'remove' */
-		sysfs_uevent(mdi, "remove");
-		if (verbose)
-			pr_err("Fail to stop %s too.\n", devnm);
-	}
-	return rv;
-}
-
 static void remove_from_member_array(struct mdstat_ent *memb,
 				    struct mddev_dev *devlist, int verbose)
 {
-	int rv;
-	struct mdinfo mmdi;
 	int subfd = open_dev(memb->devnm);
 
 	if (subfd >= 0) {
-		rv = Manage_subdevs(memb->devnm, subfd, devlist, verbose,
-				    0, UOPT_UNDEFINED, 0);
-		if (rv & 2) {
-			if (sysfs_init(&mmdi, -1, memb->devnm))
-				pr_err("unable to initialize sysfs for: %s\n",
-				       memb->devnm);
-			else
-				force_remove(memb->devnm, subfd, &mmdi,
-					     verbose);
-		}
+		/*
+		 * Ignore the return value because it's necessary
+		 * to handle failure condition here.
+		 */
+		Manage_subdevs(memb->devnm, subfd, devlist, verbose,
+			       0, UOPT_UNDEFINED, 0);
 		close(subfd);
 	}
 }
@@ -1758,21 +1722,19 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		}
 		free_mdstat(mdstat);
 	} else {
-		rv |= Manage_subdevs(ent->devnm, mdfd, &devlist,
-				    verbose, 0, UOPT_UNDEFINED, 0);
-		if (rv & 2) {
-		/* Failed due to EBUSY, try to stop the array.
-		 * Give udisks a chance to unmount it first.
+		/*
+		 * This 'I' incremental remove is a try-best effort,
+		 * the failure condition can be safely ignored
+		 * because of the following up 'r' remove.
 		 */
-			rv = force_remove(ent->devnm, mdfd, &mdi, verbose);
-			goto end;
-		}
+		Manage_subdevs(ent->devnm, mdfd, &devlist,
+			       verbose, 0, UOPT_UNDEFINED, 0);
 	}
 
 	devlist.disposition = 'r';
 	rv = Manage_subdevs(ent->devnm, mdfd, &devlist,
 			    verbose, 0, UOPT_UNDEFINED, 0);
-end:
+
 	close(mdfd);
 	free_mdstat(ent);
 	return rv;
