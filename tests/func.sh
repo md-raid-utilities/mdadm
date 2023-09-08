@@ -170,7 +170,6 @@ do_setup() {
 				dd if=/dev/zero of=$targetdir/mdtest$d count=$sz bs=1K > /dev/null 2>&1
 			# make sure udev doesn't touch
 			mdadm --zero $targetdir/mdtest$d 2> /dev/null
-			[ -b /dev/loop$d ] || mknod /dev/loop$d b 7 $d
 			if [ $d -eq 7 ]
 			then
 				losetup /dev/loop$d $targetdir/mdtest6 # for multipath use
