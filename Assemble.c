@@ -428,8 +428,6 @@ static int select_devices(struct mddev_dev *devlist,
 
 			/* make sure we finished the loop */
 			tmpdev = NULL;
-			free(st);
-			st = NULL;
 			goto loop;
 		} else {
 			content = *contentp;
