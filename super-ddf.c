@@ -1984,12 +1984,14 @@ static void getinfo_super_ddf(struct supertype *st, struct mdinfo *info, char *m
 		info->disk.number = be32_to_cpu(ddf->dlist->disk.refnum);
 		info->disk.raid_disk = find_phys(ddf, ddf->dlist->disk.refnum);
 
+		if (info->disk.raid_disk < 0)
+			return;
+
 		info->data_offset = be64_to_cpu(ddf->phys->
 						  entries[info->disk.raid_disk].
 						  config_size);
 		info->component_size = ddf->dlist->size - info->data_offset;
-		if (info->disk.raid_disk >= 0)
-			pde = ddf->phys->entries + info->disk.raid_disk;
+		pde = ddf->phys->entries + info->disk.raid_disk;
 		if (pde &&
 		    !(be16_to_cpu(pde->state) & DDF_Failed) &&
 		    !(be16_to_cpu(pde->state) & DDF_Missing))
