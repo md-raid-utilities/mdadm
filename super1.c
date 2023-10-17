@@ -1967,6 +1967,14 @@ fail_to_write:
 	return 1;
 }
 
+static bool has_raid0_layout(struct mdp_superblock_1 *sb)
+{
+	if (sb->level == 0 && sb->layout != 0)
+		return true;
+	else
+		return false;
+}
+
 static int write_init_super1(struct supertype *st)
 {
 	struct mdp_superblock_1 *sb = st->sb;
@@ -1978,12 +1986,17 @@ static int write_init_super1(struct supertype *st)
 	unsigned long long sb_offset;
 	unsigned long long data_offset;
 	long bm_offset;
-	int raid0_need_layout = 0;
+	bool raid0_need_layout = false;
+
+	/* Since linux kernel v5.4, raid0 always has a layout */
+	if (has_raid0_layout(sb) && get_linux_version() >= 5004000)
+		raid0_need_layout = true;
 
 	for (di = st->info; di; di = di->next) {
 		if (di->disk.state & (1 << MD_DISK_JOURNAL))
 			sb->feature_map |= __cpu_to_le32(MD_FEATURE_JOURNAL);
-		if (sb->level == 0 && sb->layout != 0) {
+		if (has_raid0_layout(sb) && !raid0_need_layout) {
+
 			struct devinfo *di2 = st->info;
 			unsigned long long s1, s2;
 			s1 = di->dev_size;
@@ -1995,7 +2008,7 @@ static int write_init_super1(struct supertype *st)
 				s2 -= di2->data_offset;
 			s2 /= __le32_to_cpu(sb->chunksize);
 			if (s1 != s2)
-				raid0_need_layout = 1;
+				raid0_need_layout = true;
 		}
 	}
 
