@@ -1990,12 +1990,10 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		return 1;
 	}
 
-	if (strcmp(sra->text_version, content->text_version) != 0) {
-		if (content->array.major_version == -1 &&
-		    content->array.minor_version == -2 &&
-		    c->readonly &&
-		    content->text_version[0] == '/')
-			content->text_version[0] = '-';
+	/* Fill sysfs properties only if they are not set. Determine it by checking text_version
+	 * and ignoring special character on the first place.
+	 */
+	if (strcmp(sra->text_version + 1, content->text_version + 1) != 0) {
 		if (sysfs_set_array(content, 9003) != 0) {
 			sysfs_free(sra);
 			return 1;
