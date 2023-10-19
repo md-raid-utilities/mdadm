@@ -1467,17 +1467,6 @@ static int Incremental_container(struct supertype *st, char *devname,
 
 	st->ss->getinfo_super(st, &info, NULL);
 
-	if ((c->runstop > 0 && info.container_enough >= 0) ||
-	    info.container_enough > 0)
-		/* pass */;
-	else {
-		if (c->export) {
-			printf("MD_STARTED=no\n");
-		} else if (c->verbose)
-			pr_err("not enough devices to start the container\n");
-		return 0;
-	}
-
 	match = conf_match(st, &info, devname, c->verbose, &rv);
 	if (match == NULL && rv == 2)
 		return rv;
