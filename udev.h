@@ -34,4 +34,7 @@ bool udev_is_available(void);
 enum udev_status udev_wait_for_events(int seconds);
 #endif
 
+enum udev_status udev_block(char *devnm);
+void udev_unblock(void);
+
 #endif
