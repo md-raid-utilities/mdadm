@@ -163,14 +163,14 @@ else
 	ECHO=:
 endif
 
-OBJS =  mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o \
-	Manage.o Assemble.o Build.o \
-	Create.o Detail.o Examine.o Grow.o Monitor.o dlink.o Kill.o Query.o \
-	Incremental.o Dump.o \
-	mdopen.o super0.o super1.o super-ddf.o super-intel.o bitmap.o \
-	super-mbr.o super-gpt.o \
-	restripe.o sysfs.o sha1.o mapfile.o crc32.o sg_io.o msg.o xmalloc.o \
-	platform-intel.o probe_roms.o crc32c.o
+OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o udev.o \
+       Manage.o Assemble.o Build.o \
+       Create.o Detail.o Examine.o Grow.o Monitor.o dlink.o Kill.o Query.o \
+       Incremental.o Dump.o \
+       mdopen.o super0.o super1.o super-ddf.o super-intel.o bitmap.o \
+       super-mbr.o super-gpt.o \
+       restripe.o sysfs.o sha1.o mapfile.o crc32.o sg_io.o msg.o xmalloc.o \
+       platform-intel.o probe_roms.o crc32c.o
 
 CHECK_OBJS = restripe.o uuid.o sysfs.o maps.o lib.o xmalloc.o dlink.o
 
@@ -179,7 +179,7 @@ SRCS =  $(patsubst %.o,%.c,$(OBJS))
 INCL = mdadm.h part.h bitmap.h
 
 MON_OBJS = mdmon.o monitor.o managemon.o uuid.o util.o maps.o mdstat.o sysfs.o config.o mapfile.o mdopen.o\
-	policy.o lib.o \
+	policy.o lib.o udev.o \
 	Kill.o sg_io.o dlink.o ReadMe.o super-intel.o \
 	super-mbr.o super-gpt.o \
 	super-ddf.o sha1.o crc32.o msg.o bitmap.o xmalloc.o \

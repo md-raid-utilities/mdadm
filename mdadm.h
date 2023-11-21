@@ -1656,6 +1656,7 @@ extern char *conf_line(FILE *file);
 extern char *conf_word(FILE *file, int allow_key);
 extern void print_quoted(char *str);
 extern int use_udev(void);
+extern void print_escape(char *str);
 extern unsigned long GCD(unsigned long a, unsigned long b);
 extern int conf_name_is_free(char *name);
 extern bool is_devname_ignore(const char *devname);
