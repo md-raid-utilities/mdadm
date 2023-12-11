@@ -441,3 +441,9 @@ rotest() {
 	dev=$1
 	fsck -fn $dev >&2
 }
+
+get_sysdir() {
+    local mddev=$1
+    [ -L $mddev ] && mddev=$(readlink -f $mddev)
+    echo "/sys/class/block/$(basename $mddev)/md"
+}

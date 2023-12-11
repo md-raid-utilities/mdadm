@@ -1,0 +1,73 @@
+# Commit 4dde420fc3e2 ("mdadm: remove container_enough logic") introduced a bug,
+# where array sysfs info is obtained from first drive added and never updated.
+# This results in info mismatch if not "up to date" drive is added first.
+
+# We are testing ppl here as:
+# - we intend to show the problem exists
+# - it's a simple scenario without overcomplicating things
+. tests/env-imsm-template
+
+check_if_ppl() {
+       local vol=$1
+       sysfs_path=$(get_sysdir $vol)
+       result=$(cat $sysfs_path/consistency_policy)
+       if [ "$result" -ne "ppl" ]
+       then
+              echo >&2 "Expected consistency_policy \"ppl\" but was \"$1\""
+              exit 1
+       fi
+       return 0
+}
+
+num_disks=4
+level=5
+chunk=64
+offset=0
+# Workaround for loopback
+size=$((size/2))
+
+# Create imsm RAID 5 with single spare
+mdadm --create $container --metadata=imsm --raid-disks=$num_disks $dev0 $dev1 $dev2 $dev3 --run
+imsm_check container $num_disks
+
+mdadm --create $member0 --level=$level --size=$size --chunk=$chunk \
+      --raid-disks=$((num_disks-1)) $dev0 $dev1 $dev2 --assume-clean --run
+udevadm settle
+imsm_check member $member0 $((num_disks-1)) $level $size $((size*(num_disks-2))) $offset $chunk
+
+# Write config file
+mdadm --examine --brief --scan > $config
+
+# Incremental fail single drive
+mdadm --incremental --fail $(basename $dev0)
+check wait
+imsm_check member $member0 $((num_disks-1)) $level $size $((size*(num_disks-2))) $offset $chunk
+testdev $member0 $((num_disks-2)) $size $chunk
+
+# Stop volume
+mdadm --stop $member0
+
+# Change consistency_policy to PPL
+mdadm --update-subarray=0 --update=ppl $container
+
+# Assemble volume
+mdadm --assemble $member0 --config=$config --verbose
+imsm_check member $member0 $((num_disks-1)) $level $size $((size*(num_disks-2))) $offset $chunk
+testdev $member0 $((num_disks-2)) $size $chunk
+
+# Check if consistency_policy is "ppl"
+check_if_ppl $member0
+
+# Perform stop scan
+mdadm --stop --scan
+
+# Incrementally assemble array, start from failed drive
+for dev in $dev0 $dev1 $dev2 $dev3
+do
+       mdadm --incremental $dev --config=$config
+done
+imsm_check member $member0 $((num_disks-1)) $level $size $((size*(num_disks-2))) $offset $chunk
+testdev $member0 $((num_disks-2)) $size $chunk
+
+# Check if consistency_policy is "ppl"
+check_if_ppl $member0
