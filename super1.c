@@ -544,26 +544,6 @@ static void examine_super1(struct supertype *st, char *homehost)
 		break;
 	}
 	printf("\n");
-#if 0
-	/* This turns out to just be confusing */
-	printf("    Array Slot : %d (", __le32_to_cpu(sb->dev_number));
-	for (i = __le32_to_cpu(sb->max_dev); i > 0 ; i--)
-		if (__le16_to_cpu(sb->dev_roles[i-1]) != MD_DISK_ROLE_SPARE)
-			break;
-	for (d = 0; d < i; d++) {
-		int role = __le16_to_cpu(sb->dev_roles[d]);
-		if (d)
-			printf(", ");
-		if (role == MD_DISK_ROLE_SPARE)
-			printf("empty");
-		else
-			if(role == MD_DISK_ROLE_FAULTY)
-				printf("failed");
-			else
-				printf("%d", role);
-	}
-	printf(")\n");
-#endif
 	printf("   Device Role : ");
 	role = role_from_sb(sb);
 	if (role >= MD_DISK_ROLE_FAULTY)

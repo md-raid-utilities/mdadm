@@ -2976,34 +2976,6 @@ static void uuid_from_super_imsm(struct supertype *st, int uuid[4])
 	memcpy(uuid, buf, 4*4);
 }
 
-#if 0
-static void
-get_imsm_numerical_version(struct imsm_super *mpb, int *m, int *p)
-{
-	__u8 *v = get_imsm_version(mpb);
-	__u8 *end = mpb->sig + MAX_SIGNATURE_LENGTH;
-	char major[] = { 0, 0, 0 };
-	char minor[] = { 0 ,0, 0 };
-	char patch[] = { 0, 0, 0 };
-	char *ver_parse[] = { major, minor, patch };
-	int i, j;
-
-	i = j = 0;
-	while (*v != '\0' && v < end) {
-		if (*v != '.' && j < 2)
-			ver_parse[i][j++] = *v;
-		else {
-			i++;
-			j = 0;
-		}
-		v++;
-	}
-
-	*m = strtol(minor, NULL, 0);
-	*p = strtol(patch, NULL, 0);
-}
-#endif
-
 static __u32 migr_strip_blocks_resync(struct imsm_dev *dev)
 {
 	/* migr_strip_size when repairing or initializing parity */

@@ -603,13 +603,6 @@ int Detail(char *dev, struct context *c)
 		}
 
 		if ((st && st->sb) && (info && info->reshape_active)) {
-#if 0
-This is pretty boring
-			printf("     Reshape pos'n : %llu%s\n",
-			       (unsigned long long) info->reshape_progress << 9,
-			       human_size((unsigned long long)
-					  info->reshape_progress << 9));
-#endif
 			if (info->delta_disks != 0)
 				printf("     Delta Devices : %d, (%d->%d)\n",
 				       info->delta_disks,

@@ -1806,12 +1806,6 @@ try_again:
 					       i, mddev, devices[j].devname);
 			}
 		}
-#if 0
-		if (!(super.disks[i].i.disk.state & (1 << MD_DISK_FAULTY))) {
-			pr_err("devices %d of %s is not marked FAULTY in superblock, but cannot be found\n",
-			       i, mddev);
-		}
-#endif
 	}
 	if (c->force && !clean && !is_container(content->array.level) &&
 	    !enough(content->array.level, content->array.raid_disks,
