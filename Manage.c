@@ -1749,6 +1749,7 @@ int Update_subarray(char *dev, char *subarray, enum update_opt update,
 	int fd, rv = 2;
 	struct mdinfo *info = NULL;
 	char *update_verb = map_num(update_options, update);
+	bool allow_active = update == UOPT_PPL || update == UOPT_NO_PPL;
 
 	memset(st, 0, sizeof(*st));
 
@@ -1763,7 +1764,7 @@ int Update_subarray(char *dev, char *subarray, enum update_opt update,
 		goto free_super;
 	}
 
-	if (is_subarray_active(subarray, st->devnm)) {
+	if (!allow_active && is_subarray_active(subarray, st->devnm)) {
 		if (verbose >= 0)
 			pr_err("Subarray %s in %s is active, cannot update %s\n",
 				subarray, dev, update_verb);
