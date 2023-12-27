@@ -109,25 +109,21 @@ struct imsm_orom {
 	#define IMSM_OROM_CAPABILITIES_TPV (1 << 10)
 } __attribute__((packed));
 
-static inline int imsm_orom_has_raid0(const struct imsm_orom *orom)
+/* IMSM metadata requirements for each level */
+struct imsm_level_ops {
+	int level;
+	bool (*is_level_supported)(const struct imsm_orom *);
+	bool (*is_raiddisks_count_supported)(const int);
+	char *name;
+};
+
+extern struct imsm_level_ops imsm_level_ops[];
+
+static inline bool imsm_rlc_has_bit(const struct imsm_orom *orom, const unsigned short bit)
 {
-	return !!(orom->rlc & IMSM_OROM_RLC_RAID0);
-}
-static inline int imsm_orom_has_raid1(const struct imsm_orom *orom)
-{
-	return !!(orom->rlc & IMSM_OROM_RLC_RAID1);
-}
-static inline int imsm_orom_has_raid1e(const struct imsm_orom *orom)
-{
-	return !!(orom->rlc & IMSM_OROM_RLC_RAID1E);
-}
-static inline int imsm_orom_has_raid10(const struct imsm_orom *orom)
-{
-	return !!(orom->rlc & IMSM_OROM_RLC_RAID10);
-}
-static inline int imsm_orom_has_raid5(const struct imsm_orom *orom)
-{
-	return !!(orom->rlc & IMSM_OROM_RLC_RAID5);
+	if (orom->rlc & bit)
+		return true;
+	return false;
 }
 
 /**
