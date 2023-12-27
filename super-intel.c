@@ -2135,91 +2135,18 @@ void convert_from_4k(struct intel_super *super)
 	mpb->check_sum = __gen_imsm_checksum(mpb);
 }
 
-/*******************************************************************************
- * function: imsm_check_attributes
- * Description: Function checks if features represented by attributes flags
- *		are supported by mdadm.
- * Parameters:
- *		attributes - Attributes read from metadata
- * Returns:
- *		0 - passed attributes contains unsupported features flags
- *		1 - all features are supported
- ******************************************************************************/
-static int imsm_check_attributes(__u32 attributes)
+/**
+ * imsm_check_attributes() - Check if features represented by attributes flags are supported.
+ *
+ * @attributes: attributes read from metadata.
+ * Returns: true if all features are supported, false otherwise.
+ */
+static bool imsm_check_attributes(__u32 attributes)
 {
-	int ret_val = 1;
-	__u32 not_supported = MPB_ATTRIB_SUPPORTED^0xffffffff;
+	if ((attributes & (MPB_ATTRIB_SUPPORTED | MPB_ATTRIB_IGNORED)) == attributes)
+		return true;
 
-	not_supported &= ~MPB_ATTRIB_IGNORED;
-
-	not_supported &= attributes;
-	if (not_supported) {
-		pr_err("(IMSM): Unsupported attributes : %x\n",
-			(unsigned)__le32_to_cpu(not_supported));
-		if (not_supported & MPB_ATTRIB_CHECKSUM_VERIFY) {
-			dprintf("\t\tMPB_ATTRIB_CHECKSUM_VERIFY \n");
-			not_supported ^= MPB_ATTRIB_CHECKSUM_VERIFY;
-		}
-		if (not_supported & MPB_ATTRIB_2TB) {
-			dprintf("\t\tMPB_ATTRIB_2TB\n");
-			not_supported ^= MPB_ATTRIB_2TB;
-		}
-		if (not_supported & MPB_ATTRIB_RAID0) {
-			dprintf("\t\tMPB_ATTRIB_RAID0\n");
-			not_supported ^= MPB_ATTRIB_RAID0;
-		}
-		if (not_supported & MPB_ATTRIB_RAID1) {
-			dprintf("\t\tMPB_ATTRIB_RAID1\n");
-			not_supported ^= MPB_ATTRIB_RAID1;
-		}
-		if (not_supported & MPB_ATTRIB_RAID10) {
-			dprintf("\t\tMPB_ATTRIB_RAID10\n");
-			not_supported ^= MPB_ATTRIB_RAID10;
-		}
-		if (not_supported & MPB_ATTRIB_RAID1E) {
-			dprintf("\t\tMPB_ATTRIB_RAID1E\n");
-			not_supported ^= MPB_ATTRIB_RAID1E;
-		}
-		if (not_supported & MPB_ATTRIB_RAID5) {
-		dprintf("\t\tMPB_ATTRIB_RAID5\n");
-			not_supported ^= MPB_ATTRIB_RAID5;
-		}
-		if (not_supported & MPB_ATTRIB_RAIDCNG) {
-			dprintf("\t\tMPB_ATTRIB_RAIDCNG\n");
-			not_supported ^= MPB_ATTRIB_RAIDCNG;
-		}
-		if (not_supported & MPB_ATTRIB_BBM) {
-			dprintf("\t\tMPB_ATTRIB_BBM\n");
-		not_supported ^= MPB_ATTRIB_BBM;
-		}
-		if (not_supported & MPB_ATTRIB_CHECKSUM_VERIFY) {
-			dprintf("\t\tMPB_ATTRIB_CHECKSUM_VERIFY (== MPB_ATTRIB_LEGACY)\n");
-			not_supported ^= MPB_ATTRIB_CHECKSUM_VERIFY;
-		}
-		if (not_supported & MPB_ATTRIB_EXP_STRIPE_SIZE) {
-			dprintf("\t\tMPB_ATTRIB_EXP_STRIP_SIZE\n");
-			not_supported ^= MPB_ATTRIB_EXP_STRIPE_SIZE;
-		}
-		if (not_supported & MPB_ATTRIB_2TB_DISK) {
-			dprintf("\t\tMPB_ATTRIB_2TB_DISK\n");
-			not_supported ^= MPB_ATTRIB_2TB_DISK;
-		}
-		if (not_supported & MPB_ATTRIB_NEVER_USE2) {
-			dprintf("\t\tMPB_ATTRIB_NEVER_USE2\n");
-			not_supported ^= MPB_ATTRIB_NEVER_USE2;
-		}
-		if (not_supported & MPB_ATTRIB_NEVER_USE) {
-			dprintf("\t\tMPB_ATTRIB_NEVER_USE\n");
-			not_supported ^= MPB_ATTRIB_NEVER_USE;
-		}
-
-		if (not_supported)
-			dprintf("(IMSM): Unknown attributes : %x\n", not_supported);
-
-		ret_val = 0;
-	}
-
-	return ret_val;
+	return false;
 }
 
 static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *map);
@@ -2247,11 +2174,10 @@ static void examine_super_imsm(struct supertype *st, char *homehost)
 	creation_time = __le64_to_cpu(mpb->creation_time);
 	printf("  Creation Time : %.24s\n",
 		creation_time ? ctime(&creation_time) : "Unknown");
-	printf("     Attributes : ");
-	if (imsm_check_attributes(mpb->attributes))
-		printf("All supported\n");
-	else
-		printf("not supported\n");
+
+	printf("     Attributes : %08x (%s)\n", mpb->attributes,
+	       imsm_check_attributes(mpb->attributes) ? "supported" : "not supported");
+
 	getinfo_super_imsm(st, &info, NULL);
 	fname_from_uuid(&info, nbuf);
 	printf("           UUID : %s\n", nbuf + 5);
@@ -8182,9 +8108,9 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 	int current_vol = super->current_vol;
 
 	/* do not assemble arrays when not all attributes are supported */
-	if (imsm_check_attributes(mpb->attributes) == 0) {
+	if (imsm_check_attributes(mpb->attributes) == false) {
 		sb_errors = 1;
-		pr_err("Unsupported attributes in IMSM metadata.Arrays activation is blocked.\n");
+		pr_err("Unsupported attributes in IMSM metadata. Arrays activation is blocked.\n");
 	}
 
 	/* count spare devices, not used in maps
