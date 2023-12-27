@@ -12152,26 +12152,37 @@ exit:
 	return ret_val;
 }
 
-static int imsm_reshape_super(struct supertype *st, unsigned long long size,
-			      int level, int layout, int chunksize, int raid_disks,
-			      int delta_disks, char *dev, int direction, struct context *c)
+/**
+ * shape_to_geo() - fill geo_params from shape.
+ *
+ * @shape: array details.
+ * @geo: new geometry params.
+ * Returns: 0 on success, 1 otherwise.
+ */
+static void shape_to_geo(struct shape *shape, struct geo_params *geo)
+{
+	assert(shape);
+	assert(geo);
+
+	geo->dev_name = shape->dev;
+	geo->size = shape->size;
+	geo->level = shape->level;
+	geo->layout = shape->layout;
+	geo->chunksize = shape->chunk;
+	geo->raid_disks = shape->raiddisks;
+}
+
+static int imsm_reshape_super(struct supertype *st, struct shape *shape, struct context *c)
 {
 	int ret_val = 1;
-	struct geo_params geo;
+	struct geo_params geo = {0};
 
 	dprintf("(enter)\n");
 
-	memset(&geo, 0, sizeof(struct geo_params));
-
-	geo.dev_name = dev;
+	shape_to_geo(shape, &geo);
 	strcpy(geo.devnm, st->devnm);
-	geo.size = size;
-	geo.level = level;
-	geo.layout = layout;
-	geo.chunksize = chunksize;
-	geo.raid_disks = raid_disks;
-	if (delta_disks != UnSet)
-		geo.raid_disks += delta_disks;
+	if (shape->delta_disks != UnSet)
+		geo.raid_disks += shape->delta_disks;
 
 	dprintf("for level      : %i\n", geo.level);
 	dprintf("for raid_disks : %i\n", geo.raid_disks);
@@ -12182,7 +12193,7 @@ static int imsm_reshape_super(struct supertype *st, unsigned long long size,
 		int old_raid_disks = 0;
 
 		if (imsm_reshape_is_allowed_on_container(
-			    st, &geo, &old_raid_disks, direction)) {
+			    st, &geo, &old_raid_disks, shape->direction)) {
 			struct imsm_update_reshape *u = NULL;
 			int len;
 
@@ -12236,7 +12247,7 @@ static int imsm_reshape_super(struct supertype *st, unsigned long long size,
 			goto exit_imsm_reshape_super;
 		}
 		super->current_vol = dev->index;
-		change = imsm_analyze_change(st, &geo, direction);
+		change = imsm_analyze_change(st, &geo, shape->direction);
 		switch (change) {
 		case CH_TAKEOVER:
 			ret_val = imsm_takeover(st, &geo);
