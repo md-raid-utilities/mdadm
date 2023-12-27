@@ -32,14 +32,19 @@
 /* MPB == Metadata Parameter Block */
 #define MPB_SIGNATURE "Intel Raid ISM Cfg Sig. "
 #define MPB_SIG_LEN (strlen(MPB_SIGNATURE))
-#define MPB_VERSION_RAID0 "1.0.00"
-#define MPB_VERSION_RAID1 "1.1.00"
-#define MPB_VERSION_MANY_VOLUMES_PER_ARRAY "1.2.00"
-#define MPB_VERSION_3OR4_DISK_ARRAY "1.2.01"
-#define MPB_VERSION_RAID5 "1.2.02"
-#define MPB_VERSION_5OR6_DISK_ARRAY "1.2.04"
-#define MPB_VERSION_CNG "1.2.06"
+
+/* Legacy IMSM versions:
+ * MPB_VERSION_RAID0 1.0.00
+ * MPB_VERSION_RAID1 1.1.00
+ * MPB_VERSION_MANY_VOLUMES_PER_ARRAY 1.2.00
+ * MPB_VERSION_3OR4_DISK_ARRAY 1.2.01
+ * MPB_VERSION_RAID5 1.2.02
+ * MPB_VERSION_5OR6_DISK_ARRAY 1.2.04
+ * MPB_VERSION_CNG 1.2.06
+ */
+
 #define MPB_VERSION_ATTRIBS "1.3.00"
+#define MPB_VERSION_ATTRIBS_JD "2.0.00"
 #define MAX_SIGNATURE_LENGTH  32
 #define MAX_RAID_SERIAL_LEN   16
 
@@ -5512,51 +5517,46 @@ static unsigned long long info_to_blocks_per_member(mdu_array_info_t *info,
 		return (size * 2) & ~(info_to_blocks_per_strip(info) - 1);
 }
 
+static void imsm_write_signature(struct imsm_super *mpb)
+{
+	/* It is safer to eventually truncate version rather than left it not NULL ended */
+	snprintf((char *) mpb->sig, MAX_SIGNATURE_LENGTH, MPB_SIGNATURE MPB_VERSION_ATTRIBS);
+}
+
 static void imsm_update_version_info(struct intel_super *super)
 {
 	/* update the version and attributes */
 	struct imsm_super *mpb = super->anchor;
-	char *version;
 	struct imsm_dev *dev;
 	struct imsm_map *map;
 	int i;
 
+	mpb->attributes |= MPB_ATTRIB_CHECKSUM_VERIFY;
+
 	for (i = 0; i < mpb->num_raid_devs; i++) {
 		dev = get_imsm_dev(super, i);
 		map = get_imsm_map(dev, MAP_0);
+
 		if (__le32_to_cpu(dev->size_high) > 0)
 			mpb->attributes |= MPB_ATTRIB_2TB;
 
-		/* FIXME detect when an array spans a port multiplier */
-		#if 0
-		mpb->attributes |= MPB_ATTRIB_PM;
-		#endif
-
-		if (mpb->num_raid_devs > 1 ||
-		    mpb->attributes != MPB_ATTRIB_CHECKSUM_VERIFY) {
-			version = MPB_VERSION_ATTRIBS;
-			switch (get_imsm_raid_level(map)) {
-			case 0: mpb->attributes |= MPB_ATTRIB_RAID0; break;
-			case 1: mpb->attributes |= MPB_ATTRIB_RAID1; break;
-			case 10: mpb->attributes |= MPB_ATTRIB_RAID10; break;
-			case 5: mpb->attributes |= MPB_ATTRIB_RAID5; break;
-			}
-		} else {
-			if (map->num_members >= 5)
-				version = MPB_VERSION_5OR6_DISK_ARRAY;
-			else if (dev->status == DEV_CLONE_N_GO)
-				version = MPB_VERSION_CNG;
-			else if (get_imsm_raid_level(map) == 5)
-				version = MPB_VERSION_RAID5;
-			else if (map->num_members >= 3)
-				version = MPB_VERSION_3OR4_DISK_ARRAY;
-			else if (get_imsm_raid_level(map) == 1)
-				version = MPB_VERSION_RAID1;
-			else
-				version = MPB_VERSION_RAID0;
+		switch (get_imsm_raid_level(map)) {
+		case IMSM_T_RAID0:
+			mpb->attributes |= MPB_ATTRIB_RAID0;
+			break;
+		case IMSM_T_RAID1:
+			mpb->attributes |= MPB_ATTRIB_RAID1;
+			break;
+		case IMSM_T_RAID5:
+			mpb->attributes |= MPB_ATTRIB_RAID5;
+			break;
+		case IMSM_T_RAID10:
+			mpb->attributes |= MPB_ATTRIB_RAID10;
+			break;
 		}
-		strcpy(((char *) mpb->sig) + strlen(MPB_SIGNATURE), version);
 	}
+
+	imsm_write_signature(mpb);
 }
 
 /**
@@ -5785,7 +5785,6 @@ static int init_super_imsm(struct supertype *st, mdu_array_info_t *info,
 	struct intel_super *super;
 	struct imsm_super *mpb;
 	size_t mpb_size;
-	char *version;
 
 	if (data_offset != INVALID_SECTORS) {
 		pr_err("data-offset not supported by imsm\n");
@@ -5828,13 +5827,7 @@ static int init_super_imsm(struct supertype *st, mdu_array_info_t *info,
 		return 0;
 	}
 
-	mpb->attributes = MPB_ATTRIB_CHECKSUM_VERIFY;
-
-	version = (char *) mpb->sig;
-	strcpy(version, MPB_SIGNATURE);
-	version += strlen(MPB_SIGNATURE);
-	strcpy(version, MPB_VERSION_RAID0);
-
+	imsm_update_version_info(super);
 	return 1;
 }
 
@@ -6208,7 +6201,6 @@ static union {
 
 static int write_super_imsm_spare(struct intel_super *super, struct dl *d)
 {
-	struct imsm_super *mpb = super->anchor;
 	struct imsm_super *spare = &spare_record.anchor;
 	__u32 sum;
 
@@ -6217,14 +6209,11 @@ static int write_super_imsm_spare(struct intel_super *super, struct dl *d)
 
 	spare->mpb_size = __cpu_to_le32(sizeof(struct imsm_super));
 	spare->generation_num = __cpu_to_le32(1UL);
-	spare->attributes = MPB_ATTRIB_CHECKSUM_VERIFY;
 	spare->num_disks = 1;
 	spare->num_raid_devs = 0;
-	spare->cache_size = mpb->cache_size;
 	spare->pwr_cycle_count = __cpu_to_le32(1);
 
-	snprintf((char *) spare->sig, MAX_SIGNATURE_LENGTH,
-		 MPB_SIGNATURE MPB_VERSION_RAID0);
+	imsm_write_signature(spare);
 
 	spare->disk[0] = d->disk;
 	if (__le32_to_cpu(d->disk.total_blocks_hi) > 0)
