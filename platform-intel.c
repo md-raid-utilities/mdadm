@@ -76,7 +76,8 @@ static bool imsm_orom_support_raid_disks_count_raid5(const int raid_disks)
 
 static bool imsm_orom_support_raid_disks_count_raid10(const int raid_disks)
 {
-	if (raid_disks == 4)
+	/* raid_disks count must be higher than 4 and even */
+	if (raid_disks >= 4 && (raid_disks & 1) == 0)
 		return true;
 	return false;
 }
