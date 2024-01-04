@@ -725,23 +725,33 @@ int stat_is_blkdev(char *devname, dev_t *rdev)
 	return 1;
 }
 
+/**
+ * ask() - prompt user for "yes/no" dialog.
+ * @mesg: message to be printed, without '?' sign.
+ * Returns: 1 if 'Y/y', 0 otherwise.
+ *
+ * The default value is 'N/n', thus the caps on "N" on prompt.
+ */
 int ask(char *mesg)
 {
-	char *add = "";
-	int i;
-	for (i = 0; i < 5; i++) {
-		char buf[100];
-		fprintf(stderr, "%s%s", mesg, add);
-		fflush(stderr);
-		if (fgets(buf, 100, stdin)==NULL)
-			return 0;
-		if (buf[0]=='y' || buf[0]=='Y')
-			return 1;
-		if (buf[0]=='n' || buf[0]=='N')
-			return 0;
-		add = "(y/n) ";
+	char buf[3] = {0};
+
+	fprintf(stderr, "%s [y/N]? ", mesg);
+	fflush(stderr);
+	if (fgets(buf, 3, stdin) == NULL)
+		return 0;
+	if (strlen(buf) == 1) {
+		pr_err("assuming no.\n");
+		return 0;
 	}
-	pr_err("assuming 'no'\n");
+	if (buf[1] != '\n')
+		goto bad_option;
+	if (toupper(buf[0]) == 'Y')
+		return 1;
+	if (toupper(buf[0]) == 'N')
+		return 0;
+bad_option:
+	pr_err("bad option.\n");
 	return 0;
 }
 
@@ -1868,6 +1878,7 @@ int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
 
 	if (st->ss->external)
 		return sysfs_set_array(info);
+
 	memset(&inf, 0, sizeof(inf));
 	inf.major_version = info->array.major_version;
 	inf.minor_version = info->array.minor_version;
