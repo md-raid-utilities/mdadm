@@ -1636,7 +1636,7 @@ int main(int argc, char *argv[])
 				c.delay = DEFAULT_BITMAP_DELAY;
 			rv = Grow_addbitmap(ident.devname, mdfd, &c, &s);
 		} else if (grow_continue)
-			rv = Grow_continue_command(ident.devname, mdfd, c.backup_file, c.verbose);
+			rv = Grow_continue_command(ident.devname, mdfd, &c);
 		else if (s.size > 0 || s.raiddisks || s.layout_str ||
 			 s.chunk != 0 || s.level != UnSet ||
 			 s.data_offset != INVALID_SECTORS) {
