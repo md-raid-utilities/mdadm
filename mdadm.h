@@ -540,6 +540,7 @@ enum special_options {
 	ClusterConfirm,
 	WriteJournal,
 	ConsistencyPolicy,
+	ForceSetArray
 };
 
 enum update_opt {
@@ -677,6 +678,7 @@ struct context {
 	char	*action;
 	int	nodes;
 	char	*homecluster;
+	bool	force_set_array;
 };
 
 struct shape {
@@ -2085,3 +2087,10 @@ static inline bool str_is_none(char *str)
 		return true;
 	return false;
 }
+
+/*
+ * Works like strncmp but does not check null terminator.
+ * To use when comparing read sysfs values.
+ * def should be an inline
+ */
+#define sysfs_strncmp(buf, def) (strncmp(buf, def, strlen(def)))

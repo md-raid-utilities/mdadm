@@ -2006,8 +2006,8 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	}
 
 	/* Array is already started, nothing to do here */
-	if (strncmp(buf, "clear", 5) != 0 &&
-	    strncmp(buf, "inactive", 8) != 0) {
+	if (sysfs_strncmp(buf, "clear") != 0 &&
+	    sysfs_strncmp(buf, "inactive") != 0) {
 		sysfs_free(sra);
 		return MDADM_STATUS_SUCCESS;
 	}
@@ -2024,6 +2024,12 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		}
 	} else if (sysfs_update_raid_disks(content) != MDADM_STATUS_SUCCESS) {
 		/* reason already spewed */
+		sysfs_free(sra);
+		return 1;
+	}
+	/* If Incremental used with "--force-set-array", sync all sysfs info. */
+	if (c->force_set_array && sysfs_set_array(content) != 0) {
+		pr_err("Failed writing sysfs array info!\n");
 		sysfs_free(sra);
 		return 1;
 	}
@@ -2161,7 +2167,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		set_array_assembly_status(c, result, INCR_NO, &array);
 
 		if (c->verbose >= 0 && is_raid456 && !is_clean)
-			pr_err("Consider --force to start dirty degraded array\n");
+			pr_err("Consider running --assemble --force to start dirty degraded array\n");
 
 		free(avail);
 		return 1;
@@ -2181,8 +2187,11 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		return 1;
 	}
 
-	/* If array passed previous checks, we assume it's up to date. Write sysfs. */
-	if (sysfs_set_array(content) != MDADM_STATUS_SUCCESS) {
+	/*
+	 * If array passed previous checks, we assume it's up to date. Set sysfs.
+	 * If "force-set-array" was passed, it is already done so skip it.
+	 */
+	if (c->force_set_array == false && sysfs_set_array(content) != MDADM_STATUS_SUCCESS) {
 		pr_err("Failed writing sysfs array info!\n");
 		return 1;
 	}

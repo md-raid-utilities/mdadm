@@ -781,9 +781,15 @@ int sysfs_update_raid_disks(struct mdinfo *info)
  *		MDADM_STATUS_NATIVE_ONLY if kernel does not support external metadata,
  *
  * For container status is MDADM_STATUS_SUCCESS, no actual writes are being done.
+ *
+ * Kernel does not allow updating component_size if update value is lower or equal.
+ * For incremental with "--force-set-array" sysfs might be set multiple times.
+ * Update sysfs component_size only if metadata contains larger value.
  */
 int sysfs_set_array(struct mdinfo *info)
 {
+	char buf[SYSFS_MAX_BUF_SIZE] = {0};
+	unsigned long long sysfs_size = 0;
 	int rv = sysfs_init_array(info);
 
 	if (rv == MDADM_STATUS_OPERATION_FAILED)
@@ -797,7 +803,18 @@ int sysfs_set_array(struct mdinfo *info)
 
 	rv |= sysfs_set_num(info, NULL, "chunk_size", info->array.chunk_size);
 	rv |= sysfs_set_num(info, NULL, "layout", info->array.layout);
-	rv |= sysfs_set_num(info, NULL, "component_size", info->component_size/2);
+
+	if (sysfs_get_str(info, NULL, "component_size", buf, sizeof(buf)) == 0) {
+		pr_err("Failed to read component_size!");
+		return MDADM_STATUS_OPERATION_FAILED;
+	}
+
+	sysfs_size = strtoull(buf, NULL, 0);
+	/* strtoull() also handles "none" */
+
+	if (sysfs_size < info->component_size / 2)
+		rv |= sysfs_set_num(info, NULL, "component_size", info->component_size / 2);
+
 	if (info->custom_array_size) {
 		int rc;
 
