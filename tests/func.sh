@@ -123,6 +123,17 @@ check_env() {
 	modprobe multipath 2> /dev/null
 	grep -sq 'Personalities : .*multipath' /proc/mdstat &&
 		MULTIPATH="yes"
+	if [ "$MULTIPATH" != "yes" ]; then
+		echo "test: skipping tests for multipath, which is removed in upstream 6.8+ kernels"
+	fi
+
+	# Check whether to run linear tests
+	modprobe linear 2> /dev/null
+	grep -sq 'Personalities : .*linear' /proc/mdstat &&
+		LINEAR="yes"
+	if [ "$LINEAR" != "yes" ]; then
+		echo "test: skipping tests for linear, which is removed in upstream 6.8+ kernels"
+	fi
 }
 
 do_setup() {

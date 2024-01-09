@@ -16,6 +16,10 @@ check raid0
 testdev $md0 5 $size 512
 mdadm -S $md0
 
+if [ "$LINEAR" != "yes" ]; then
+  echo -ne 'skipping... '
+  exit 0
+fi
 
 # now same again with different chunk size
 for chunk in 4 32 256

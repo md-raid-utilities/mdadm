@@ -1,8 +1,14 @@
 #!/bin/bash
 
+levels=(raid0 raid1 raid4 raid5 raid6 raid10)
+
+if [ "$LINEAR" == "yes" ]; then
+  levels+=( linear )
+fi
+
 for metadata in 0.9 1.0 1.1 1.2
 do
-	for level in linear raid0 raid1 raid4 raid5 raid6 raid10
+	for level in ${levels[@]}
 	do
 		if [[ $metadata == "0.9" && $level == "raid0" ]];
 		then

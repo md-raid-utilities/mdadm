@@ -6,7 +6,13 @@ set -x -e
 # Here just test that a partly "-I" assembled array can
 # be completed with "-A"
 
-for l in 0 1 5 linear
+levels=(raid0 raid1 raid5)
+
+if [ "$LINEAR" == "yes" ]; then
+  levels+=( linear )
+fi
+
+for l in ${levels[@]}
 do
   mdadm -CR $md0 -l $l -n5 $dev0 $dev1 $dev2 $dev3 $dev4 --assume-clean
   mdadm -S md0

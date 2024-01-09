@@ -1,6 +1,11 @@
 
 # create a simple linear
 
+if [ "$LINEAR" != "yes" ]; then
+  echo -ne 'skipping... '
+  exit 0
+fi
+
 mdadm -CR $md0 -l linear -n3 $dev0 $dev1 $dev2
 check linear
 testdev $md0 3 $mdsize2_l 1

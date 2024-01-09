@@ -140,6 +140,7 @@ do_help() {
 		--raidtype=                 raid0|linear|raid1|raid456|raid10|ddf|imsm
 		--disable-multipath         Disable any tests involving multipath
 		--disable-integrity         Disable slow tests of RAID[56] consistency
+		--disable-linear            Disable any tests involving linear
 		--logdir=directory          Directory to save all logfiles in
 		--save-logs                 Usually use with --logdir together
 		--keep-going | --no-error   Don't stop on error, ie. run all tests
@@ -254,6 +255,9 @@ parse_args() {
 			;;
 		--disable-integrity )
 			unset INTEGRITY
+			;;
+		--disable-linear )
+			unset LINEAR
 			;;
 		--dev=* )
 			case ${i##*=} in

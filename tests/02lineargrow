@@ -1,6 +1,11 @@
 
 # create a liner array, and add more drives to to.
 
+if [ "$LINEAR" != "yes" ]; then
+  echo -ne 'skipping... '
+  exit 0
+fi
+
 for e in 0.90 1 1.1 1.2
 do
   case $e in

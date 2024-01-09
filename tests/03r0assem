@@ -64,6 +64,10 @@ mdadm --assemble --scan --config=$conf $md2
 $tst
 mdadm -S $md2
 
+if [ "$LINEAR" != "yes" ]; then
+  echo -ne 'skipping... '
+  exit 0
+fi
 
 ### Now for version 0...
 
