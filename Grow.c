@@ -2085,9 +2085,10 @@ int Grow_reshape(char *devname, int fd,
 			if (!mdmon_running(st->container_devnm))
 				start_mdmon(st->container_devnm);
 			ping_monitor(container);
-			if (mdmon_running(st->container_devnm) &&
-					st->update_tail == NULL)
-				st->update_tail = &st->updates;
+			if (mdmon_running(st->container_devnm) == false) {
+				pr_err("No mdmon found. Grow cannot continue.\n");
+				goto release;
+			}
 		}
 
 		if (s->size == MAX_SIZE)
@@ -3048,6 +3049,8 @@ static int reshape_array(char *container, int fd, char *devname,
 		dprintf("Cannot get array information.\n");
 		goto release;
 	}
+	if (st->update_tail == NULL)
+		st->update_tail = &st->updates;
 	if (array.level == 0 && info->component_size == 0) {
 		get_dev_size(fd, NULL, &array_size);
 		info->component_size = array_size / array.raid_disks;
@@ -5152,9 +5155,7 @@ int Grow_continue_command(char *devname, int fd,
 			start_mdmon(container);
 		ping_monitor(container);
 
-		if (mdmon_running(container))
-			st->update_tail = &st->updates;
-		else {
+		if (mdmon_running(container) == false) {
 			pr_err("No mdmon found. Grow cannot continue.\n");
 			ret_val = 1;
 			goto Grow_continue_command_exit;
