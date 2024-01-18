@@ -8678,23 +8678,6 @@ static int imsm_set_array_state(struct active_array *a, int consistent)
 			/* still reshaping, maybe update vol_curr_migr_unit */
 			goto mark_checkpoint;
 		} else {
-			if (a->last_checkpoint == 0 && a->prev_action == reshape) {
-				/* for some reason we aborted the reshape.
-				 *
-				 * disable automatic metadata rollback
-				 * user action is required to recover process
-				 */
-				if (0) {
-					struct imsm_map *map2 =
-						get_imsm_map(dev, MAP_1);
-					dev->vol.migr_state = 0;
-					set_migr_type(dev, 0);
-					set_vol_curr_migr_unit(dev, 0);
-					memcpy(map, map2,
-					       sizeof_imsm_map(map2));
-					super->updates_pending++;
-				}
-			}
 			if (a->last_checkpoint >= a->info.component_size) {
 				unsigned long long array_blocks;
 				int used_disks;
