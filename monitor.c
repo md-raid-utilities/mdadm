@@ -564,22 +564,10 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 		}
 	}
 
-	/* Check for recovery checkpoint notifications.  We need to be a
-	 * minimum distance away from the last checkpoint to prevent
-	 * over checkpointing.  Note reshape checkpointing is handled
-	 * in the second branch.
+	/* Handle reshape checkpointing
 	 */
-	if (sync_completed > a->last_checkpoint &&
-	    sync_completed - a->last_checkpoint > a->info.component_size >> 4 &&
-	    a->curr_action > reshape) {
-		/* A (non-reshape) sync_action has reached a checkpoint.
-		 * Record the updated position in the metadata
-		 */
-		a->last_checkpoint = sync_completed;
-		a->container->ss->set_array_state(a, a->curr_state <= clean);
-	} else if ((a->curr_action == idle && a->prev_action == reshape) ||
-		   (a->curr_action == reshape &&
-		    sync_completed > a->last_checkpoint)) {
+	if ((a->curr_action == idle && a->prev_action == reshape) ||
+	    (a->curr_action == reshape && sync_completed > a->last_checkpoint)) {
 		/* Reshape has progressed or completed so we need to
 		 * update the array state - and possibly the array size
 		 */
@@ -607,8 +595,10 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 		a->last_checkpoint = sync_completed;
 	}
 
-	if (sync_completed > a->last_checkpoint)
+	if (sync_completed > a->last_checkpoint) {
 		a->last_checkpoint = sync_completed;
+		a->container->ss->set_array_state(a, a->curr_state <= clean);
+	}
 
 	if (sync_completed >= a->info.component_size)
 		a->last_checkpoint = 0;
