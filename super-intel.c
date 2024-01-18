@@ -8771,6 +8771,9 @@ static int imsm_set_array_state(struct active_array *a, int consistent)
 		super->updates_pending++;
 	}
 
+	if (a->prev_action == idle)
+		goto skip_mark_checkpoint;
+
 mark_checkpoint:
 	/* skip checkpointing for general migration,
 	 * it is controlled in mdadm
