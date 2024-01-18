@@ -938,7 +938,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			pr_err("automatically enabling write-intent bitmap on large array\n");
 		s->bitmap_file = "internal";
 	}
-	if (s->bitmap_file && strcmp(s->bitmap_file, "none") == 0)
+	if (s->bitmap_file && str_is_none(s->bitmap_file) == true)
 		s->bitmap_file = NULL;
 
 	if (s->consistency_policy == CONSISTENCY_POLICY_PPL &&

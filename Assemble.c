@@ -2015,8 +2015,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		if (dev)
 			continue;
 		/* Don't want this one any more */
-		if (sysfs_set_str(sra, dev2, "slot", "none") < 0 &&
-		    errno == EBUSY) {
+		if (sysfs_set_str(sra, dev2, "slot", STR_COMMON_NONE) < 0 && errno == EBUSY) {
 			pr_err("Cannot remove old device %s: not updating %s\n", dev2->sys_name, sra->sys_name);
 			sysfs_free(sra);
 			return 1;

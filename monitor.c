@@ -89,7 +89,7 @@ static void read_resync_start(int fd, unsigned long long *v)
 		dprintf("Failed to read resync_start (%d)\n", fd);
 		return;
 	}
-	if (strncmp(buf, "none", 4) == 0)
+	if (str_is_none(buf) == true)
 		*v = MaxSector;
 	else
 		*v = strtoull(buf, NULL, 10);
@@ -600,7 +600,7 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 					  "reshape_position",
 					  buf,
 					  sizeof(buf)) >= 0) &&
-			     strncmp(buf, "none", 4) == 0)
+			     str_is_none(buf) == true)
 				a->last_checkpoint = a->info.component_size;
 		}
 		a->container->ss->set_array_state(a, a->curr_state <= clean);

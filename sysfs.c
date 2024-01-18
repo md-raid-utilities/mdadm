@@ -148,7 +148,7 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 		strcpy(base, "metadata_version");
 		if (load_sys(fname, buf, sizeof(buf)))
 			goto abort;
-		if (strncmp(buf, "none", 4) == 0) {
+		if (str_is_none(buf) == true) {
 			sra->array.major_version =
 				sra->array.minor_version = -1;
 			strcpy(sra->text_version, "");
@@ -244,7 +244,7 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 			goto abort;
 		if (strncmp(buf, "file", 4) == 0)
 			sra->bitmap_offset = 1;
-		else if (strncmp(buf, "none", 4) == 0)
+		else if (str_is_none(buf) == true)
 			sra->bitmap_offset = 0;
 		else if (buf[0] == '+')
 			sra->bitmap_offset = strtol(buf+1, NULL, 10);

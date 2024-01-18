@@ -670,7 +670,7 @@ static void find_reject(int mdfd, struct supertype *st, struct mdinfo *sra,
 			continue;
 
 		if (d->disk.raid_disk > -1)
-			sysfs_set_str(sra, d, "slot", "none");
+			sysfs_set_str(sra, d, "slot", STR_COMMON_NONE);
 		if (sysfs_set_str(sra, d, "state", "remove") == 0)
 			if (verbose >= 0)
 				pr_err("removing old device %s from %s\n",

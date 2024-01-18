@@ -309,7 +309,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		return 1;
 	}
 	if (bmf.pathname[0]) {
-		if (strcmp(s->bitmap_file,"none") == 0) {
+		if (str_is_none(s->bitmap_file) == true) {
 			if (ioctl(fd, SET_BITMAP_FILE, -1) != 0) {
 				pr_err("failed to remove bitmap %s\n",
 					bmf.pathname);
@@ -325,7 +325,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		return 1;
 	}
 	if (array.state & (1 << MD_SB_BITMAP_PRESENT)) {
-		if (strcmp(s->bitmap_file, "none")==0) {
+		if (str_is_none(s->bitmap_file) == true) {
 			array.state &= ~(1 << MD_SB_BITMAP_PRESENT);
 			if (md_set_array_info(fd, &array) != 0) {
 				if (array.state & (1 << MD_SB_CLUSTERED))
@@ -340,7 +340,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		return 1;
 	}
 
-	if (strcmp(s->bitmap_file, "none") == 0) {
+	if (str_is_none(s->bitmap_file) == true) {
 		pr_err("no bitmap found on %s\n", devname);
 		return 1;
 	}
@@ -1067,7 +1067,7 @@ int remove_disks_for_takeover(struct supertype *st,
 		remaining = sd->next;
 
 		sysfs_set_str(sra, sd, "state", "faulty");
-		sysfs_set_str(sra, sd, "slot", "none");
+		sysfs_set_str(sra, sd, "slot", STR_COMMON_NONE);
 		/* for external metadata disks should be removed in mdmon */
 		if (!st->ss->external)
 			sysfs_set_str(sra, sd, "state", "remove");
@@ -2145,8 +2145,7 @@ size_change_error:
 			 * a backport has been arranged.
 			 */
 			if (sra == NULL ||
-			    sysfs_set_str(sra, NULL, "resync_start",
-					  "none") < 0)
+			    sysfs_set_str(sra, NULL, "resync_start", STR_COMMON_NONE) < 0)
 				pr_err("--assume-clean not supported with --grow on this kernel\n");
 		}
 		md_get_array_info(fd, &array);
@@ -4159,8 +4158,8 @@ check_progress:
 	 * it was just a device failure that leaves us degraded but
 	 * functioning.
 	 */
-	if (sysfs_get_str(info, NULL, "reshape_position", buf,
-			  sizeof(buf)) < 0 || strncmp(buf, "none", 4) != 0) {
+	if (sysfs_get_str(info, NULL, "reshape_position", buf, sizeof(buf)) < 0 ||
+	    str_is_none(buf) == false) {
 		/* The abort might only be temporary.  Wait up to 10
 		 * seconds for fd to contain a valid number again.
 		 */

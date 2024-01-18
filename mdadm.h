@@ -2027,3 +2027,19 @@ static inline int is_container(const int level)
 		return 1;
 	return 0;
 }
+
+#define STR_COMMON_NONE "none"
+
+/**
+ * str_is_none() - check if @str starts with "none".
+ * @str: string
+ *
+ * return:
+ * true if string starts with "none", false otherwise.
+ */
+static inline bool str_is_none(char *str)
+{
+	if (strncmp(str, STR_COMMON_NONE, sizeof(STR_COMMON_NONE) - 1) == 0)
+		return true;
+	return false;
+}

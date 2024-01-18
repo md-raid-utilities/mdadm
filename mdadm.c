@@ -1099,7 +1099,7 @@ int main(int argc, char *argv[])
 				exit(2);
 			}
 			if (strcmp(optarg, "internal") == 0 ||
-			    strcmp(optarg, "none") == 0 ||
+			    strcmp(optarg, STR_COMMON_NONE) == 0 ||
 			    strchr(optarg, '/') != NULL) {
 				s.bitmap_file = optarg;
 				continue;
@@ -1234,13 +1234,12 @@ int main(int argc, char *argv[])
 			pr_err("PPL consistency policy is only supported for RAID level 5.\n");
 			exit(2);
 		} else if (s.consistency_policy == CONSISTENCY_POLICY_BITMAP &&
-			   (!s.bitmap_file ||
-			    strcmp(s.bitmap_file, "none") == 0)) {
+			  (!s.bitmap_file || str_is_none(s.bitmap_file) == true)) {
 			pr_err("--bitmap is required for consistency policy: %s\n",
 			       map_num_s(consistency_policies, s.consistency_policy));
 			exit(2);
 		} else if (s.bitmap_file &&
-			   strcmp(s.bitmap_file, "none") != 0 &&
+			   str_is_none(s.bitmap_file) == false &&
 			   s.consistency_policy != CONSISTENCY_POLICY_BITMAP &&
 			   s.consistency_policy != CONSISTENCY_POLICY_JOURNAL) {
 			pr_err("--bitmap is not compatible with consistency policy: %s\n",

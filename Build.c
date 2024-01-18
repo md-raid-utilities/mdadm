@@ -82,7 +82,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		return 1;
 	}
 
-	map_update(&map, fd2devnm(mdfd), "none", uuid, chosen_name);
+	map_update(&map, fd2devnm(mdfd), STR_COMMON_NONE, uuid, chosen_name);
 	map_unlock(&map);
 
 	array.level = s->level;
@@ -111,7 +111,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		goto abort;
 	}
 
-	if (s->bitmap_file && strcmp(s->bitmap_file, "none") == 0)
+	if (s->bitmap_file && str_is_none(s->bitmap_file) == true)
 		s->bitmap_file = NULL;
 	if (s->bitmap_file && s->level <= 0) {
 		pr_err("bitmaps not meaningful with level %s\n",

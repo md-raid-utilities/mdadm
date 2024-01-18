@@ -402,7 +402,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 			unsigned long long max_completed;
 			sysfs_get_ll(mdi, NULL, "reshape_position", &curr);
 			sysfs_fd_get_str(scfd, buf, sizeof(buf));
-			if (strncmp(buf, "none", 4) == 0) {
+			if (str_is_none(buf) == true) {
 				/* Either reshape has aborted, or hasn't
 				 * quite started yet.  Wait a bit and
 				 * check  'sync_action' to see.

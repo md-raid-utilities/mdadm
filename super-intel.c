@@ -1825,7 +1825,7 @@ static void print_imsm_dev(struct intel_super *super,
 	printf("\n");
 	printf("    Failed disk : ");
 	if (map->failed_disk_num == 0xff)
-		printf("none");
+		printf(STR_COMMON_NONE);
 	else
 		printf("%i", map->failed_disk_num);
 	printf("\n");
@@ -12086,7 +12086,7 @@ static int read_completed(int fd, unsigned long long *val)
 		return ret;
 
 	ret = COMPLETED_OK;
-	if (strncmp(buf, "none", 4) == 0) {
+	if (str_is_none(buf) == true) {
 		ret = COMPLETED_NONE;
 	} else if (strncmp(buf, "delayed", 7) == 0) {
 		ret = COMPLETED_DELAYED;

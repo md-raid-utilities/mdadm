@@ -998,7 +998,7 @@ void load_conffile(void)
 		dl_add(list, dl_strdup("partitions"));
 		devline(list);
 		free_line(list);
-	} else if (strcmp(conffile, "none") != 0) {
+	} else if (str_is_none(conffile) == false) {
 		f = fopen(conffile, "r");
 		/* Debian chose to relocate mdadm.conf into /etc/mdadm/.
 		 * To allow Debian users to compile from clean source and still

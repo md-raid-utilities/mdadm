@@ -137,14 +137,14 @@ mapping_t faultylayout[] = {
 
 	{ "clear", ClearErrors},
 	{ "flush", ClearFaults},
-	{ "none", ClearErrors},
+	{ STR_COMMON_NONE, ClearErrors},
 	{ "default", ClearErrors},
 	{ NULL, UnSet }
 };
 
 mapping_t consistency_policies[] = {
 	{ "unknown", CONSISTENCY_POLICY_UNKNOWN},
-	{ "none", CONSISTENCY_POLICY_NONE},
+	{ STR_COMMON_NONE, CONSISTENCY_POLICY_NONE},
 	{ "resync", CONSISTENCY_POLICY_RESYNC},
 	{ "bitmap", CONSISTENCY_POLICY_BITMAP},
 	{ "journal", CONSISTENCY_POLICY_JOURNAL},

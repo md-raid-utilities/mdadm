@@ -1852,7 +1852,7 @@ int remove_disk(int mdfd, struct supertype *st,
 
 	/* Remove the disk given by 'info' from the array */
 	if (st->ss->external)
-		rv = sysfs_set_str(sra, info, "slot", "none");
+		rv = sysfs_set_str(sra, info, "slot", STR_COMMON_NONE);
 	else
 		rv = ioctl(mdfd, HOT_REMOVE_DISK, makedev(info->disk.major,
 							  info->disk.minor));
