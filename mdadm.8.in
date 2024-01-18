@@ -3179,7 +3179,7 @@ environment.  This can be useful for testing or for disaster
 recovery.  You should be aware that interoperability may be
 compromised by setting this value.
 
-These change can also be suppressed by adding 
+These change can also be suppressed by adding
 .B mdadm.imsm.test=1
 to the kernel command line. This makes it easy to test IMSM
 code in a virtual machine that doesn't have IMSM virtual hardware.
@@ -3453,6 +3453,25 @@ is any string.  These names are supported by
 .I mdadm
 since version 3.3 provided they are enabled in
 .IR mdadm.conf .
+
+.SH UNDERSTANDING OUTPUT
+
+.TP
+EXAMINE
+
+.TP
+.B checkpoint
+Checkpoint value is reported when array is performing some action including
+resync, recovery or reshape. Checkpoints allow resuming action from certain
+point if it was interrupted.
+
+Checkpoint is reported as combination of two values: current migration unit
+and number of blocks per unit. By multiplying those values and dividing by
+array size checkpoint progress percentage can be obtained in relation to
+current progress reported in /proc/mdstat. Checkpoint is also related to (and
+sometimes based on) sysfs entry sync_completed but depending on action units
+may differ. Even if units are the same, it should not be expected that
+checkpoint and sync_completed will be exact match nor updated simultaneously.
 
 .SH NOTE
 .I mdadm
