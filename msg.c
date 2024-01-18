@@ -324,7 +324,7 @@ int block_monitor(char *container, const int freeze)
 {
 	struct mdstat_ent *ent, *e, *e2;
 	struct mdinfo *sra = NULL;
-	char buf[64];
+	char buf[SYSFS_MAX_BUF_SIZE];
 	int rv = 0;
 
 	if (check_mdmon_version(container))
@@ -366,7 +366,7 @@ int block_monitor(char *container, const int freeze)
 		     !sysfs_attribute_available(sra, NULL, "sync_action")) ||
 		    (freeze &&
 		     sysfs_attribute_available(sra, NULL, "sync_action") &&
-		     sysfs_get_str(sra, NULL, "sync_action", buf, 20) > 0 &&
+		     sysfs_get_str(sra, NULL, "sync_action", buf, sizeof(buf)) > 0 &&
 		     strcmp(buf, "frozen\n") == 0))
 			/* pass */;
 		else {

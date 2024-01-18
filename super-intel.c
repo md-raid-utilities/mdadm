@@ -11156,11 +11156,11 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 	unsigned int sector_size = super->sector_size;
 	unsigned long long curr_migr_unit = current_migr_unit(migr_rec);
 	unsigned long long num_migr_units = get_num_migr_units(migr_rec);
-	char buffer[20];
+	char buffer[SYSFS_MAX_BUF_SIZE];
 	int skipped_disks = 0;
 	struct dl *dl_disk;
 
-	err = sysfs_get_str(info, NULL, "array_state", (char *)buffer, 20);
+	err = sysfs_get_str(info, NULL, "array_state", (char *)buffer, sizeof(buffer));
 	if (err < 1)
 		return 1;
 
@@ -12079,9 +12079,9 @@ exit_imsm_reshape_super:
 static int read_completed(int fd, unsigned long long *val)
 {
 	int ret;
-	char buf[50];
+	char buf[SYSFS_MAX_BUF_SIZE];
 
-	ret = sysfs_fd_get_str(fd, buf, 50);
+	ret = sysfs_fd_get_str(fd, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
@@ -12154,12 +12154,12 @@ int wait_for_reshape_imsm(struct mdinfo *sra, int ndata)
 
 	do {
 		int rc;
-		char action[20];
+		char action[SYSFS_MAX_BUF_SIZE];
 		int timeout = 3000;
 
 		sysfs_wait(fd, &timeout);
 		if (sysfs_get_str(sra, NULL, "sync_action",
-				  action, 20) > 0 &&
+				  action, sizeof(action)) > 0 &&
 				strncmp(action, "reshape", 7) != 0) {
 			if (strncmp(action, "idle", 4) == 0)
 				break;
@@ -12206,7 +12206,7 @@ int check_degradation_change(struct mdinfo *info,
 			if (sd->disk.state & (1<<MD_DISK_FAULTY))
 				continue;
 			if (sd->disk.state & (1<<MD_DISK_SYNC)) {
-				char sbuf[100];
+				char sbuf[SYSFS_MAX_BUF_SIZE];
 				int raid_disk = sd->disk.raid_disk;
 
 				if (sysfs_get_str(info,

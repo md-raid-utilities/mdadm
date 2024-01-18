@@ -1309,12 +1309,12 @@ int Wait(char *dev)
 			 * sync_action does.
 			 */
 			struct mdinfo mdi;
-			char buf[21];
+			char buf[SYSFS_MAX_BUF_SIZE];
 
 			if (sysfs_init(&mdi, -1, devnm))
 				return 2;
 			if (sysfs_get_str(&mdi, NULL, "sync_action",
-					  buf, 20) > 0 &&
+					  buf, sizeof(buf)) > 0 &&
 			    strcmp(buf,"idle\n") != 0) {
 				e->percent = RESYNC_UNKNOWN;
 				if (strcmp(buf, "frozen\n") == 0) {
@@ -1393,7 +1393,7 @@ int WaitClean(char *dev, int verbose)
 
 	if (rv) {
 		int state_fd = sysfs_open(fd2devnm(fd), NULL, "array_state");
-		char buf[20];
+		char buf[SYSFS_MAX_BUF_SIZE];
 		int delay = 5000;
 
 		/* minimize the safe_mode_delay and prepare to wait up to 5s

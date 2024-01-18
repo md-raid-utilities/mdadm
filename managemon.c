@@ -454,7 +454,7 @@ static void manage_member(struct mdstat_ent *mdstat,
 	 * trying to find and assign a spare.
 	 * We do that whenever the monitor tells us too.
 	 */
-	char buf[64];
+	char buf[SYSFS_MAX_BUF_SIZE];
 	int frozen;
 	struct supertype *container = a->container;
 	struct mdinfo *mdi;
@@ -664,7 +664,7 @@ static void manage_new(struct mdstat_ent *mdstat,
 	struct mdinfo *mdi = NULL, *di;
 	int i, inst;
 	int failed = 0;
-	char buf[40];
+	char buf[SYSFS_MAX_BUF_SIZE];
 
 	/* check if array is ready to be monitored */
 	if (!mdstat->active || !mdstat->level)
@@ -738,7 +738,7 @@ static void manage_new(struct mdstat_ent *mdstat,
 	 * read this information for new arrays only (empty victim)
 	 */
 	if ((victim == NULL) &&
-	    (sysfs_get_str(mdi, NULL, "sync_action", buf, 40) > 0) &&
+	    (sysfs_get_str(mdi, NULL, "sync_action", buf, sizeof(buf)) > 0) &&
 	    (strncmp(buf, "reshape", 7) == 0)) {
 		if (sysfs_get_ll(mdi, NULL, "reshape_position",
 			&new->last_checkpoint) != 0)

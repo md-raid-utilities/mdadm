@@ -181,7 +181,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	char container[32];
 	int err;
 	int count;
-	char buf[32];
+	char buf[SYSFS_MAX_BUF_SIZE];
 	unsigned long long rd1, rd2;
 
 	if (will_retry && verbose == 0)
@@ -312,7 +312,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	if (mdi && is_level456(mdi->array.level) &&
 	    sysfs_attribute_available(mdi, NULL, "sync_action") &&
 	    sysfs_attribute_available(mdi, NULL, "reshape_direction") &&
-	    sysfs_get_str(mdi, NULL, "sync_action", buf, 20) > 0 &&
+	    sysfs_get_str(mdi, NULL, "sync_action", buf, sizeof(buf)) > 0 &&
 	    strcmp(buf, "reshape\n") == 0 &&
 	    sysfs_get_two(mdi, NULL, "raid_disks", &rd1, &rd2) == 2) {
 		unsigned long long position, curr;
@@ -1519,8 +1519,8 @@ int Manage_subdevs(char *devname, int fd,
 			sprintf(dname, "dev-%s", dv->devname);
 			sysfd = sysfs_open(fd2devnm(fd), dname, "block/dev");
 			if (sysfd >= 0) {
-				char dn[20];
-				if (sysfs_fd_get_str(sysfd, dn, 20) > 0 &&
+				char dn[SYSFS_MAX_BUF_SIZE];
+				if (sysfs_fd_get_str(sysfd, dn, sizeof(dn)) > 0 &&
 				    sscanf(dn, "%d:%d", &mj,&mn) == 2) {
 					rdev = makedev(mj,mn);
 					found = 1;

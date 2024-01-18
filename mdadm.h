@@ -767,6 +767,8 @@ enum sysfs_read_flags {
 	GET_DEVS_ALL	= (1 << 27),
 };
 
+#define SYSFS_MAX_BUF_SIZE 64
+
 /* If fd >= 0, get the array it is open on,
  * else use devnm.
  */
