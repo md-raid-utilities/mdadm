@@ -412,6 +412,7 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 	int ret = 0;
 	int count = 0;
 	struct timeval tv;
+	bool write_checkpoint = false;
 
 	a->next_state = bad_word;
 	a->next_action = bad_action;
@@ -564,40 +565,38 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 		}
 	}
 
-	/* Handle reshape checkpointing
-	 */
-	if ((a->curr_action == idle && a->prev_action == reshape) ||
-	    (a->curr_action == reshape && sync_completed > a->last_checkpoint)) {
-		/* Reshape has progressed or completed so we need to
-		 * update the array state - and possibly the array size
-		 */
+	/* Update reshape checkpoint, depending if it finished or progressed */
+	if (a->curr_action == idle && a->prev_action == reshape) {
+		char buf[SYSFS_MAX_BUF_SIZE];
+
 		if (sync_completed != 0)
 			a->last_checkpoint = sync_completed;
-		/* We might need to update last_checkpoint depending on
-		 * the reason that reshape finished.
-		 * if array reshape is really finished:
-		 *        set check point to the end, this allows
-		 *        set_array_state() to finalize reshape in metadata
-		 * if reshape if broken: do not set checkpoint to the end
-		 *        this allows for reshape restart from checkpoint
+
+		/*
+		 * If reshape really finished, set checkpoint to the end to finalize it.
+		 * Do not set checkpoint if reshape is broken.
+		 * Reshape will restart from last checkpoint.
 		 */
-		if ((a->curr_action != reshape) &&
-		    (a->prev_action == reshape)) {
-			char buf[SYSFS_MAX_BUF_SIZE];
-			if ((sysfs_get_str(&a->info, NULL,
-					  "reshape_position",
-					  buf,
-					  sizeof(buf)) >= 0) &&
-			     str_is_none(buf) == true)
+		if (sysfs_get_str(&a->info, NULL, "reshape_position", buf, sizeof(buf)) >= 0)
+			if (str_is_none(buf) == true)
 				a->last_checkpoint = a->info.component_size;
-		}
-		a->container->ss->set_array_state(a, a->curr_state <= clean);
-		a->last_checkpoint = sync_completed;
+
+		write_checkpoint = true;
 	}
 
-	if (sync_completed > a->last_checkpoint) {
+	if (a->curr_action >= reshape && sync_completed > a->last_checkpoint) {
+		/* Update checkpoint if neither reshape nor idle action */
 		a->last_checkpoint = sync_completed;
+
+		write_checkpoint = true;
+	}
+
+	/* Save checkpoint */
+	if (write_checkpoint) {
 		a->container->ss->set_array_state(a, a->curr_state <= clean);
+
+		if (a->curr_action <= reshape)
+			a->last_checkpoint = sync_completed;
 	}
 
 	if (sync_completed >= a->info.component_size)
