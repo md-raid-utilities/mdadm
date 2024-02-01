@@ -1,10 +1,8 @@
 set -x -e
 . tests/templates/names_template
 
-# Test how <devname> and <name> from config are handled during Incremental assemblation.
-# 1-6 <devnode> only tests (no <name> in config).
-# 6-10 <devname> and <name> combinations are tested.
-# 11-13 corner cases.
+# Test how <devname> is handled during Incremental assemblation with
+# config file and ARRAYLINE specified.
 
 names_create "/dev/md/name"
 local _UUID="$(mdadm -D --export /dev/md127 | grep MD_UUID | cut -d'=' -f2)"
@@ -12,96 +10,47 @@ local _UUID="$(mdadm -D --export /dev/md127 | grep MD_UUID | cut -d'=' -f2)"
 
 
 # 1. <devname> definition consistent with metadata name.
-names_make_conf $_UUID "/dev/md/name" "empty" $config
+names_make_conf $_UUID "/dev/md/name" $config
 mdadm -S "/dev/md127"
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"
 
 # 2. Same as 1, but use short name form of <devname>.
-names_make_conf $_UUID "name" "empty" $config
+names_make_conf $_UUID "name" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"
 
 # 3. Same as 1, but use different <devname> than metadata provides.
-names_make_conf $_UUID "/dev/md/other" "empty" $config
+names_make_conf $_UUID "/dev/md/other" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "other" "name"
 mdadm -S "/dev/md127"
 
 # 4. Same as 3, but use short name form of <devname>.
-names_make_conf $_UUID "other" "empty" $config
+names_make_conf $_UUID "other" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "other" "name"
 mdadm -S "/dev/md127"
 
-# 5. Force particular node creation by setting <devname> to /dev/mdX. Link is not created in this
-# case.
-names_make_conf $_UUID "/dev/md4" "empty" $config
+# 5. Force particular node creation by setting <devname> to /dev/mdX.
+# Link is not created in this case.
+names_make_conf $_UUID "/dev/md4" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md4" "empty" "name"
 mdadm -S "/dev/md4"
 
-# 6. <devname> set to /dev/mdX, <name> same as in metadata.
-# Metadata name and default node used - controversial. Current behavior documented.
-names_make_conf $_UUID "/dev/md22" "name" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 7. <devname> set to /dev/mdX, <name> different than in metadata.
-# Metadata name and default node used - controversial. Current behavior documented.
-names_make_conf $_UUID "/dev/md8" "other" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 8. Both <devname> and <name> different than in metadata.
-# Metadata name and default node used - controversial. Current behavior documented.
-names_make_conf $_UUID "devnode" "other_name" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 9. <devname> set to metadata name, <name> different than in metadata.
-# Metadata name and default node used - controversial. Current behavior documented.
-names_make_conf $_UUID "name" "other_name" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 10. Bad <devname> set, no <name>.
-# Metadata name and default node used - expected.
-names_make_conf $_UUID "/im/bad/devname" "empty" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 11. <devname> with some special symbols and locales, no <name>.
+# 6. <devname> with some special symbols and locales.
 # <devname> should be ignored.
-names_make_conf $_UUID "tźż-\.,<>st+-" "empty" $config
+names_make_conf $_UUID "tźż-\.,<>st+-" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"
 
-# 12. No <devname> and <name> set.
-# Metadata name and default node used - expected.
-names_make_conf $_UUID "empty" "empty" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 13. No <devname>, <name> set to /dev/mdX.
-# Entry should be ignored, it is not ignored but result is good anyway.
-names_make_conf $_UUID "empty" "/dev/md12" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 13. No <devname>, <name> with special symbols and locales.
-# Entry should be ignored, it is not ignored but result is good anyway.
-names_make_conf $_UUID "empty" "./\śćń#&" $config
+# 7. No <devname> set.
+# Metadata name and default node used.
+names_make_conf $_UUID "empty" $config
 mdadm -I $dev0 --config=$config
 names_verify "/dev/md127" "name" "name"
 mdadm -S "/dev/md127"

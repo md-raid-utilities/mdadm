@@ -262,6 +262,7 @@ pass:
  * @cmdline: context dependent actions.
  *
  * If criteria passed, set name in @ident.
+ * Note: name is not used by config file, it for cmdline only.
  *
  * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
  */
@@ -571,7 +572,8 @@ void arrayline(char *line)
 					mis.super_minor = minor;
 			}
 		} else if (strncasecmp(w, "name=", 5) == 0) {
-			_ident_set_name(&mis, w + 5, false);
+			/* Ignore name in confile */
+			continue;
 		} else if (strncasecmp(w, "bitmap=", 7) == 0) {
 			if (mis.bitmap_file)
 				pr_err("only specify bitmap file once. %s ignored\n",
@@ -1279,13 +1281,7 @@ struct mddev_ident *conf_match(struct supertype *st,
 				       array_list->devname);
 			continue;
 		}
-		if (array_list->name[0] &&
-		    strcasecmp(array_list->name, info->name) != 0) {
-			if (verbose >= 2 && array_list->devname)
-				pr_err("Name differs from %s.\n",
-				       array_list->devname);
-			continue;
-		}
+
 		if (array_list->devices && devname &&
 		    !match_oneof(array_list->devices, devname)) {
 			if (verbose >= 2 && array_list->devname)

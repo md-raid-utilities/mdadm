@@ -645,10 +645,6 @@ static void brief_examine_super1(struct supertype *st, int verbose)
 			printf(":");
 		printf("%02x", sb->set_uuid[i]);
 	}
-	if (sb->set_name[0]) {
-		printf(" name=");
-		print_quoted(sb->set_name);
-	}
 	printf("\n");
 }
 
@@ -875,10 +871,6 @@ static void brief_detail_super1(struct supertype *st, char *subarray)
 	struct mdp_superblock_1 *sb = st->sb;
 	int i;
 
-	if (sb->set_name[0]) {
-		printf(" name=");
-		print_quoted(sb->set_name);
-	}
 	printf(" UUID=");
 	for (i = 0; i < 16; i++) {
 		if ((i & 3) == 0 && i != 0)
