@@ -3778,6 +3778,7 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 	struct intel_super *super = st->sb;
 	struct imsm_disk *disk;
 	int map_disks = info->array.raid_disks;
+	int max_enough = -1;
 	int i;
 	struct imsm_super *mpb;
 
@@ -3819,9 +3820,12 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 
 	for (i = 0; i < mpb->num_raid_devs; i++) {
 		struct imsm_dev *dev = get_imsm_dev(super, i);
-		int j = 0;
+		int failed, enough, j, missing = 0;
 		struct imsm_map *map;
+		__u8 state;
 
+		failed = imsm_count_failed(super, dev, MAP_0);
+		state = imsm_check_degraded(super, dev, failed, MAP_0);
 		map = get_imsm_map(dev, MAP_0);
 
 		/* any newly missing disks?
@@ -3836,10 +3840,36 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 
 			if (!(ord & IMSM_ORD_REBUILD) &&
 			    get_imsm_missing(super, idx)) {
+				missing = 1;
 				break;
 			}
 		}
+
+		if (state == IMSM_T_STATE_FAILED)
+			enough = -1;
+		else if (state == IMSM_T_STATE_DEGRADED &&
+			 (state != map->map_state || missing))
+			enough = 0;
+		else /* we're normal, or already degraded */
+			enough = 1;
+		if (is_gen_migration(dev) && missing) {
+			/* during general migration we need all disks
+			 * that process is running on.
+			 * No new missing disk is allowed.
+			 */
+			max_enough = -1;
+			enough = -1;
+			/* no more checks necessary
+			 */
+			break;
+		}
+		/* in the missing/failed disk case check to see
+		 * if at least one array is runnable
+		 */
+		max_enough = max(max_enough, enough);
 	}
+
+	info->container_enough = max_enough;
 
 	if (super->disks) {
 		__u32 reserved = imsm_reserved_sectors(super, super->disks);

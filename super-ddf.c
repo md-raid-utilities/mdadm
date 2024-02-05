@@ -1975,6 +1975,7 @@ static void getinfo_super_ddf(struct supertype *st, struct mdinfo *info, char *m
 	info->array.ctime	  = DECADE + __be32_to_cpu(*cptr);
 
 	info->array.chunk_size	  = 0;
+	info->container_enough	  = 1;
 
 	info->disk.major	  = 0;
 	info->disk.minor	  = 0;

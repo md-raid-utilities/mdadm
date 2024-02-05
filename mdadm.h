@@ -377,6 +377,13 @@ struct mdinfo {
 	int container_member; /* for assembling external-metatdata arrays
 			       * This is to be used internally by metadata
 			       * handler only */
+	/**
+	 * flag external handlers can set to indicate that subarrays have:
+	 * - not enough disks to start (-1),
+	 * - enough disks to start (0),
+	 * - all expected disks (1).
+	 */
+	int container_enough;
 	char		sys_name[32];
 	struct mdinfo *devs;
 	struct mdinfo *next;
