@@ -1348,6 +1348,10 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			__cpu_to_le16(info->disk.raid_disk);
 		break;
 	}
+	case UOPT_RESYNC:
+		/* make sure resync happens */
+		sb->resync_offset = 0;
+		break;
 	case UOPT_UUID:
 		copy_uuid(sb->set_uuid, info->uuid, super1.swapuuid);
 
