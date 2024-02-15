@@ -28,10 +28,10 @@
 #include "mdadm.h"
 
 #ifndef VERSION
-#define VERSION "4.2"
+#define VERSION "4.3"
 #endif
 #ifndef VERS_DATE
-#define VERS_DATE "2021-12-30"
+#define VERS_DATE "2024-02-15"
 #endif
 #ifndef EXTRAVERSION
 #define EXTRAVERSION ""
