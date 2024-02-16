@@ -377,6 +377,12 @@ struct mdinfo {
 	unsigned long long	ppl_sector;
 	unsigned long		safe_mode_delay; /* ms delay to mark clean */
 	int			new_level, delta_disks, new_layout, new_chunk;
+
+	/* Number of drives that needs rebuilding. */
+	int missing_disks;
+
+	/* Indicates that rebuild has not yet been started and is safe to start degraded array. */
+	bool			rebuild_started;
 	int			errors;
 	unsigned long		cache_size; /* size of raid456 stripe cache*/
 	int			mismatch_cnt;
@@ -448,6 +454,7 @@ typedef enum mdadm_status {
 	MDADM_STATUS_SUCCESS = 0,
 	MDADM_STATUS_ERROR,
 	MDADM_STATUS_UNDEF,
+	MDADM_STATUS_OPERATION_FAILED,
 } mdadm_status_t;
 
 enum mode {
@@ -831,6 +838,8 @@ extern int sysfs_attribute_available(struct mdinfo *sra, struct mdinfo *dev,
 extern int sysfs_get_str(struct mdinfo *sra, struct mdinfo *dev,
 			 char *name, char *val, int size);
 extern int sysfs_set_safemode(struct mdinfo *sra, unsigned long ms);
+extern int sysfs_init_array(struct mdinfo *info);
+int sysfs_update_raid_disks(struct mdinfo *info);
 extern int sysfs_set_array(struct mdinfo *info);
 extern int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume);
 extern int sysfs_disk_to_scsi_id(int fd, __u32 *id);

@@ -8190,15 +8190,17 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 		for (slot = 0 ; slot <  map->num_members; slot++) {
 			unsigned long long recovery_start;
 			struct mdinfo *info_d;
-			struct dl *d;
-			int idx;
-			int skip;
-			__u32 ord;
+			__u32 ord, ord0;
 			int missing = 0;
+			struct dl *d;
+			int skip;
+			int idx;
 
 			skip = 0;
 			idx = get_imsm_disk_idx(dev, slot, MAP_0);
+			ord0 = get_imsm_ord_tbl_ent(dev, slot, MAP_0);
 			ord = get_imsm_ord_tbl_ent(dev, slot, MAP_X);
+
 			for (d = super->disks; d ; d = d->next)
 				if (d->index == idx)
 					break;
@@ -8208,10 +8210,20 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 				skip = 1;
 			if (d && is_failed(&d->disk))
 				skip = 1;
-			if (!skip && (ord & IMSM_ORD_REBUILD))
-				recovery_start = 0;
-			if (!(ord & IMSM_ORD_REBUILD))
+			if (ord & IMSM_ORD_REBUILD) {
+				this->missing_disks++;
+
+				if (!skip)
+					recovery_start = 0;
+			} else {
 				this->array.working_disks++;
+			}
+
+			/* If rebuild started prior to stop, ord0 has no bit set, but ord has. */
+			if (!(ord0 & IMSM_ORD_REBUILD) &&
+			    get_imsm_missing(super, idx))
+				this->rebuild_started = true;
+
 			/*
 			 * if we skip some disks the array will be assmebled degraded;
 			 * reset resync start to avoid a dirty-degraded

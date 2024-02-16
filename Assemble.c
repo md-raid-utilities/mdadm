@@ -1983,9 +1983,10 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	int old_raid_disks;
 	int start_reshape;
 	char *avail;
-	int err;
-	int is_clean, all_disks;
-	bool is_raid456;
+	int err = 0;
+	int is_clean, all_disks, missing_disks;
+	bool is_raid456, need_rebuild;
+	char buf[SYSFS_MAX_BUF_SIZE] = {0};
 
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
@@ -1998,14 +1999,33 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		return 1;
 	}
 
-	/* Fill sysfs properties only if they are not set. Determine it by checking text_version
-	 * and ignoring special character on the first place.
+	if (sysfs_get_str(content, NULL, "array_state", buf, sizeof(buf)) == 0) {
+		pr_err("Failed to read array_state!");
+		sysfs_free(sra);
+		return 1;
+	}
+
+	/* Array is already started, nothing to do here */
+	if (strncmp(buf, "clear", 5) != 0 &&
+	    strncmp(buf, "inactive", 8) != 0) {
+		sysfs_free(sra);
+		return MDADM_STATUS_SUCCESS;
+	}
+
+	/*
+	 * Fill necessary sysfs properties for array only if not set.
+	 * Determine it by checking text_version and ignoring special character on the first place.
 	 */
 	if (strcmp(sra->text_version + 1, content->text_version + 1) != 0) {
-		if (sysfs_set_array(content) != 0) {
+		if (sysfs_init_array(content) != MDADM_STATUS_SUCCESS) {
+			pr_err("Failed initiating sysfs for the array!\n");
 			sysfs_free(sra);
 			return 1;
 		}
+	} else if (sysfs_update_raid_disks(content) != MDADM_STATUS_SUCCESS) {
+		/* reason already spewed */
+		sysfs_free(sra);
+		return 1;
 	}
 
 	/* There are two types of reshape: container wide or sub-array specific
@@ -2014,6 +2034,16 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	start_reshape = (content->reshape_active &&
 			 !((content->reshape_active == CONTAINER_RESHAPE) &&
 			   (content->array.state & (1<<MD_SB_BLOCK_CONTAINER_RESHAPE))));
+
+	/*
+	 * We need to differentiate disks in need of resync and rebuild.
+	 * The problem here is that recovery_start and resync_start are a union,
+	 * thus we need additional factor to verify what action is needed.
+	 */
+	need_rebuild = (content->missing_disks > 0);
+
+	/* If rebuild was not previously started, we can start array degraded */
+	missing_disks = content->rebuild_started ? content->missing_disks : 0;
 
 	/* Block subarray here if it is under reshape now
 	 * Do not allow for any changes in this array
@@ -2039,8 +2069,16 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	old_raid_disks = content->array.raid_disks - content->delta_disks;
 	avail = xcalloc(content->array.raid_disks, 1);
 	for (dev = content->devs; dev; dev = dev->next) {
-		if (dev->disk.raid_disk >= 0)
-			avail[dev->disk.raid_disk] = 1;
+		if (dev->disk.raid_disk >= 0) {
+			/*
+			 * If rebuild is not needed count all drvies,
+			 * otherwise count healthy drives only.
+			 */
+			if (need_rebuild == false)
+				avail[dev->disk.raid_disk] = 1;
+			else if (dev->recovery_start == MaxSector)
+				avail[dev->disk.raid_disk] = 1;
+		}
 		if (sysfs_add_disk(content, dev, 1) == 0) {
 			if (dev->disk.raid_disk >= old_raid_disks &&
 			    content->reshape_active)
@@ -2130,12 +2168,22 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	}
 	free(avail);
 
-	if (c->runstop <= 0 && all_disks < content->array.working_disks) {
+	/*
+	 * If enough() passed, necessary drives were added to achieve data integrity.
+	 * Without "--run" wait until all members are added back, including drives under rebuild.
+	 */
+	if (c->runstop <= 0 && (all_disks < content->array.working_disks + missing_disks)) {
 
 		set_array_assembly_status(c, result, INCR_UNSAFE, &array);
 
 		if (c->verbose >= 0 && c->force)
 			pr_err("Consider --run to start array as degraded.\n");
+		return 1;
+	}
+
+	/* If array passed previous checks, we assume it's up to date. Write sysfs. */
+	if (sysfs_set_array(content) != MDADM_STATUS_SUCCESS) {
+		pr_err("Failed writing sysfs array info!\n");
 		return 1;
 	}
 
@@ -2161,6 +2209,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 	if (start_reshape) {
 		int spare = content->array.raid_disks + array.exp_cnt;
+
 		if (restore_backup(st, content,
 				   array.new_cnt,
 				   spare, &c->backup_file, c->verbose) == 1)
@@ -2203,8 +2252,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 					    c->readonly ? "readonly" : "active");
 			break;
 		default:
-			err = sysfs_set_str(content, NULL, "array_state",
-					    "readonly");
+			err = sysfs_set_str(content, NULL, "array_state", "readonly");
 			/* start mdmon if needed. */
 			if (!err) {
 				if (!mdmon_running(st->container_devnm))

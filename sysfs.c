@@ -30,6 +30,10 @@
 
 #define MAX_SYSFS_PATH_LEN	120
 
+#define DCOLOR_RED	"\033[1;31m"
+#define DCOLOR_GREEN	"\033[1;32m"
+#define DCOLOR_DEFAULT	"\033[1;0m"
+
 struct dev_sysfs_rule {
 	struct dev_sysfs_rule *next;
 	char *devname;
@@ -490,17 +494,20 @@ int sysfs_set_str(struct mdinfo *sra, struct mdinfo *dev,
 	int fd;
 
 	snprintf(fname, MAX_SYSFS_PATH_LEN, "/sys/block/%s/md/%s/%s",
-		sra->sys_name, dev?dev->sys_name:"", name);
+		 sra->sys_name, dev ? dev->sys_name : "", name);
 	fd = open(fname, O_WRONLY);
 	if (fd < 0)
 		return -1;
+	dprintf("Writing \"%s\" to \"%s/%s\" (%s) : ",
+		val, dev ? dev->sys_name : "md", name, sra->sys_name);
 	n = write(fd, val, strlen(val));
 	close(fd);
 	if (n != strlen(val)) {
-		dprintf("failed to write '%s' to '%s' (%s)\n",
-			val, fname, strerror(errno));
+		dprintf_cont(DCOLOR_RED"failed!\n"DCOLOR_DEFAULT);
+		dprintf_cont("Reason: %s\n", strerror(errno));
 		return -1;
 	}
+	dprintf_cont(DCOLOR_GREEN"success!\n"DCOLOR_DEFAULT);
 	return 0;
 }
 
@@ -679,17 +686,25 @@ int sysfs_set_safemode(struct mdinfo *sra, unsigned long ms)
 	/*             this '\n' ^ needed for kernels older than 2.6.28 */
 	return sysfs_set_str(sra, NULL, "safe_mode_delay", delay);
 }
-
-int sysfs_set_array(struct mdinfo *info)
+/**
+ * sysfs_init_array() - Initiate array, set base sysfs entries for md-device to appear in mdstat.
+ *
+ * @info:	array info.
+ * Return:	MDADM_STATUS_SUCCESS if all writes succeeded,
+ *		MDADM_STATUS_OPERATION_FAILED if any write failed,
+ *
+ * For container status is MDADM_STATUS_SUCCESS, no actual writes are being done.
+ */
+int sysfs_init_array(struct mdinfo *info)
 {
 	int rv = 0;
-	char ver[100];
 	int raid_disks = info->array.raid_disks;
 
-	ver[0] = 0;
-	if (info->array.major_version == -1 &&
-	    info->array.minor_version == -2) {
-		char buf[SYSFS_MAX_BUF_SIZE];
+	dprintf("Performing necessary array sysfs writes.\n");
+
+	if (info->array.major_version == -1 && info->array.minor_version == -2) {
+		char buf[SYSFS_MAX_BUF_SIZE] = {0};
+		char ver[SYSFS_MAX_BUF_SIZE] = {0};
 
 		strcat(strcpy(ver, "external:"), info->text_version);
 
@@ -704,26 +719,89 @@ int sysfs_set_array(struct mdinfo *info)
 			if (strlen(buf) >= 9 && buf[9] == '-')
 				ver[9] = '-';
 
-		if (sysfs_set_str(info, NULL, "metadata_version", ver) < 0) {
-			pr_err("This kernel does not support external metadata.\n");
-			return 1;
-		}
+		rv |= sysfs_set_str(info, NULL, "metadata_version", ver);
 	}
-	if (info->array.level < 0)
-		return 0; /* FIXME */
-	rv |= sysfs_set_str(info, NULL, "level",
-			    map_num_s(pers, info->array.level));
+
+	if (is_container(info->array.level))
+		return MDADM_STATUS_SUCCESS;
+
+	rv |= sysfs_set_str(info, NULL, "level", map_num_s(pers, info->array.level));
+
+	/*
+	 * MD driver does not expose delta_disks via sysfs.
+	 * Delta disks are calculated based on raid_disks.
+	 * For this mechanism to work "old disks" number must be set first,
+	 * and then overwritten with new disk number.
+	 */
 	if (info->reshape_active && info->delta_disks != UnSet)
 		raid_disks -= info->delta_disks;
 	rv |= sysfs_set_num(info, NULL, "raid_disks", raid_disks);
+
+	dprintf("Done performing necessary array sysfs writes.\n");
+	if (rv != 0)
+		return MDADM_STATUS_OPERATION_FAILED;
+	return MDADM_STATUS_SUCCESS;
+}
+/**
+ * sysfs_update_raid_disks() - Updates raid_disks sysfs_entry as it's dynamically calculated.
+ *
+ * @info: array info.
+ * Return: MDADM_STATTUS_OPERATION_FAILED on read/write fail, MDADM_STATUS_SUCCESS otherwise.
+ */
+int sysfs_update_raid_disks(struct mdinfo *info)
+{
+	unsigned long long raid_disks = 0;
+
+	dprintf("Checking and updating sysfs for array.\n");
+
+	/* Read raid_disks value */
+	if (sysfs_get_ll(info, NULL, "raid_disks", &raid_disks) < 0) {
+		pr_err("Failed to read raid_disks!");
+		return MDADM_STATUS_OPERATION_FAILED;
+	}
+
+	/* Compare mdinfo to sysfs */
+	if ((unsigned long long) info->array.raid_disks > raid_disks)
+		if (sysfs_set_num(info, NULL, "raid_disks", info->array.raid_disks) != 0) {
+			pr_err("Failed to update raid_disks!");
+			return MDADM_STATUS_OPERATION_FAILED;
+		}
+
+	dprintf("Done updating sysfs.\n");
+
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * sysfs_set_array() - Sets sysfs entries for the array.
+ *
+ * @info:	array info.
+ * Return:	MDADM_STATUS_SUCCESS if all writes succeeded,
+ *		MDADM_STATUS_OPERATION_FAILED if any write failed,
+ *		MDADM_STATUS_NATIVE_ONLY if kernel does not support external metadata,
+ *
+ * For container status is MDADM_STATUS_SUCCESS, no actual writes are being done.
+ */
+int sysfs_set_array(struct mdinfo *info)
+{
+	int rv = sysfs_init_array(info);
+
+	if (rv == MDADM_STATUS_OPERATION_FAILED)
+		return rv;
+
+	/* sysfs should not be set for a container */
+	if (is_container(info->array.level))
+		return MDADM_STATUS_SUCCESS;
+
+	dprintf("Performing extended sysfs array writes.\n");
+
 	rv |= sysfs_set_num(info, NULL, "chunk_size", info->array.chunk_size);
 	rv |= sysfs_set_num(info, NULL, "layout", info->array.layout);
 	rv |= sysfs_set_num(info, NULL, "component_size", info->component_size/2);
 	if (info->custom_array_size) {
 		int rc;
 
-		rc = sysfs_set_num(info, NULL, "array_size",
-				   info->custom_array_size/2);
+		rc = sysfs_set_num(info, NULL, "array_size", info->custom_array_size / 2);
 		if (rc && errno == ENOENT) {
 			pr_err("This kernel does not have the md/array_size attribute, the array may be larger than expected\n");
 			rc = 0;
@@ -735,20 +813,17 @@ int sysfs_set_array(struct mdinfo *info)
 		rv |= sysfs_set_num(info, NULL, "resync_start", info->resync_start);
 
 	if (info->reshape_active) {
-		rv |= sysfs_set_num(info, NULL, "reshape_position",
-				    info->reshape_progress);
+		rv |= sysfs_set_num(info, NULL, "reshape_position", info->reshape_progress);
 		rv |= sysfs_set_num(info, NULL, "chunk_size", info->new_chunk);
 		rv |= sysfs_set_num(info, NULL, "layout", info->new_layout);
-		rv |= sysfs_set_num(info, NULL, "raid_disks",
-				    info->array.raid_disks);
+		rv |= sysfs_set_num(info, NULL, "raid_disks", info->array.raid_disks);
 		/* We don't set 'new_level' here.  That can only happen
 		 * once the reshape completes.
 		 */
 	}
 
 	if (info->consistency_policy == CONSISTENCY_POLICY_PPL) {
-		char *policy = map_num_s(consistency_policies,
-					    info->consistency_policy);
+		char *policy = map_num_s(consistency_policies, info->consistency_policy);
 
 		if (sysfs_set_str(info, NULL, "consistency_policy", policy)) {
 			pr_err("This kernel does not support PPL. Falling back to consistency-policy=resync.\n");
@@ -756,7 +831,10 @@ int sysfs_set_array(struct mdinfo *info)
 		}
 	}
 
-	return rv;
+	dprintf("Done performing extended array sysfs writes.\n");
+	if (rv != 0)
+		return MDADM_STATUS_OPERATION_FAILED;
+	return MDADM_STATUS_SUCCESS;
 }
 
 int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume)
@@ -767,13 +845,14 @@ int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume)
 	int rv;
 	int i;
 
+	dprintf("(enter)\n");
 	sprintf(dv, "%d:%d", sd->disk.major, sd->disk.minor);
 	rv = sysfs_set_str(sra, NULL, "new_dev", dv);
 	if (rv)
 		return rv;
-
 	memset(nm, 0, sizeof(nm));
 	dname = devid2kname(makedev(sd->disk.major, sd->disk.minor));
+	dprintf("Performing sysfs writes for disk %s.\n", dname);
 	strcpy(sd->sys_name, "dev-");
 	strcpy(sd->sys_name+4, dname);
 
@@ -781,11 +860,12 @@ int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume)
 	if (resume && sd->recovery_start < MaxSector &&
 	    sysfs_set_num(sra, sd, "recovery_start", 0)) {
 		sysfs_set_str(sra, sd, "state", "remove");
+		dprintf("Sysfs writes for disk %s failed!\n", dname);
 		return -1;
 	}
 
 	rv = sysfs_set_num(sra, sd, "offset", sd->data_offset);
-	rv |= sysfs_set_num(sra, sd, "size", (sd->component_size+1) / 2);
+	rv |= sysfs_set_num(sra, sd, "size", (sd->component_size + 1) / 2);
 	if (!is_container(sra->array.level)) {
 		if (sra->consistency_policy == CONSISTENCY_POLICY_PPL) {
 			rv |= sysfs_set_num(sra, sd, "ppl_sector", sd->ppl_sector);
@@ -823,6 +903,8 @@ int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume)
 			rv |= sysfs_set_str(sra, sd, "bad_blocks", s);
 		}
 	}
+
+	dprintf("Done performing sysfs writes for disk %s.\n", dname);
 	return rv;
 }
 
