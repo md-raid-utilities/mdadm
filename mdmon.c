@@ -302,12 +302,12 @@ static int mdmon(char *devnm, int must_fork, int takeover);
 int main(int argc, char *argv[])
 {
 	char *container_name = NULL;
-	char *devnm = NULL;
 	int status = 0;
 	int opt;
 	int all = 0;
 	int takeover = 0;
 	int dofork = 1;
+	int mdfd = -1;
 	bool help = false;
 	static struct option options[] = {
 		{"all", 0, NULL, 'a'},
@@ -410,19 +410,20 @@ int main(int argc, char *argv[])
 		free_mdstat(mdstat);
 
 		return status;
-	} else {
-		int mdfd = open_mddev(container_name, 0);
-		devnm = fd2devnm(mdfd);
+	}
+
+	mdfd = open_mddev(container_name, 0);
+	if (is_fd_valid(mdfd)) {
+		char *devnm = fd2devnm(mdfd);
 
 		close(mdfd);
+
+		if (devnm)
+			return mdmon(devnm, dofork && do_fork(), takeover);
 	}
 
-	if (!devnm) {
-		pr_err("%s is not a valid md device name\n",
-			container_name);
-		return 1;
-	}
-	return mdmon(devnm, dofork && do_fork(), takeover);
+	pr_err("%s is not a valid md device name\n", container_name);
+	return 1;
 }
 
 static int mdmon(char *devnm, int must_fork, int takeover)
