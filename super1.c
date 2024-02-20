@@ -1752,7 +1752,10 @@ static int add_to_super1(struct supertype *st, mdu_disk_info_t *dk,
 	di->devname = devname;
 	di->disk = *dk;
 	di->data_offset = data_offset;
-	get_dev_size(fd, NULL, &di->dev_size);
+
+	if (is_fd_valid(fd))
+		get_dev_size(fd, NULL, &di->dev_size);
+
 	di->next = NULL;
 	*dip = di;
 
