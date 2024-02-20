@@ -2098,11 +2098,7 @@ int Grow_reshape(char *devname, int fd,
 			/* got truncated to 32bit, write to
 			 * component_size instead
 			 */
-			if (sra)
-				rv = sysfs_set_num(sra, NULL,
-						   "component_size", s->size);
-			else
-				rv = -1;
+			rv = sysfs_set_num(sra, NULL, "component_size", s->size);
 		} else {
 			rv = md_set_array_info(fd, &array);
 
