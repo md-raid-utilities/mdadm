@@ -451,17 +451,14 @@ static int check_one_sharer(int scan)
 		return 2;
 	}
 
-	if (access(AUTOREBUILD_PID_PATH, F_OK) != 0)
-		return 0;
-
-	if (!is_file(AUTOREBUILD_PID_PATH)) {
-		pr_err("%s is not a regular file.\n", AUTOREBUILD_PID_PATH);
-		return 2;
-	}
-
 	fp = fopen(AUTOREBUILD_PID_PATH, "r");
 	if (!fp) {
 		pr_err("Cannot open %s file.\n", AUTOREBUILD_PID_PATH);
+		return 2;
+	}
+
+	if (!is_file(AUTOREBUILD_PID_PATH)) {
+		pr_err("%s is not a regular file.\n", AUTOREBUILD_PID_PATH);
 		return 2;
 	}
 
