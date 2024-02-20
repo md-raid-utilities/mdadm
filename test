@@ -1,11 +1,12 @@
 #!/bin/bash
 #
 # run test suite for mdadm
-mdadm=$PWD/mdadm
+mdadm=`which mdadm`
 targetdir="/var/tmp"
 logdir="$targetdir"
 config=/tmp/mdadm.conf
 testdir=$PWD/tests
+system_speed_limit=`cat /proc/sys/dev/raid/speed_limit_max`
 devlist=
 
 savelogs=0
@@ -19,9 +20,6 @@ prefix='[0-9][0-9]'
 DEVTYPE=loop
 INTEGRITY=yes
 LVM_VOLGROUP=mdtest
-
-# make sure to test local mdmon, not system one
-export MDADM_NO_SYSTEMCTL=1
 
 # assume md0, md1, md2 exist in /dev
 md0=/dev/md0
@@ -41,7 +39,10 @@ ctrl_c() {
 	ctrl_c_error=1
 }
 
-# mdadm always adds --quiet, and we want to see any unexpected messages
+restore_system_speed_limit() {
+	echo $system_speed_limit > /proc/sys/dev/raid/speed_limit_max
+}
+
 mdadm() {
 	rm -f $targetdir/stderr
 	case $* in
@@ -63,10 +64,10 @@ mdadm() {
 					$mdadm --zero $args > /dev/null
 			}
 		done
-		$mdadm 2> $targetdir/stderr --quiet "$@" --auto=yes
+		$mdadm 2> $targetdir/stderr "$@" --auto=yes
 		;;
 	* )
-		$mdadm 2> $targetdir/stderr --quiet "$@"
+		$mdadm 2> $targetdir/stderr "$@"
 		;;
 	esac
 	rv=$?
@@ -99,8 +100,6 @@ do_test() {
 		fi
 
 		rm -f $targetdir/stderr
-		# this might have been reset: restore the default.
-		echo 2000 > /proc/sys/dev/raid/speed_limit_max
 		do_clean
 		# source script in a subshell, so it has access to our
 		# namespace, but cannot change it.
@@ -122,6 +121,7 @@ do_test() {
 				echo "  (KNOWN BROKEN TEST: $_broken_msg)"
 			fi
 		fi
+		restore_system_speed_limit
 		[ "$savelogs" == "1" ] &&
 			mv -f $targetdir/log $logdir/$_basename.log
 		[ "$ctrl_c_error" == "1" ] && exit 1
@@ -299,7 +299,15 @@ parse_args() {
 	done
 }
 
+print_warning() {
+	cat <<-EOF
+	Warning! Tests are performed on system level mdadm!
+	If you want to test local build, you need to install it first!
+	EOF
+}
+
 main() {
+	print_warning
 	do_setup
 
 	echo "Testing on linux-$(uname -r) kernel"
@@ -329,6 +337,7 @@ main() {
 			break
 		fi
 	done
+
 	exit 0
 }
 

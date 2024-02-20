@@ -213,7 +213,6 @@ do_setup() {
 	path1=$dev7
 	ulimit -c unlimited
 	[ -f /proc/mdstat ] || modprobe md_mod
-	echo 2000 > /proc/sys/dev/raid/speed_limit_max
 	echo 0 > /sys/module/md_mod/parameters/start_ro
 }
 
