@@ -1856,11 +1856,10 @@ static inline char *to_subarray(struct mdstat_ent *ent, char *container)
  */
 static inline sighandler_t signal_s(int sig, sighandler_t handler)
 {
-	struct sigaction new_act;
-	struct sigaction old_act;
+	struct sigaction new_act = {0};
+	struct sigaction old_act = {0};
 
 	new_act.sa_handler = handler;
-	new_act.sa_flags = 0;
 
 	if (sigaction(sig, &new_act, &old_act) == 0)
 		return old_act.sa_handler;
