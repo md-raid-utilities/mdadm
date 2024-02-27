@@ -4174,16 +4174,16 @@ static int imsm_read_serial(int fd, char *devname,
 
 	memset(buf, 0, sizeof(buf));
 
+	if (check_env("IMSM_DEVNAME_AS_SERIAL")) {
+		memset(serial, 0, serial_buf_len);
+		fd2devname(fd, (char *) serial);
+		return 0;
+	}
+
 	rv = nvme_get_serial(fd, buf, sizeof(buf));
 
 	if (rv)
 		rv = scsi_get_serial(fd, buf, sizeof(buf));
-
-	if (rv && check_env("IMSM_DEVNAME_AS_SERIAL")) {
-		memset(serial, 0, MAX_RAID_SERIAL_LEN);
-		fd2devname(fd, (char *) serial);
-		return 0;
-	}
 
 	if (rv != 0) {
 		if (devname)
