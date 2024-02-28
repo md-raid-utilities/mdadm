@@ -453,12 +453,17 @@ static int check_one_sharer(int scan)
 
 	fp = fopen(AUTOREBUILD_PID_PATH, "r");
 	if (!fp) {
+		/* PID file does not exist */
+		if (errno == ENOENT)
+			return 0;
+
 		pr_err("Cannot open %s file.\n", AUTOREBUILD_PID_PATH);
 		return 2;
 	}
 
 	if (!is_file(AUTOREBUILD_PID_PATH)) {
 		pr_err("%s is not a regular file.\n", AUTOREBUILD_PID_PATH);
+		fclose(fp);
 		return 2;
 	}
 
