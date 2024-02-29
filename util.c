@@ -2056,12 +2056,13 @@ unsigned int __invalid_size_argument_for_IOC = 0;
 
 /**
  * disk_fd_matches_criteria() - check if device matches spare criteria.
+ * @st: supertype, not NULL.
  * @disk_fd: file descriptor of the disk.
  * @sc: criteria to test.
  *
  * Return: true if disk matches criteria, false otherwise.
  */
-bool disk_fd_matches_criteria(int disk_fd, struct spare_criteria *sc)
+bool disk_fd_matches_criteria(struct supertype *st, int disk_fd, struct spare_criteria *sc)
 {
 	unsigned int dev_sector_size = 0;
 	unsigned long long dev_size = 0;
@@ -2076,17 +2077,21 @@ bool disk_fd_matches_criteria(int disk_fd, struct spare_criteria *sc)
 	    sc->sector_size != dev_sector_size)
 		return false;
 
+	if (drive_test_and_add_policies(st, &sc->pols, disk_fd, 0))
+		return false;
+
 	return true;
 }
 
 /**
  * devid_matches_criteria() - check if device referenced by devid matches spare criteria.
+ * @st: supertype, not NULL.
  * @devid: devid of the device to check.
  * @sc: criteria to test.
  *
  * Return: true if disk matches criteria, false otherwise.
  */
-bool devid_matches_criteria(dev_t devid, struct spare_criteria *sc)
+bool devid_matches_criteria(struct supertype *st, dev_t devid, struct spare_criteria *sc)
 {
 	char buf[NAME_MAX];
 	bool ret;
@@ -2102,7 +2107,7 @@ bool devid_matches_criteria(dev_t devid, struct spare_criteria *sc)
 		return false;
 
 	/* Error code inherited */
-	ret = disk_fd_matches_criteria(fd, sc);
+	ret = disk_fd_matches_criteria(st, fd, sc);
 
 	close(fd);
 	return ret;
@@ -2137,7 +2142,7 @@ struct mdinfo *container_choose_spares(struct supertype *st,
 		if (d->disk.state == 0) {
 			dev_t dev = makedev(d->disk.major,d->disk.minor);
 
-			found = devid_matches_criteria(dev, criteria);
+			found = devid_matches_criteria(st, dev, criteria);
 
 			/* check if domain matches */
 			if (found && domlist) {

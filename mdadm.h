@@ -433,6 +433,7 @@ struct spare_criteria {
 	bool criteria_set;
 	unsigned long long min_size;
 	unsigned int sector_size;
+	struct dev_policy *pols;
 };
 
 typedef enum mdadm_status {
@@ -1734,8 +1735,8 @@ extern int assemble_container_content(struct supertype *st, int mdfd,
 #define	INCR_ALREADY	4
 #define	INCR_YES	8
 
-extern bool devid_matches_criteria(dev_t devid, struct spare_criteria *sc);
-extern bool disk_fd_matches_criteria(int disk_fd, struct spare_criteria *sc);
+extern bool devid_matches_criteria(struct supertype *st, dev_t devid, struct spare_criteria *sc);
+extern bool disk_fd_matches_criteria(struct supertype *st, int disk_fd, struct spare_criteria *sc);
 extern struct mdinfo *container_choose_spares(struct supertype *st,
 					      struct spare_criteria *criteria,
 					      struct domainlist *domlist,

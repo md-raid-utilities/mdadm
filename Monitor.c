@@ -1047,7 +1047,7 @@ static dev_t choose_spare(struct state *from, struct state *to,
 			    test_partition_from_id(from->devid[d]))
 				continue;
 
-			if (devid_matches_criteria(from->devid[d], sc) == false)
+			if (devid_matches_criteria(to->metadata, from->devid[d], sc) == false)
 				continue;
 
 			pol = devid_policy(from->devid[d]);
@@ -1195,6 +1195,7 @@ static void try_spare_migration(struct state *statelist)
 				}
 			}
 			domain_free(domlist);
+			dev_policy_free(sc.pols);
 		}
 }
 

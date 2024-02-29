@@ -865,7 +865,7 @@ mdadm_status_t incremental_external_test_spare_criteria(struct supertype *st, ch
 		goto out;
 	}
 
-	if (!disk_fd_matches_criteria(disk_fd, &sc)) {
+	if (!disk_fd_matches_criteria(dup, disk_fd, &sc)) {
 		if (verbose > 1)
 			pr_err("Disk does not match spare criteria for %s\n", container_devname);
 		goto out;
