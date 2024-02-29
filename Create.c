@@ -497,6 +497,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	 */
 	int mdfd;
 	unsigned long long minsize = 0, maxsize = 0;
+	dev_policy_t *custom_pols = NULL;
 	char *mindisc = NULL;
 	char *maxdisc = NULL;
 	char *name = ident->name;
@@ -588,6 +589,9 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 				first_missing = subdevs * 2;
 				second_missing = subdevs * 2;
 				insert_point = subdevs * 2;
+
+				if (mddev_test_and_add_drive_policies(st, &custom_pols, fd, 1))
+					exit(1);
 			}
 		}
 		if (fd >= 0)
@@ -739,7 +743,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			close(dfd);
 			exit(2);
 		}
-		close(dfd);
+
 		info.array.working_disks++;
 		if (dnum < s->raiddisks && dv->disposition != 'j')
 			info.array.active_disks++;
@@ -811,6 +815,11 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 				continue;
 			}
 		}
+
+		if (drive_test_and_add_policies(st, &custom_pols, dfd, 1))
+			exit(1);
+
+		close(dfd);
 
 		if (dv->disposition == 'j')
 			goto skip_size_check;  /* skip write journal for size check */
@@ -886,6 +895,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			close(fd);
 		}
 	}
+
 	if (missing_disks == dnum && !have_container) {
 		pr_err("Subdevs can't be all missing\n");
 		return 1;
@@ -1140,25 +1150,30 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		goto abort_locked;
 	}
 
-	if (did_default && c->verbose >= 0) {
+	if (did_default) {
 		if (is_subarray(info.text_version)) {
 			char devnm[MD_NAME_MAX];
 			struct mdinfo *mdi;
 
 			sysfs_get_container_devnm(&info, devnm);
 
-			mdi = sysfs_read(-1, devnm, GET_VERSION);
+			mdi = sysfs_read(-1, devnm, GET_VERSION | GET_DEVS);
 			if (!mdi) {
 				pr_err("Cannot open sysfs for container %s\n", devnm);
 				goto abort_locked;
 			}
 
-			pr_info("Creating array inside %s container /dev/%s\n", mdi->text_version,
-				devnm);
+			if (sysfs_test_and_add_drive_policies(st, &custom_pols, mdi, 1))
+				goto abort_locked;
+
+			if (c->verbose >= 0)
+				pr_info("Creating array inside %s container /dev/%s\n",
+					mdi->text_version, devnm);
 
 			sysfs_free(mdi);
-		} else
+		} else if (c->verbose >= 0) {
 			pr_info("Defaulting to version %s metadata\n", info.text_version);
+		}
 	}
 
 	map_update(&map, fd2devnm(mdfd), info.text_version,
@@ -1328,6 +1343,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	udev_unblock();
 	close(mdfd);
 	sysfs_uevent(&info, "change");
+	dev_policy_free(custom_pols);
+
 	return 0;
 
  abort:
@@ -1339,5 +1356,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	if (mdfd >= 0)
 		close(mdfd);
+
+	dev_policy_free(custom_pols);
 	return 1;
 }
