@@ -704,6 +704,7 @@ mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name
 {
 	mdadm_status_t rv = MDADM_STATUS_ERROR;
 	char container_devpath[MD_NAME_MAX];
+	struct dev_policy *pols = NULL;
 	struct mdinfo new_mdi;
 	struct mdinfo *sra = NULL;
 	int container_fd;
@@ -722,6 +723,9 @@ mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name
 				       0, 1))
 		goto out;
 
+	if (mddev_test_and_add_drive_policies(st, &pols, container_fd, 1))
+		goto out;
+
 	Kill(disk_name, NULL, 0, -1, 0);
 
 	disk_fd = dev_open(disk_name, O_RDWR | O_EXCL | O_DIRECT);
@@ -729,6 +733,9 @@ mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name
 		pr_err("Failed to exclusively open %s\n", disk_name);
 		goto out;
 	}
+
+	if (drive_test_and_add_policies(st, &pols, disk_fd, 1))
+		goto out;
 
 	if (st->ss->add_to_super(st, disc, disk_fd, disk_name, INVALID_SECTORS))
 		goto out;
@@ -760,6 +767,7 @@ mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name
 
 out:
 	close(container_fd);
+	dev_policy_free(pols);
 
 	if (sra)
 		sysfs_free(sra);
