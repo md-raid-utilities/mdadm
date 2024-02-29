@@ -874,7 +874,7 @@ static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 		struct domainlist *dl = NULL;
 		struct mdinfo *sra;
 		unsigned long long devsize, freesize = 0;
-		struct spare_criteria sc = {0, 0};
+		struct spare_criteria sc = {0};
 
 		if (is_subarray(mp->metadata))
 			continue;

@@ -1748,9 +1748,6 @@ int get_spare_criteria_imsm(struct supertype *st, struct spare_criteria *c)
 	int i;
 	unsigned long long size = 0;
 
-	c->min_size = 0;
-	c->sector_size = 0;
-
 	if (!super)
 		return -EINVAL;
 	/* find first active disk in array */
@@ -1774,6 +1771,7 @@ int get_spare_criteria_imsm(struct supertype *st, struct spare_criteria *c)
 
 	c->min_size = size * 512;
 	c->sector_size = super->sector_size;
+	c->criteria_set = true;
 
 	return 0;
 }

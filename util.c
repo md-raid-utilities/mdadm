@@ -1266,40 +1266,6 @@ struct supertype *super_by_fd(int fd, char **subarrayp)
 	return st;
 }
 
-int dev_size_from_id(dev_t id, unsigned long long *size)
-{
-	char buf[20];
-	int fd;
-
-	sprintf(buf, "%d:%d", major(id), minor(id));
-	fd = dev_open(buf, O_RDONLY);
-	if (fd < 0)
-		return 0;
-	if (get_dev_size(fd, NULL, size)) {
-		close(fd);
-		return 1;
-	}
-	close(fd);
-	return 0;
-}
-
-int dev_sector_size_from_id(dev_t id, unsigned int *size)
-{
-	char buf[20];
-	int fd;
-
-	sprintf(buf, "%d:%d", major(id), minor(id));
-	fd = dev_open(buf, O_RDONLY);
-	if (fd < 0)
-		return 0;
-	if (get_dev_sector_size(fd, NULL, size)) {
-		close(fd);
-		return 1;
-	}
-	close(fd);
-	return 0;
-}
-
 struct supertype *dup_super(struct supertype *orig)
 {
 	struct supertype *st;
@@ -2088,6 +2054,60 @@ void append_metadata_update(struct supertype *st, void *buf, int len)
 unsigned int __invalid_size_argument_for_IOC = 0;
 #endif
 
+/**
+ * disk_fd_matches_criteria() - check if device matches spare criteria.
+ * @disk_fd: file descriptor of the disk.
+ * @sc: criteria to test.
+ *
+ * Return: true if disk matches criteria, false otherwise.
+ */
+bool disk_fd_matches_criteria(int disk_fd, struct spare_criteria *sc)
+{
+	unsigned int dev_sector_size = 0;
+	unsigned long long dev_size = 0;
+
+	if (!sc->criteria_set)
+		return true;
+
+	if (!get_dev_size(disk_fd, NULL, &dev_size) || dev_size < sc->min_size)
+		return false;
+
+	if (!get_dev_sector_size(disk_fd, NULL, &dev_sector_size) ||
+	    sc->sector_size != dev_sector_size)
+		return false;
+
+	return true;
+}
+
+/**
+ * devid_matches_criteria() - check if device referenced by devid matches spare criteria.
+ * @devid: devid of the device to check.
+ * @sc: criteria to test.
+ *
+ * Return: true if disk matches criteria, false otherwise.
+ */
+bool devid_matches_criteria(dev_t devid, struct spare_criteria *sc)
+{
+	char buf[NAME_MAX];
+	bool ret;
+	int fd;
+
+	if (!sc->criteria_set)
+		return true;
+
+	snprintf(buf, NAME_MAX, "%d:%d", major(devid), minor(devid));
+
+	fd = dev_open(buf, O_RDONLY);
+	if (!is_fd_valid(fd))
+		return false;
+
+	/* Error code inherited */
+	ret = disk_fd_matches_criteria(fd, sc);
+
+	close(fd);
+	return ret;
+}
+
 /* Pick all spares matching given criteria from a container
  * if min_size == 0 do not check size
  * if domlist == NULL do not check domains
@@ -2111,28 +2131,13 @@ struct mdinfo *container_choose_spares(struct supertype *st,
 	dp = &disks->devs;
 	disks->array.spare_disks = 0;
 	while (*dp) {
-		int found = 0;
+		bool found = false;
+
 		d = *dp;
 		if (d->disk.state == 0) {
-			/* check if size is acceptable */
-			unsigned long long dev_size;
-			unsigned int dev_sector_size;
-			int size_valid = 0;
-			int sector_size_valid = 0;
-
 			dev_t dev = makedev(d->disk.major,d->disk.minor);
 
-			if (!criteria->min_size ||
-			   (dev_size_from_id(dev,  &dev_size) &&
-			    dev_size >= criteria->min_size))
-				size_valid = 1;
-
-			if (!criteria->sector_size ||
-			    (dev_sector_size_from_id(dev, &dev_sector_size) &&
-			     criteria->sector_size == dev_sector_size))
-				sector_size_valid = 1;
-
-			found = size_valid && sector_size_valid;
+			found = devid_matches_criteria(dev, criteria);
 
 			/* check if domain matches */
 			if (found && domlist) {
@@ -2141,7 +2146,8 @@ struct mdinfo *container_choose_spares(struct supertype *st,
 					pol_add(&pol, pol_domain,
 						spare_group, NULL);
 				if (domain_test(domlist, pol, metadata) != 1)
-					found = 0;
+					found = false;
+
 				dev_policy_free(pol);
 			}
 		}

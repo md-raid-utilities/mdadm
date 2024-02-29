@@ -430,6 +430,7 @@ struct createinfo {
 };
 
 struct spare_criteria {
+	bool criteria_set;
 	unsigned long long min_size;
 	unsigned int sector_size;
 };
@@ -1368,8 +1369,6 @@ extern struct supertype *dup_super(struct supertype *st);
 extern int get_dev_size(int fd, char *dname, unsigned long long *sizep);
 extern int get_dev_sector_size(int fd, char *dname, unsigned int *sectsizep);
 extern int must_be_container(int fd);
-extern int dev_size_from_id(dev_t id, unsigned long long *size);
-extern int dev_sector_size_from_id(dev_t id, unsigned int *size);
 void wait_for(char *dev, int fd);
 
 /*
@@ -1708,6 +1707,9 @@ extern int assemble_container_content(struct supertype *st, int mdfd,
 #define	INCR_UNSAFE	2
 #define	INCR_ALREADY	4
 #define	INCR_YES	8
+
+extern bool devid_matches_criteria(dev_t devid, struct spare_criteria *sc);
+extern bool disk_fd_matches_criteria(int disk_fd, struct spare_criteria *sc);
 extern struct mdinfo *container_choose_spares(struct supertype *st,
 					      struct spare_criteria *criteria,
 					      struct domainlist *domlist,

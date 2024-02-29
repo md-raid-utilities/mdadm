@@ -1070,22 +1070,12 @@ static dev_t choose_spare(struct state *from, struct state *to,
 	for (d = from->raid; !dev && d < MAX_DISKS; d++) {
 		if (from->devid[d] > 0 && from->devstate[d] == 0) {
 			struct dev_policy *pol;
-			unsigned long long dev_size;
-			unsigned int dev_sector_size;
 
 			if (to->metadata->ss->external &&
 			    test_partition_from_id(from->devid[d]))
 				continue;
 
-			if (sc->min_size &&
-			    dev_size_from_id(from->devid[d], &dev_size) &&
-			    dev_size < sc->min_size)
-				continue;
-
-			if (sc->sector_size &&
-			    dev_sector_size_from_id(from->devid[d],
-						    &dev_sector_size) &&
-			    sc->sector_size != dev_sector_size)
+			if (devid_matches_criteria(from->devid[d], sc) == false)
 				continue;
 
 			pol = devid_policy(from->devid[d]);
@@ -1170,12 +1160,12 @@ static void try_spare_migration(struct state *statelist)
 {
 	struct state *from;
 	struct state *st;
-	struct spare_criteria sc;
 
 	link_containers_with_subarrays(statelist);
 	for (st = statelist; st; st = st->next)
 		if (st->active < st->raid && st->spare == 0 && !st->err) {
 			struct domainlist *domlist = NULL;
+			struct spare_criteria sc = {0};
 			int d;
 			struct state *to = st;
 
