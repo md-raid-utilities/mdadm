@@ -777,6 +777,8 @@ enum sysfs_read_flags {
 
 #define SYSFS_MAX_BUF_SIZE 64
 
+extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
+
 /* If fd >= 0, get the array it is open on,
  * else use devnm.
  */

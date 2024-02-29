@@ -74,6 +74,29 @@ void sysfs_free(struct mdinfo *sra)
 	}
 }
 
+/**
+ * sysfs_get_container_devnm() - extract container device name.
+ * @mdi: md_info describes member array, with GET_VERSION option.
+ * @buf: buf to fill, must be MD_NAME_MAX.
+ *
+ * External array version is in format {/,-}<container_devnm>/<array_index>
+ * Extract container_devnm from it and safe it in @buf.
+ */
+void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf)
+{
+	char *p;
+
+	assert(is_subarray(mdi->text_version));
+
+	/* Skip first special sign */
+	snprintf(buf, MD_NAME_MAX, "%s", mdi->text_version + 1);
+
+	/* Remove array index */
+	p = strchr(buf, '/');
+	if (p)
+		*p = 0;
+}
+
 int sysfs_open(char *devnm, char *devname, char *attr)
 {
 	char fname[MAX_SYSFS_PATH_LEN];

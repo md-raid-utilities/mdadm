@@ -1142,24 +1142,23 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	if (did_default && c->verbose >= 0) {
 		if (is_subarray(info.text_version)) {
-			char devnm[32];
-			char *ep;
+			char devnm[MD_NAME_MAX];
 			struct mdinfo *mdi;
 
-			strncpy(devnm, info.text_version+1, 32);
-			devnm[31] = 0;
-			ep = strchr(devnm, '/');
-			if (ep)
-				*ep = 0;
+			sysfs_get_container_devnm(&info, devnm);
 
 			mdi = sysfs_read(-1, devnm, GET_VERSION);
+			if (!mdi) {
+				pr_err("Cannot open sysfs for container %s\n", devnm);
+				goto abort_locked;
+			}
 
-			pr_info("Creating array inside %s container %s\n",
-				mdi?mdi->text_version:"managed", devnm);
+			pr_info("Creating array inside %s container /dev/%s\n", mdi->text_version,
+				devnm);
+
 			sysfs_free(mdi);
 		} else
-			pr_info("Defaulting to version %s metadata\n",
-				info.text_version);
+			pr_info("Defaulting to version %s metadata\n", info.text_version);
 	}
 
 	map_update(&map, fd2devnm(mdfd), info.text_version,

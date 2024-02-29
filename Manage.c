@@ -178,7 +178,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	struct map_ent *map = NULL;
 	struct mdinfo *mdi;
 	char devnm[32];
-	char container[32];
+	char container[MD_NAME_MAX] = {0};
 	int err;
 	int count;
 	char buf[SYSFS_MAX_BUF_SIZE];
@@ -192,15 +192,9 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	 * to stop is probably a bad idea.
 	 */
 	mdi = sysfs_read(fd, NULL, GET_LEVEL|GET_COMPONENT|GET_VERSION);
-	if (mdi && is_subarray(mdi->text_version)) {
-		char *sl;
-		strncpy(container, mdi->text_version+1, sizeof(container));
-		container[sizeof(container)-1] = 0;
-		sl = strchr(container, '/');
-		if (sl)
-			*sl = 0;
-	} else
-		container[0] = 0;
+	if (mdi && is_subarray(mdi->text_version))
+		sysfs_get_container_devnm(mdi, container);
+
 	close(fd);
 	count = 5;
 	while (((fd = ((devname[0] == '/')
