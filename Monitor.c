@@ -1008,34 +1008,6 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 	return new_found;
 }
 
-static int get_required_spare_criteria(struct state *st,
-				       struct spare_criteria *sc)
-{
-	int fd;
-
-	if (!st->metadata || !st->metadata->ss->get_spare_criteria) {
-		sc->min_size = 0;
-		sc->sector_size = 0;
-		return 0;
-	}
-
-	fd = open(st->devname, O_RDONLY);
-	if (fd < 0)
-		return 1;
-	if (st->metadata->ss->external)
-		st->metadata->ss->load_container(st->metadata, fd, st->devname);
-	else
-		st->metadata->ss->load_super(st->metadata, fd, st->devname);
-	close(fd);
-	if (!st->metadata->sb)
-		return 1;
-
-	st->metadata->ss->get_spare_criteria(st->metadata, sc);
-	st->metadata->ss->free_super(st->metadata);
-
-	return 0;
-}
-
 static int check_donor(struct state *from, struct state *to)
 {
 	struct state *sub;
@@ -1178,8 +1150,11 @@ static void try_spare_migration(struct state *statelist)
 				/* member of a container */
 				to = to->parent;
 
-			if (get_required_spare_criteria(to, &sc))
-				continue;
+			if (to->metadata->ss->get_spare_criteria)
+				if (to->metadata->ss->get_spare_criteria(to->metadata, to->devname,
+									 &sc))
+					continue;
+
 			if (to->metadata->ss->external) {
 				/* We must make sure there is
 				 * no suitable spare in container already.

@@ -1736,46 +1736,6 @@ static __u32 imsm_min_reserved_sectors(struct intel_super *super)
 	return  (remainder < rv) ? remainder : rv;
 }
 
-/*
- * Return minimum size of a spare and sector size
- * that can be used in this array
- */
-int get_spare_criteria_imsm(struct supertype *st, struct spare_criteria *c)
-{
-	struct intel_super *super = st->sb;
-	struct dl *dl;
-	struct extent *e;
-	int i;
-	unsigned long long size = 0;
-
-	if (!super)
-		return -EINVAL;
-	/* find first active disk in array */
-	dl = super->disks;
-	while (dl && (is_failed(&dl->disk) || dl->index == -1))
-		dl = dl->next;
-	if (!dl)
-		return -EINVAL;
-	/* find last lba used by subarrays */
-	e = get_extents(super, dl, 0);
-	if (!e)
-		return -EINVAL;
-	for (i = 0; e[i].size; i++)
-		continue;
-	if (i > 0)
-		size = e[i-1].start + e[i-1].size;
-	free(e);
-
-	/* add the amount of space needed for metadata */
-	size += imsm_min_reserved_sectors(super);
-
-	c->min_size = size * 512;
-	c->sector_size = super->sector_size;
-	c->criteria_set = true;
-
-	return 0;
-}
-
 static bool is_gen_migration(struct imsm_dev *dev);
 
 #define IMSM_4K_DIV 8
@@ -11295,6 +11255,84 @@ static const char *imsm_get_disk_controller_domain(const char *path)
 	return drv;
 }
 
+/**
+ * get_spare_criteria_imsm() - set spare criteria.
+ * @st: supertype.
+ * @mddev_path: path to md device devnode, it must be container.
+ * @c: spare_criteria struct to fill, not NULL.
+ *
+ * If superblock is not loaded, use mddev_path to load_container. It must be given in this case.
+ * Filles size and sector size accordingly to superblock.
+ */
+mdadm_status_t get_spare_criteria_imsm(struct supertype *st, char *mddev_path,
+				       struct spare_criteria *c)
+{
+	mdadm_status_t ret = MDADM_STATUS_ERROR;
+	bool free_superblock = false;
+	unsigned long long size = 0;
+	struct intel_super *super;
+	struct extent *e;
+	struct dl *dl;
+	int i;
+
+	/* If no superblock and no mddev_path, we cannot load superblock. */
+	assert(st->sb || mddev_path);
+
+	if (mddev_path) {
+		int fd = open(mddev_path, O_RDONLY);
+
+		if (!is_fd_valid(fd))
+			return MDADM_STATUS_ERROR;
+
+		if (!st->sb) {
+			if (load_container_imsm(st, fd, st->devnm)) {
+				close(fd);
+				return MDADM_STATUS_ERROR;
+			}
+			free_superblock = true;
+		}
+		close(fd);
+	}
+
+	super = st->sb;
+
+	/* find first active disk in array */
+	dl = super->disks;
+	while (dl && (is_failed(&dl->disk) || dl->index == -1))
+		dl = dl->next;
+
+	if (!dl)
+		goto out;
+
+	/* find last lba used by subarrays */
+	e = get_extents(super, dl, 0);
+	if (!e)
+		goto out;
+
+	for (i = 0; e[i].size; i++)
+		continue;
+	if (i > 0)
+		size = e[i - 1].start + e[i - 1].size;
+	free(e);
+
+	/* add the amount of space needed for metadata */
+	size += imsm_min_reserved_sectors(super);
+
+	c->min_size = size * 512;
+	c->sector_size = super->sector_size;
+	c->criteria_set = true;
+	ret = MDADM_STATUS_SUCCESS;
+
+out:
+	if (free_superblock)
+		free_super_imsm(st);
+
+	if (ret != MDADM_STATUS_SUCCESS)
+		c->criteria_set = false;
+
+	return ret;
+}
+
 static char *imsm_find_array_devnm_by_subdev(int subdev, char *container)
 {
 	static char devnm[32];
@@ -11425,7 +11463,7 @@ static struct mdinfo *get_spares_for_grow(struct supertype *st)
 {
 	struct spare_criteria sc;
 
-	get_spare_criteria_imsm(st, &sc);
+	get_spare_criteria_imsm(st, NULL, &sc);
 	return container_choose_spares(st, &sc, NULL, NULL, NULL, 0);
 }
 

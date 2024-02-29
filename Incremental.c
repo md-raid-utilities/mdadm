@@ -833,6 +833,53 @@ container_members_max_degradation(struct map_ent *map, struct map_ent *me)
 	return max_degraded;
 }
 
+/**
+ * incremental_external_test_spare_criteria() - helper to test spare criteria.
+ * @st: supertype, must be not NULL, it is duplicated here.
+ * @container_devnm: devnm of the container.
+ * @disk_fd: file descriptor of device to tested.
+ * @verbose: verbose flag.
+ *
+ * The function is used on new drive verification path to check if it can be added to external
+ * container. To test spare criteria, metadata must be loaded. It duplicates super to not mess in
+ * original one.
+ * Function is executed if superblock supports get_spare_criteria(), otherwise success is returned.
+ */
+mdadm_status_t incremental_external_test_spare_criteria(struct supertype *st, char *container_devnm,
+							int disk_fd, int verbose)
+{
+	mdadm_status_t rv = MDADM_STATUS_ERROR;
+	char container_devname[PATH_MAX];
+	struct spare_criteria sc = {0};
+	struct supertype *dup;
+
+	if (!st->ss->get_spare_criteria)
+		return MDADM_STATUS_SUCCESS;
+
+	dup = dup_super(st);
+	snprintf(container_devname, PATH_MAX, "/dev/%s", container_devnm);
+
+	if (dup->ss->get_spare_criteria(dup, container_devname, &sc) != 0) {
+		if (verbose > 1)
+			pr_err("Failed to get spare criteria for %s\n", container_devname);
+		goto out;
+	}
+
+	if (!disk_fd_matches_criteria(disk_fd, &sc)) {
+		if (verbose > 1)
+			pr_err("Disk does not match spare criteria for %s\n", container_devname);
+		goto out;
+	}
+
+	rv = MDADM_STATUS_SUCCESS;
+
+out:
+	dup->ss->free_super(dup);
+	free(dup);
+
+	return rv;
+}
+
 static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 			   struct map_ent *target, int bare,
 			   struct supertype *st, int verbose)
@@ -873,8 +920,7 @@ static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 		struct supertype *st2;
 		struct domainlist *dl = NULL;
 		struct mdinfo *sra;
-		unsigned long long devsize, freesize = 0;
-		struct spare_criteria sc = {0};
+		unsigned long long freesize = 0;
 
 		if (is_subarray(mp->metadata))
 			continue;
@@ -925,34 +971,19 @@ static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 		if (sra->array.failed_disks == -1)
 			sra->array.failed_disks = container_members_max_degradation(map, mp);
 
-		get_dev_size(dfd, NULL, &devsize);
 		if (sra->component_size == 0) {
-			/* true for containers, here we must read superblock
-			 * to obtain minimum spare size */
-			struct supertype *st3 = dup_super(st2);
-			int mdfd = open_dev(mp->devnm);
-			if (mdfd < 0) {
-				free(st3);
+			/* true for containers */
+			if (incremental_external_test_spare_criteria(st2, mp->devnm, dfd, verbose))
 				goto next;
-			}
-			if (st3->ss->load_container &&
-			    !st3->ss->load_container(st3, mdfd, mp->path)) {
-				if (st3->ss->get_spare_criteria)
-					st3->ss->get_spare_criteria(st3, &sc);
-				st3->ss->free_super(st3);
-			}
-			free(st3);
-			close(mdfd);
 		}
-		if ((sra->component_size > 0 &&
-		     st2->ss->validate_geometry(st2, sra->array.level, sra->array.layout,
+
+		if (sra->component_size > 0 &&
+		    st2->ss->validate_geometry(st2, sra->array.level, sra->array.layout,
 						sra->array.raid_disks, &sra->array.chunk_size,
 						sra->component_size,
 						sra->devs ? sra->devs->data_offset : INVALID_SECTORS,
 						devname, &freesize, sra->consistency_policy,
-						0) &&
-		     freesize < sra->component_size) ||
-		    (sra->component_size == 0 && devsize < sc.min_size)) {
+						0) && freesize < sra->component_size) {
 			if (verbose > 1)
 				pr_err("not adding %s to %s as it is too small\n",
 					devname, mp->path);

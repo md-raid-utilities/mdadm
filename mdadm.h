@@ -1116,10 +1116,9 @@ extern struct superswitch {
 	 * Return spare criteria for array:
 	 * - minimum disk size can be used in array;
 	 * - sector size can be used in array.
-	 * Return values: 0 - for success and -EINVAL on error.
 	 */
-	int (*get_spare_criteria)(struct supertype *st,
-				  struct spare_criteria *sc);
+	mdadm_status_t (*get_spare_criteria)(struct supertype *st, char *mddev_path,
+					     struct spare_criteria *sc);
 	/* Find somewhere to put a bitmap - possibly auto-size it - and
 	 * update the metadata to record this.  The array may be newly
 	 * created, in which case data_size may be updated, or it might
