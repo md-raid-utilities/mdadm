@@ -11220,39 +11220,90 @@ abort:
 	return retval;
 }
 
-static char disk_by_path[] = "/dev/disk/by-path/";
-
-static const char *imsm_get_disk_controller_domain(const char *path)
+/**
+ * test_and_add_drive_controller_policy_imsm() - add disk controller to policies list.
+ * @type: Policy type to search on list.
+ * @pols: List of currently recorded policies.
+ * @disk_fd: File descriptor of the device to check.
+ * @hba: The hba disk is attached, could be NULL if verification is disabled.
+ * @verbose: verbose flag.
+ *
+ * IMSM cares about drive physical placement. If @hba is not set, it adds unknown policy.
+ * If there is no controller policy on pols we are free to add first one. If there is a policy then,
+ * new must be the same - no controller mixing allowed.
+ */
+static mdadm_status_t
+test_and_add_drive_controller_policy_imsm(const char * const type, dev_policy_t **pols, int disk_fd,
+					  struct sys_dev *hba, const int verbose)
 {
-	char disk_path[PATH_MAX];
-	char *drv=NULL;
-	struct stat st;
+	const char *controller_policy = get_sys_dev_type(SYS_DEV_UNKNOWN);
+	struct dev_policy *pol = pol_find(*pols, (char *)type);
+	char devname[MAX_RAID_SERIAL_LEN];
 
-	strncpy(disk_path, disk_by_path, PATH_MAX);
-	strncat(disk_path, path, PATH_MAX - strlen(disk_path) - 1);
-	if (stat(disk_path, &st) == 0) {
-		struct sys_dev* hba;
-		char *path;
+	if (hba)
+		controller_policy = get_sys_dev_type(hba->type);
 
-		path = devt_to_devpath(st.st_rdev, 1, NULL);
-		if (path == NULL)
-			return "unknown";
-		hba = find_disk_attached_hba(-1, path);
-		if (hba && hba->type == SYS_DEV_SAS)
-			drv = "isci";
-		else if (hba && (hba->type == SYS_DEV_SATA || hba->type == SYS_DEV_SATA_VMD))
-			drv = "ahci";
-		else if (hba && hba->type == SYS_DEV_VMD)
-			drv = "vmd";
-		else if (hba && hba->type == SYS_DEV_NVME)
-			drv = "nvme";
-		else
-			drv = "unknown";
-		dprintf("path: %s hba: %s attached: %s\n",
-			path, (hba) ? hba->path : "NULL", drv);
-		free(path);
+	if (!pol) {
+		pol_add(pols, (char *)type, (char *)controller_policy, "imsm");
+		return MDADM_STATUS_SUCCESS;
 	}
-	return drv;
+
+	if (strcmp(pol->value, controller_policy) == 0)
+		return MDADM_STATUS_SUCCESS;
+
+	fd2devname(disk_fd, devname);
+	pr_vrb("Intel(R) raid controller \"%s\" found for %s, but \"%s\" was detected earlier\n",
+	       controller_policy, devname, pol->value);
+	pr_vrb("Disks under different controllers cannot be used, aborting\n");
+
+	return MDADM_STATUS_ERROR;
+}
+
+struct imsm_drive_policy {
+	char *type;
+	mdadm_status_t (*test_and_add_drive_policy)(const char * const type,
+						    struct dev_policy **pols, int disk_fd,
+						    struct sys_dev *hba, const int verbose);
+};
+
+struct imsm_drive_policy imsm_policies[] = {
+	{"controller", test_and_add_drive_controller_policy_imsm},
+};
+
+mdadm_status_t test_and_add_drive_policies_imsm(struct dev_policy **pols, int disk_fd,
+						const int verbose)
+{
+	struct imsm_drive_policy *imsm_pol;
+	struct sys_dev *hba = NULL;
+	char path[PATH_MAX];
+	mdadm_status_t ret;
+	unsigned int i;
+
+	/* If imsm platform verification is disabled, do not search for hba. */
+	if (check_no_platform() != 1) {
+		if (!diskfd_to_devpath(disk_fd, 1, path)) {
+			pr_vrb("IMSM: Failed to retrieve device path by file descriptor.\n");
+			return MDADM_STATUS_ERROR;
+		}
+
+		hba = find_disk_attached_hba(disk_fd, path);
+		if (!hba) {
+			pr_vrb("IMSM: Failed to find hba for %s\n", path);
+			return MDADM_STATUS_ERROR;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(imsm_policies); i++) {
+		imsm_pol = &imsm_policies[i];
+
+		ret = imsm_pol->test_and_add_drive_policy(imsm_pol->type, pols, disk_fd, hba,
+							  verbose);
+		if (ret != MDADM_STATUS_SUCCESS)
+			/* Inherit error code */
+			return ret;
+	}
+
+	return MDADM_STATUS_SUCCESS;
 }
 
 /**
@@ -11280,6 +11331,7 @@ mdadm_status_t get_spare_criteria_imsm(struct supertype *st, char *mddev_path,
 
 	if (mddev_path) {
 		int fd = open(mddev_path, O_RDONLY);
+		mdadm_status_t rv;
 
 		if (!is_fd_valid(fd))
 			return MDADM_STATUS_ERROR;
@@ -11291,7 +11343,12 @@ mdadm_status_t get_spare_criteria_imsm(struct supertype *st, char *mddev_path,
 			}
 			free_superblock = true;
 		}
+
+		rv = mddev_test_and_add_drive_policies(st, &c->pols, fd, 0);
 		close(fd);
+
+		if (rv != MDADM_STATUS_SUCCESS)
+			goto out;
 	}
 
 	super = st->sb;
@@ -13026,7 +13083,7 @@ struct superswitch super_imsm = {
 	.update_subarray = update_subarray_imsm,
 	.load_container	= load_container_imsm,
 	.default_geometry = default_geometry_imsm,
-	.get_disk_controller_domain = imsm_get_disk_controller_domain,
+	.test_and_add_drive_policies = test_and_add_drive_policies_imsm,
 	.reshape_super  = imsm_reshape_super,
 	.manage_reshape = imsm_manage_reshape,
 	.recover_backup = recover_backup_imsm,
