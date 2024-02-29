@@ -940,6 +940,23 @@ struct reshape {
 	unsigned long long new_size; /* New size of array in sectors */
 };
 
+/**
+ * struct dev_policy - Data structure for policy management.
+ * @next: pointer to next dev_policy.
+ * @name: policy name, category.
+ * @metadata: the metadata type it affects.
+ * @value: value of the policy.
+ *
+ * The functions to manipulate dev_policy lists do not free elements, so they must be statically
+ * allocated. @name and @metadata can be compared by address.
+ */
+typedef struct dev_policy {
+	struct dev_policy *next;
+	char *name;
+	const char *metadata;
+	const char *value;
+} dev_policy_t;
+
 /* A superswitch provides entry point to a metadata handler.
  *
  * The superswitch primarily operates on some "metadata" that
@@ -1168,6 +1185,25 @@ extern struct superswitch {
 				 char *subdev, unsigned long long *freesize,
 				 int consistency_policy, int verbose);
 
+	/**
+	 * test_and_add_drive_policies() - test new and add custom policies from metadata handler.
+	 * @pols: list of currently recorded policies.
+	 * @disk_fd: file descriptor of the device to check.
+	 * @verbose: verbose flag.
+	 *
+	 * Used by IMSM to verify all drives in container/array, against requirements not recored
+	 * in superblock, like controller type for IMSM. It should check all drives even if
+	 * they are not actually used, because mdmon or kernel are free to use any drive assigned to
+	 * container automatically.
+	 *
+	 * Generating and comparison methods belong to metadata handler. It is not mandatory to be
+	 * implemented.
+	 *
+	 * Return: MDADM_STATUS_SUCCESS is expected on success.
+	 */
+	mdadm_status_t (*test_and_add_drive_policies)(dev_policy_t **pols, int disk_fd,
+						      const int verbose);
+
 	/* Return a linked list of 'mdinfo' structures for all arrays
 	 * in the container.  For non-containers, it is like
 	 * getinfo_super with an allocated mdinfo.*/
@@ -1372,23 +1408,6 @@ extern int get_dev_sector_size(int fd, char *dname, unsigned int *sectsizep);
 extern int must_be_container(int fd);
 void wait_for(char *dev, int fd);
 
-/*
- * Data structures for policy management.
- * Each device can have a policy structure that lists
- * various name/value pairs each possibly with a metadata associated.
- * The policy list is sorted by name/value/metadata
- */
-struct dev_policy {
-	struct dev_policy *next;
-	char *name;	/* None of these strings are allocated.  They are
-			 * all just references to strings which are known
-			 * to exist elsewhere.
-			 * name and metadata can be compared by address equality.
-			 */
-	const char *metadata;
-	const char *value;
-};
-
 extern char pol_act[], pol_domain[], pol_metadata[], pol_auto[];
 
 /* iterate over the sublist starting at list, having the same
@@ -1430,7 +1449,6 @@ extern struct dev_policy *disk_policy(struct mdinfo *disk);
 extern struct dev_policy *devid_policy(int devid);
 extern void dev_policy_free(struct dev_policy *p);
 
-//extern void pol_new(struct dev_policy **pol, char *name, char *val, char *metadata);
 extern void pol_add(struct dev_policy **pol, char *name, char *val, char *metadata);
 extern struct dev_policy *pol_find(struct dev_policy *pol, char *name);
 
