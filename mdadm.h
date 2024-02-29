@@ -1286,21 +1286,6 @@ extern struct superswitch {
 	 */
 	struct mdinfo *(*activate_spare)(struct active_array *a,
 					 struct metadata_update **updates);
-	/*
-	 * Return statically allocated string that represents metadata specific
-	 * controller domain of the disk. The domain is used in disk domain
-	 * matching functions. Disks belong to the same domain if the they have
-	 * the same domain from mdadm.conf and belong the same metadata domain.
-	 * Returning NULL or not providing this handler means that metadata
-	 * does not distinguish the differences between disks that belong to
-	 * different controllers. They are in the domain specified by
-	 * configuration file (mdadm.conf).
-	 * In case when the metadata has the notion of domains based on disk
-	 * it shall return NULL for disks that do not belong to the controller
-	 * the supported domains. Such disks will form another domain and won't
-	 * be mixed with supported ones.
-	 */
-	const char *(*get_disk_controller_domain)(const char *path);
 
 	/* for external backup area */
 	int (*recover_backup)(struct supertype *st, struct mdinfo *info);

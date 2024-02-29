@@ -365,7 +365,6 @@ struct dev_policy *path_policy(char **paths, char *type)
 {
 	struct pol_rule *rules;
 	struct dev_policy *pol = NULL;
-	int i;
 
 	rules = config_rules;
 
@@ -379,18 +378,6 @@ struct dev_policy *path_policy(char **paths, char *type)
 					pol_merge_part(&pol, rules->rule, part);
 		rules = rules->next;
 	}
-
-	/* Now add any metadata-specific internal knowledge
-	 * about this path
-	 */
-	for (i=0; paths && paths[0] && superlist[i]; i++)
-		if (superlist[i]->get_disk_controller_domain) {
-			const char *d =
-				superlist[i]->get_disk_controller_domain(
-					paths[0]);
-			if (d)
-				pol_new(&pol, pol_domain, d, superlist[i]->name);
-		}
 
 	pol_sort(&pol);
 	pol_dedup(pol);
