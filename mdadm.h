@@ -1452,6 +1452,13 @@ extern void dev_policy_free(struct dev_policy *p);
 extern void pol_add(struct dev_policy **pol, char *name, char *val, char *metadata);
 extern struct dev_policy *pol_find(struct dev_policy *pol, char *name);
 
+extern mdadm_status_t drive_test_and_add_policies(struct supertype *st, dev_policy_t **pols,
+						  int fd, const int verbose);
+extern mdadm_status_t sysfs_test_and_add_drive_policies(struct supertype *st, dev_policy_t **pols,
+							struct mdinfo *mdi, const int verbose);
+extern mdadm_status_t mddev_test_and_add_drive_policies(struct supertype *st, dev_policy_t **pols,
+							int array_fd, const int verbose);
+
 enum policy_action {
 	act_default,
 	act_include,

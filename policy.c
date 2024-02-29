@@ -397,6 +397,99 @@ struct dev_policy *path_policy(char **paths, char *type)
 	return pol;
 }
 
+/**
+ * drive_test_and_add_policies() - get policies for drive and add them to pols.
+ * @st: supertype.
+ * @pols: pointer to pointer of first list entry, cannot be NULL, may point to NULL.
+ * @fd: device descriptor.
+ * @verbose: verbose flag.
+ *
+ * If supertype doesn't support this functionality return success. Use metadata handler to get
+ * policies.
+ */
+mdadm_status_t drive_test_and_add_policies(struct supertype *st, dev_policy_t **pols, int fd,
+					   const int verbose)
+{
+	if (!st->ss->test_and_add_drive_policies)
+		return MDADM_STATUS_SUCCESS;
+
+	if (st->ss->test_and_add_drive_policies(pols, fd, verbose) == MDADM_STATUS_SUCCESS) {
+		/* After successful call list cannot be empty */
+		assert(*pols);
+		return MDADM_STATUS_SUCCESS;
+	}
+
+	return MDADM_STATUS_ERROR;
+}
+
+/**
+ * sysfs_test_and_add_policies() - get policies for mddev and add them to pols.
+ * @st: supertype.
+ * @pols: pointer to pointer of first list entry, cannot be NULL, may point to NULL.
+ * @mdi: mdinfo describes the MD array, must have GET_DISKS option.
+ * @verbose: verbose flag.
+ *
+ * If supertype doesn't support this functionality return success. To get policies, all disks
+ * connected to mddev are analyzed.
+ */
+mdadm_status_t sysfs_test_and_add_drive_policies(struct supertype *st, dev_policy_t **pols,
+						 struct mdinfo *mdi, const int verbose)
+{
+	struct mdinfo *sd;
+
+	if (!st->ss->test_and_add_drive_policies)
+		return MDADM_STATUS_SUCCESS;
+
+	for (sd = mdi->devs; sd; sd = sd->next) {
+		char *devpath = map_dev(sd->disk.major, sd->disk.minor, 0);
+		int fd = dev_open(devpath, O_RDONLY);
+		int rv;
+
+		if (!is_fd_valid(fd)) {
+			pr_err("Cannot open fd for %s\n", devpath);
+			return MDADM_STATUS_ERROR;
+		}
+
+		rv = drive_test_and_add_policies(st, pols, fd, verbose);
+		close(fd);
+
+		if (rv)
+			return MDADM_STATUS_ERROR;
+	}
+
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * mddev_test_and_add_policies() - get policies for mddev and add them to pols.
+ * @st: supertype.
+ * @pols: pointer to pointer of first list entry, cannot be NULL, may point to NULL.
+ * @array_fd: MD device descriptor.
+ * @verbose: verbose flag.
+ *
+ * If supertype doesn't support this functionality return success. Use fd to extract disks.
+ */
+mdadm_status_t mddev_test_and_add_drive_policies(struct supertype *st, dev_policy_t **pols,
+						 int array_fd, const int verbose)
+{
+	struct mdinfo *sra;
+	int ret;
+
+	if (!st->ss->test_and_add_drive_policies)
+		return MDADM_STATUS_SUCCESS;
+
+	sra = sysfs_read(array_fd, NULL, GET_DEVS);
+	if (!sra) {
+		pr_err("Cannot load sysfs for %s\n", fd2devnm(array_fd));
+		return MDADM_STATUS_ERROR;
+	}
+
+	ret = sysfs_test_and_add_drive_policies(st, pols, sra, verbose);
+
+	sysfs_free(sra);
+	return ret;
+}
+
 void pol_add(struct dev_policy **pol,
 		    char *name, char *val,
 		    char *metadata)
