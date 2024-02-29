@@ -695,6 +695,91 @@ skip_re_add:
 	return 0;
 }
 
+/**
+ * manage_add_external() - Add disk to external container.
+ * @st: external supertype pointer, must not be NULL, superblock is released here.
+ * @fd: container file descriptor, must not have O_EXCL mode.
+ * @disk_fd: device to add file descriptor.
+ * @disk_name: name of the device to add.
+ * @disc: disk info.
+ *
+ * Superblock is released here because any open fd with O_EXCL will block sysfs_add_disk().
+ */
+mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name,
+				   mdu_disk_info_t *disc)
+{
+	mdadm_status_t rv = MDADM_STATUS_ERROR;
+	char container_devpath[MD_NAME_MAX];
+	struct mdinfo new_mdi;
+	struct mdinfo *sra = NULL;
+	int container_fd;
+	int disk_fd = -1;
+
+	snprintf(container_devpath, MD_NAME_MAX, "%s", fd2devnm(fd));
+
+	container_fd = open_dev_excl(container_devpath);
+	if (!is_fd_valid(container_fd)) {
+		pr_err("Failed to get exclusive access to container %s\n", container_devpath);
+		return MDADM_STATUS_ERROR;
+	}
+
+	/* Check if metadata handler is able to accept the drive */
+	if (!st->ss->validate_geometry(st, LEVEL_CONTAINER, 0, 1, NULL, 0, 0, disk_name, NULL,
+				       0, 1))
+		goto out;
+
+	Kill(disk_name, NULL, 0, -1, 0);
+
+	disk_fd = dev_open(disk_name, O_RDWR | O_EXCL | O_DIRECT);
+	if (!is_fd_valid(disk_fd)) {
+		pr_err("Failed to exclusively open %s\n", disk_name);
+		goto out;
+	}
+
+	if (st->ss->add_to_super(st, disc, disk_fd, disk_name, INVALID_SECTORS))
+		goto out;
+
+	if (!mdmon_running(st->container_devnm))
+		st->ss->sync_metadata(st);
+
+	sra = sysfs_read(container_fd, NULL, 0);
+	if (!sra) {
+		pr_err("Failed to read sysfs for %s\n", disk_name);
+		goto out;
+	}
+
+	sra->array.level = LEVEL_CONTAINER;
+	/* Need to set data_offset and component_size */
+	st->ss->getinfo_super(st, &new_mdi, NULL);
+	new_mdi.disk.major = disc->major;
+	new_mdi.disk.minor = disc->minor;
+	new_mdi.recovery_start = 0;
+
+	st->ss->free_super(st);
+
+	if (sysfs_add_disk(sra, &new_mdi, 0) != 0) {
+		pr_err("Failed to add %s to container %s\n", disk_name, container_devpath);
+		goto out;
+	}
+	ping_monitor(container_devpath);
+	rv = MDADM_STATUS_SUCCESS;
+
+out:
+	close(container_fd);
+
+	if (sra)
+		sysfs_free(sra);
+
+	if (rv != MDADM_STATUS_SUCCESS && is_fd_valid(disk_fd))
+		/* Metadata handler records this descriptor, so release it only on failure. */
+		close(disk_fd);
+
+	if (st->sb)
+		st->ss->free_super(st);
+
+	return rv;
+}
+
 int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	       struct supertype *tst, mdu_array_info_t *array,
 	       int force, int verbose, char *devname,
@@ -966,68 +1051,8 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	if (dv->failfast == FlagSet)
 		disc.state |= (1 << MD_DISK_FAILFAST);
 	if (tst->ss->external) {
-		/* add a disk
-		 * to an external metadata container */
-		struct mdinfo new_mdi;
-		struct mdinfo *sra;
-		int container_fd;
-		char devnm[32];
-		int dfd;
-
-		strcpy(devnm, fd2devnm(fd));
-
-		container_fd = open_dev_excl(devnm);
-		if (container_fd < 0) {
-			pr_err("add failed for %s: could not get exclusive access to container\n",
-			       dv->devname);
-			tst->ss->free_super(tst);
+		if (manage_add_external(tst, fd, dv->devname, &disc) != MDADM_STATUS_SUCCESS)
 			goto unlock;
-		}
-
-		/* Check if metadata handler is able to accept the drive */
-		if (!tst->ss->validate_geometry(tst, LEVEL_CONTAINER, 0, 1, NULL,
-		    0, 0, dv->devname, NULL, 0, 1)) {
-			close(container_fd);
-			goto unlock;
-		}
-
-		Kill(dv->devname, NULL, 0, -1, 0);
-		dfd = dev_open(dv->devname, O_RDWR | O_EXCL|O_DIRECT);
-		if (tst->ss->add_to_super(tst, &disc, dfd,
-					  dv->devname, INVALID_SECTORS)) {
-			close(dfd);
-			close(container_fd);
-			goto unlock;
-		}
-		if (!mdmon_running(tst->container_devnm))
-			tst->ss->sync_metadata(tst);
-
-		sra = sysfs_read(container_fd, NULL, 0);
-		if (!sra) {
-			pr_err("add failed for %s: sysfs_read failed\n",
-			       dv->devname);
-			close(container_fd);
-			tst->ss->free_super(tst);
-			goto unlock;
-		}
-		sra->array.level = LEVEL_CONTAINER;
-		/* Need to set data_offset and component_size */
-		tst->ss->getinfo_super(tst, &new_mdi, NULL);
-		new_mdi.disk.major = disc.major;
-		new_mdi.disk.minor = disc.minor;
-		new_mdi.recovery_start = 0;
-		/* Make sure fds are closed as they are O_EXCL which
-		 * would block add_disk */
-		tst->ss->free_super(tst);
-		if (sysfs_add_disk(sra, &new_mdi, 0) != 0) {
-			pr_err("add new device to external metadata failed for %s\n", dv->devname);
-			close(container_fd);
-			sysfs_free(sra);
-			goto unlock;
-		}
-		ping_monitor(devnm);
-		sysfs_free(sra);
-		close(container_fd);
 	} else {
 		tst->ss->free_super(tst);
 		if (ioctl(fd, ADD_NEW_DISK, &disc)) {
