@@ -36,7 +36,7 @@
 #include	<ctype.h>
 #include	<dirent.h>
 #include	<dlfcn.h>
-
+#include	<limits.h>
 
 /*
  * following taken from linux/blkpg.h because they aren't
