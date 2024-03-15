@@ -127,7 +127,7 @@ do_test() {
 				dmesg | grep -iq "error\|call trace\|segfault" | grep -v "systemd" &&
 					die "dmesg prints errors when testing $_basename!"
 			fi
-			echo "succeeded"
+			succeed "succeeded\n"
 			_fail=0
 		else
 			save_log fail
@@ -315,10 +315,8 @@ parse_args() {
 }
 
 print_warning() {
-	cat <<-EOF
-	Warning! Tests are performed on system level mdadm!
-	If you want to test local build, you need to install it first!
-	EOF
+	warn "Warning! Tests are performed on system level mdadm!\n"
+	echo "If you want to test local build, you need to install it first!"
 }
 
 main() {
