@@ -23,6 +23,28 @@ mdsize12=19988
 # ddf needs bigger devices as 32Meg is reserved!
 ddfsize=65536
 
+# Systemd flags
+devname_as_serial_flag="IMSM_DEVNAME_AS_SERIAL=1"
+no_platform_flag="IMSM_NO_PLATFORM=1"
+
+# Common colors
+COLOR_FAIL='\033[0;31m' #RED
+COLOR_WARN='\033[1;33m' #YELLOW
+COLOR_SUCCESS='\033[0;32m' #GREEN
+COLOR_NONE='\033[0m'
+
+fail() {
+	printf "${COLOR_FAIL}$1${COLOR_NONE}"
+}
+
+warn() {
+	printf "${COLOR_WARN}$1${COLOR_NONE}"
+}
+
+succeed() {
+	printf "${COLOR_SUCCESS}$1${COLOR_NONE}"
+}
+
 # $1 is optional parameter, it shows why to save log
 save_log() {
 	status=$1
@@ -36,7 +58,8 @@ save_log() {
 	cat /proc/mdstat >> $logdir/$logfile
 	array=($(mdadm -Ds | cut -d' ' -f2))
 	[ "$1" == "fail" ] &&
-		echo "FAILED - see $logdir/$_basename.log and $logdir/$logfile for details"
+		fail "FAILED"
+		echo " - see $logdir/$_basename.log and $logdir/$logfile for details\n"
 	if [ $DEVTYPE == 'lvm' ]
 	then
 		# not supported lvm type yet
@@ -86,6 +109,7 @@ cleanup() {
 		$mdadm --zero ${disks[@]} &> /dev/null
 	;;
 	esac
+	clean_systemd_env
 }
 
 do_clean()
@@ -176,11 +200,31 @@ restore_selinux() {
 	setenforce $sys_selinux
 }
 
+setup_systemd_env() {
+	warn "Warning! Test suite will set up systemd environment!\n"
+	echo "Use \"systemctl show-environment\" to show systemd environment variables"
+	for env_var in $devname_as_serial_flag $no_platform_flag
+	do
+		systemctl set-environment $env_var
+		echo "Added $env_var" to systemd environment, use \
+		     \"systemctl unset-environment $env_var\" to remove it.
+	done
+}
+
+clean_systemd_env() {
+	for env_var in $devname_as_serial_flag $no_platform_flag
+	do
+		systemctl unset-environment $env_var
+		echo "Removed $env_var from systemd environment."
+	done
+}
+
 do_setup() {
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
 
 	check_env
+	setup_systemd_env
 	[ -d $logdir ] || mkdir -p $logdir
 
 	devlist=
