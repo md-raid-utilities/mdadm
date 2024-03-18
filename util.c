@@ -1867,8 +1867,7 @@ int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
 	int rv;
 
 	if (st->ss->external)
-		return sysfs_set_array(info, 9003);
-		
+		return sysfs_set_array(info);
 	memset(&inf, 0, sizeof(inf));
 	inf.major_version = info->array.major_version;
 	inf.minor_version = info->array.minor_version;

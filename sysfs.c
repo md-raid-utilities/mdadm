@@ -678,7 +678,7 @@ int sysfs_set_safemode(struct mdinfo *sra, unsigned long ms)
 	return sysfs_set_str(sra, NULL, "safe_mode_delay", delay);
 }
 
-int sysfs_set_array(struct mdinfo *info, int vers)
+int sysfs_set_array(struct mdinfo *info)
 {
 	int rv = 0;
 	char ver[100];
@@ -702,9 +702,7 @@ int sysfs_set_array(struct mdinfo *info, int vers)
 			if (strlen(buf) >= 9 && buf[9] == '-')
 				ver[9] = '-';
 
-		if ((vers % 100) < 2 ||
-		    sysfs_set_str(info, NULL, "metadata_version",
-				  ver) < 0) {
+		if (sysfs_set_str(info, NULL, "metadata_version", ver) < 0) {
 			pr_err("This kernel does not support external metadata.\n");
 			return 1;
 		}

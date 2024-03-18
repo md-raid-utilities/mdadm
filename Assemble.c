@@ -1988,7 +1988,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	 * and ignoring special character on the first place.
 	 */
 	if (strcmp(sra->text_version + 1, content->text_version + 1) != 0) {
-		if (sysfs_set_array(content, 9003) != 0) {
+		if (sysfs_set_array(content) != 0) {
 			sysfs_free(sra);
 			return 1;
 		}
