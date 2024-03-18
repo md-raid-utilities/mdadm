@@ -874,6 +874,7 @@ mdadm_status_t incremental_external_test_spare_criteria(struct supertype *st, ch
 	rv = MDADM_STATUS_SUCCESS;
 
 out:
+	dev_policy_free(sc.pols);
 	dup->ss->free_super(dup);
 	free(dup);
 

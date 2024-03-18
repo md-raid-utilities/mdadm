@@ -11518,10 +11518,15 @@ static int imsm_reshape_is_allowed_on_container(struct supertype *st,
  */
 static struct mdinfo *get_spares_for_grow(struct supertype *st)
 {
-	struct spare_criteria sc;
+	struct spare_criteria sc = {0};
+	struct mdinfo *spares;
 
 	get_spare_criteria_imsm(st, NULL, &sc);
-	return container_choose_spares(st, &sc, NULL, NULL, NULL, 0);
+	spares = container_choose_spares(st, &sc, NULL, NULL, NULL, 0);
+
+	dev_policy_free(sc.pols);
+
+	return spares;
 }
 
 /******************************************************************************
