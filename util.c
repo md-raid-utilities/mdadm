@@ -589,19 +589,21 @@ char *__fname_from_uuid(int id[4], int swap, char *buf, char sep)
 
 }
 
-char *fname_from_uuid(struct supertype *st, struct mdinfo *info,
-		      char *buf, char sep)
+/**
+ * fname_from_uuid() - generate uuid string. Should not be used with super1.
+ * @info: info with uuid
+ * @buf: buf to fill.
+ *
+ * This routine should not be used with super1. See detail_fname_from_uuid() for details. It does
+ * not use superswitch swapuuid as it should be 0 but it has to do UUID conversion if host is big
+ * endian- left for backward compatibility.
+ */
+char *fname_from_uuid(struct mdinfo *info, char *buf)
 {
-	// dirty hack to work around an issue with super1 superblocks...
-	// super1 superblocks need swapuuid set in order for assembly to
-	// work, but can't have it set if we want this printout to match
-	// all the other uuid printouts in super1.c, so we force swapuuid
-	// to 1 to make our printout match the rest of super1
 #if __BYTE_ORDER == BIG_ENDIAN
-	return __fname_from_uuid(info->uuid, 1, buf, sep);
+	return __fname_from_uuid(info->uuid, true, buf, ':');
 #else
-	return __fname_from_uuid(info->uuid, (st->ss == &super1) ? 1 :
-				 st->ss->swapuuid, buf, sep);
+	return __fname_from_uuid(info->uuid, false, buf, ':');
 #endif
 }
 

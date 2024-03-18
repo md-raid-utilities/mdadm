@@ -1617,7 +1617,7 @@ static void brief_examine_super_ddf(struct supertype *st, int verbose)
 	struct mdinfo info;
 	char nbuf[64];
 	getinfo_super_ddf(st, &info, NULL);
-	fname_from_uuid(st, &info, nbuf, ':');
+	fname_from_uuid(&info, nbuf);
 
 	printf("ARRAY metadata=ddf UUID=%s\n", nbuf + 5);
 }
@@ -1632,7 +1632,7 @@ static void brief_examine_subarrays_ddf(struct supertype *st, int verbose)
 	unsigned int i;
 	char nbuf[64];
 	getinfo_super_ddf(st, &info, NULL);
-	fname_from_uuid(st, &info, nbuf, ':');
+	fname_from_uuid(&info, nbuf);
 
 	for (i = 0; i < be16_to_cpu(ddf->virt->max_vdes); i++) {
 		struct virtual_entry *ve = &ddf->virt->entries[i];
@@ -1645,7 +1645,7 @@ static void brief_examine_subarrays_ddf(struct supertype *st, int verbose)
 		ddf->currentconf =&vcl;
 		vcl.vcnum = i;
 		uuid_from_super_ddf(st, info.uuid);
-		fname_from_uuid(st, &info, nbuf1, ':');
+		fname_from_uuid(&info, nbuf1);
 		_ddf_array_name(namebuf, ddf, i);
 		printf("ARRAY%s%s container=%s member=%d UUID=%s\n",
 		       namebuf[0] == '\0' ? "" : " " DEV_MD_DIR, namebuf,
@@ -1658,7 +1658,7 @@ static void export_examine_super_ddf(struct supertype *st)
 	struct mdinfo info;
 	char nbuf[64];
 	getinfo_super_ddf(st, &info, NULL);
-	fname_from_uuid(st, &info, nbuf, ':');
+	fname_from_uuid(&info, nbuf);
 	printf("MD_METADATA=ddf\n");
 	printf("MD_LEVEL=container\n");
 	printf("MD_UUID=%s\n", nbuf+5);
@@ -1798,7 +1798,7 @@ static void brief_detail_super_ddf(struct supertype *st, char *subarray)
 		return;
 	else
 		uuid_of_ddf_subarray(ddf, vcnum, info.uuid);
-	fname_from_uuid(st, &info, nbuf,':');
+	fname_from_uuid(&info, nbuf);
 	printf(" UUID=%s", nbuf + 5);
 }
 

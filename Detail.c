@@ -49,6 +49,30 @@ static int add_device(const char *dev, char ***p_devices,
 	return n_devices + 1;
 }
 
+/**
+ * detail_fname_from_uuid() - generate uuid string with special super1 handling.
+ * @mp: map entry to parse.
+ * @buf: buf to write.
+ *
+ * Hack to workaround an issue with super1 superblocks. It swapuuid set in order for assembly
+ * to work, but can't have it set if we want this printout to match all the other uuid printouts
+ * in super1.c, so we force swapuuid to 1 to make our printout match the rest of super1.
+ *
+ * Always convert uuid if host is big endian.
+ */
+char *detail_fname_from_uuid(struct map_ent *mp, char *buf)
+{
+#if __BYTE_ORDER == BIG_ENDIAN
+	bool swap = true;
+#else
+	bool swap = false;
+#endif
+	if (strncmp(mp->metadata, "1.", 2) == 0)
+		swap = true;
+
+	return __fname_from_uuid(mp->uuid, swap, buf, ':');
+}
+
 int Detail(char *dev, struct context *c)
 {
 	/*
@@ -256,7 +280,7 @@ int Detail(char *dev, struct context *c)
 			mp = map_by_devnm(&map, fd2devnm(fd));
 
 		if (mp) {
-			__fname_from_uuid(mp->uuid, 0, nbuf, ':');
+			detail_fname_from_uuid(mp, nbuf);
 			printf("MD_UUID=%s\n", nbuf + 5);
 			if (mp->path && strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
 				printf("MD_DEVNAME=%s\n", mp->path + DEV_MD_DIR_LEN);
