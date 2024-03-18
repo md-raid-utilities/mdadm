@@ -13116,6 +13116,7 @@ struct superswitch super_imsm = {
 	.validate_ppl	= validate_ppl_imsm,
 
 	.external	= 1,
+	.swapuuid	= 0,
 	.name = "imsm",
 
 /* for mdmon */

@@ -5162,6 +5162,7 @@ struct superswitch super_ddf = {
 	.default_geometry = default_geometry_ddf,
 
 	.external	= 1,
+	.swapuuid	= 0,
 
 /* for mdmon */
 	.open_new       = ddf_open_new,
