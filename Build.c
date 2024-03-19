@@ -156,12 +156,6 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		bitmap_fd = open(s->bitmap_file, O_RDWR);
 		if (bitmap_fd < 0) {
 			int major = BITMAP_MAJOR_HI;
-#if 0
-			if (s->bitmap_chunk == UnSet) {
-				pr_err("%s cannot be opened.\n", s->bitmap_file);
-				goto abort;
-			}
-#endif
 			bitmapsize = s->size >> 9; /* FIXME wrong for RAID10 */
 			if (CreateBitmap(s->bitmap_file, 1, NULL,
 					 s->bitmap_chunk, c->delay,

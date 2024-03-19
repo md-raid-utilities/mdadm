@@ -575,17 +575,6 @@ static void examine_super1(struct supertype *st, char *homehost)
 			inconsistent = 1;
 		}
 	}
-#if 0
-	/* This is confusing too */
-	faulty = 0;
-	for (i = 0; i < __le32_to_cpu(sb->max_dev); i++) {
-		int role = __le16_to_cpu(sb->dev_roles[i]);
-		if (role == MD_DISK_ROLE_FAULTY)
-			faulty++;
-	}
-	if (faulty)
-		printf(" %d failed", faulty);
-#endif
 	printf(" ('A' == active, '.' == missing, 'R' == replacing)");
 	printf("\n");
 	for (d = 0; d < __le32_to_cpu(sb->max_dev); d++) {

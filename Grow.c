@@ -4413,19 +4413,8 @@ static void validate(int afd, int bfd, unsigned long long offset)
 		lseek64(afd, __le64_to_cpu(bsb2.arraystart)*512, 0);
 		if ((unsigned long long)read(afd, abuf, len) != len)
 			fail("read first from array failed");
-		if (memcmp(bbuf, abuf, len) != 0) {
-#if 0
-			int i;
-			printf("offset=%llu len=%llu\n",
-			       (unsigned long long)__le64_to_cpu(bsb2.arraystart)*512, len);
-			for (i=0; i<len; i++)
-				if (bbuf[i] != abuf[i]) {
-					printf("first diff byte %d\n", i);
-					break;
-				}
-#endif
+		if (memcmp(bbuf, abuf, len) != 0)
 			fail("data1 compare failed");
-		}
 	}
 	if (bsb2.length2) {
 		unsigned long long len = __le64_to_cpu(bsb2.length2)*512;
