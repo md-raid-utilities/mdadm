@@ -11291,6 +11291,78 @@ test_and_add_drive_controller_policy_imsm(const char * const type, dev_policy_t 
 	return MDADM_STATUS_ERROR;
 }
 
+/**
+ * test_and_add_drive_encryption_policy_imsm() - add disk encryption to policies list.
+ * @type: policy type to search in the list.
+ * @pols: list of currently recorded policies.
+ * @disk_fd: file descriptor of the device to check.
+ * @hba: The hba to which the drive is attached, could be NULL if verification is disabled.
+ * @verbose: verbose flag.
+ *
+ * IMSM cares about drive encryption state. It is not allowed to mix disks with different
+ * encryption state within one md device.
+ * If there is no encryption policy on pols we are free to add first one.
+ * If there is a policy then, new must be the same.
+ */
+static mdadm_status_t
+test_and_add_drive_encryption_policy_imsm(const char * const type, dev_policy_t **pols, int disk_fd,
+					  struct sys_dev *hba, const int verbose)
+{
+	struct dev_policy *expected_policy = pol_find(*pols, (char *)type);
+	struct encryption_information information = {0};
+	char *encryption_state = "Unknown";
+	int status = MDADM_STATUS_SUCCESS;
+	bool encryption_checked = true;
+	char devname[PATH_MAX];
+
+	if (!hba)
+		goto check_policy;
+
+	switch (hba->type) {
+	case SYS_DEV_NVME:
+	case SYS_DEV_VMD:
+		status = get_nvme_opal_encryption_information(disk_fd, &information, verbose);
+		break;
+	case SYS_DEV_SATA:
+	case SYS_DEV_SATA_VMD:
+		status = get_ata_encryption_information(disk_fd, &information, verbose);
+		break;
+	default:
+		encryption_checked = false;
+	}
+
+	if (status) {
+		fd2devname(disk_fd, devname);
+		pr_vrb("Failed to read encryption information of device %s\n", devname);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (encryption_checked) {
+		if (information.status == ENC_STATUS_LOCKED) {
+			fd2devname(disk_fd, devname);
+			pr_vrb("Device %s is in Locked state, cannot use. Aborting.\n", devname);
+			return MDADM_STATUS_ERROR;
+		}
+		encryption_state = (char *)get_encryption_status_string(information.status);
+	}
+
+check_policy:
+	if (expected_policy) {
+		if (strcmp(expected_policy->value, encryption_state) == 0)
+			return MDADM_STATUS_SUCCESS;
+
+		fd2devname(disk_fd, devname);
+		pr_vrb("Encryption status \"%s\" detected for disk %s, but \"%s\" status was detected eariler.\n",
+		       encryption_state, devname, expected_policy->value);
+		pr_vrb("Disks with different encryption status cannot be used.\n");
+		return MDADM_STATUS_ERROR;
+	}
+
+	pol_add(pols, (char *)type, encryption_state, "imsm");
+
+	return MDADM_STATUS_SUCCESS;
+}
+
 struct imsm_drive_policy {
 	char *type;
 	mdadm_status_t (*test_and_add_drive_policy)(const char * const type,
@@ -11300,6 +11372,7 @@ struct imsm_drive_policy {
 
 struct imsm_drive_policy imsm_policies[] = {
 	{"controller", test_and_add_drive_controller_policy_imsm},
+	{"encryption", test_and_add_drive_encryption_policy_imsm}
 };
 
 mdadm_status_t test_and_add_drive_policies_imsm(struct dev_policy **pols, int disk_fd,
