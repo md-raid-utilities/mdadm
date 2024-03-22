@@ -393,8 +393,6 @@ struct md_list {
 	struct md_list *next;
 };
 
-#define pr_vrb(fmt, arg...) (void) (verbose && pr_err(fmt, ##arg))
-
 static __u8 migr_type(struct imsm_dev *dev)
 {
 	if (dev->vol.migr_type == MIGR_VERIFY &&
