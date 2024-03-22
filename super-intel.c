@@ -27,6 +27,7 @@
 #include <scsi/sg.h>
 #include <ctype.h>
 #include <dirent.h>
+#include "drive_encryption.h"
 
 /* MPB == Metadata Parameter Block */
 #define MPB_SIGNATURE "Intel Raid ISM Cfg Sig. "
@@ -2349,12 +2350,41 @@ static int imsm_read_serial(int fd, char *devname, __u8 *serial,
 			    size_t serial_buf_len);
 static void fd2devname(int fd, char *name);
 
-static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_base, int verbose)
+void print_encryption_information(int disk_fd, enum sys_dev_type hba_type)
+{
+	struct encryption_information information = {0};
+	mdadm_status_t status = MDADM_STATUS_SUCCESS;
+	const char *indent = "                  ";
+
+	switch (hba_type) {
+	case SYS_DEV_VMD:
+	case SYS_DEV_NVME:
+		status = get_nvme_opal_encryption_information(disk_fd, &information, 1);
+		break;
+	case SYS_DEV_SATA:
+	case SYS_DEV_SATA_VMD:
+		status = get_ata_encryption_information(disk_fd, &information, 1);
+		break;
+	default:
+		return;
+	}
+
+	if (status) {
+		pr_err("Failed to get drive encryption information.\n");
+		return;
+	}
+
+	printf("%sEncryption(Ability|Status): %s|%s\n", indent,
+	       get_encryption_ability_string(information.ability),
+	       get_encryption_status_string(information.status));
+}
+
+static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_base, int verbose)
 {
 	/* dump an unsorted list of devices attached to AHCI Intel storage
 	 * controller, as well as non-connected ports
 	 */
-	int hba_len = strlen(hba_path) + 1;
+	int hba_len = strlen(hba->path) + 1;
 	struct dirent *ent;
 	DIR *dir;
 	char *path = NULL;
@@ -2390,7 +2420,7 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
-		if (!path_attached_to_hba(path, hba_path)) {
+		if (!path_attached_to_hba(path, hba->path)) {
 			free(path);
 			path = NULL;
 			continue;
@@ -2493,6 +2523,8 @@ static int ahci_enumerate_ports(const char *hba_path, int port_count, int host_b
 				printf(" (%s)\n", buf);
 			else
 				printf(" ()\n");
+
+			print_encryption_information(fd, hba->type);
 			close(fd);
 		}
 		free(path);
@@ -2556,6 +2588,8 @@ static int print_nvme_info(struct sys_dev *hba)
 			printf(" (%s)\n", buf);
 		else
 			printf("()\n");
+
+		print_encryption_information(fd, hba->type);
 
 skip:
 		close_fd(&fd);
@@ -2812,7 +2846,7 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 				hba->path, get_sys_dev_type(hba->type));
 			if (hba->type == SYS_DEV_SATA || hba->type == SYS_DEV_SATA_VMD) {
 				host_base = ahci_get_port_count(hba->path, &port_count);
-				if (ahci_enumerate_ports(hba->path, port_count, host_base, verbose)) {
+				if (ahci_enumerate_ports(hba, port_count, host_base, verbose)) {
 					if (verbose > 0)
 						pr_err("failed to enumerate ports on %s controller at %s.\n",
 							get_sys_dev_type(hba->type), hba->pci_id);

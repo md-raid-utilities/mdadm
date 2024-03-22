@@ -33,3 +33,5 @@ get_nvme_opal_encryption_information(int disk_fd, struct encryption_information 
 mdadm_status_t
 get_ata_encryption_information(int disk_fd, struct encryption_information *information,
 			       const int verbose);
+const char *get_encryption_ability_string(enum encryption_ability ability);
+const char *get_encryption_status_string(enum encryption_status status);

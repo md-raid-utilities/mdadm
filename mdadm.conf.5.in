@@ -643,6 +643,9 @@ The
 disables encryption verification for devices with particular encryption support detected.
 Currently, only verification of SATA OPAL encryption can be disabled.
 It does not disable ATA security encryption verification.
+Currently effective only for
+.I IMSM
+metadata.
 Available parameter
 .I "sata_opal".
 

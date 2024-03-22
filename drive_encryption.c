@@ -141,6 +141,42 @@ typedef struct ata_trusted_computing {
 	__u16 var2 : 1;
 } __attribute__((__packed__)) ata_trusted_computing_t;
 
+mapping_t encryption_ability_map[] = {
+	{ "None", ENC_ABILITY_NONE },
+	{ "Other", ENC_ABILITY_OTHER },
+	{ "SED", ENC_ABILITY_SED },
+	{ NULL, UnSet }
+};
+
+mapping_t encryption_status_map[] = {
+	{ "Unencrypted", ENC_STATUS_UNENCRYPTED },
+	{ "Locked", ENC_STATUS_LOCKED },
+	{ "Unlocked", ENC_STATUS_UNLOCKED },
+	{ NULL, UnSet }
+};
+
+/**
+ * get_encryption_ability_string() - get encryption ability name string.
+ * @ability: encryption ability enum.
+ *
+ * Return: encryption ability string.
+ */
+const char *get_encryption_ability_string(enum encryption_ability ability)
+{
+	return map_num_s(encryption_ability_map, ability);
+}
+
+/**
+ * get_encryption_status_string() - get encryption status name string.
+ * @ability: encryption status enum.
+ *
+ * Return: encryption status string.
+ */
+const char *get_encryption_status_string(enum encryption_status status)
+{
+	return map_num_s(encryption_status_map, status);
+}
+
 /**
  * get_opal_locking_feature_description() - get opal locking feature description.
  * @response: response from Opal Discovery Level 0.
