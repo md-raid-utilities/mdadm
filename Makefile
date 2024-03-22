@@ -170,7 +170,7 @@ OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o u
        mdopen.o super0.o super1.o super-ddf.o super-intel.o bitmap.o \
        super-mbr.o super-gpt.o \
        restripe.o sysfs.o sha1.o mapfile.o crc32.o sg_io.o msg.o xmalloc.o \
-       platform-intel.o probe_roms.o crc32c.o
+       platform-intel.o probe_roms.o crc32c.o drive_encryption.o
 
 CHECK_OBJS = restripe.o uuid.o sysfs.o maps.o lib.o xmalloc.o dlink.o
 
@@ -183,7 +183,7 @@ MON_OBJS = mdmon.o monitor.o managemon.o uuid.o util.o maps.o mdstat.o sysfs.o c
 	Kill.o sg_io.o dlink.o ReadMe.o super-intel.o \
 	super-mbr.o super-gpt.o \
 	super-ddf.o sha1.o crc32.o msg.o bitmap.o xmalloc.o \
-	platform-intel.o probe_roms.o crc32c.o
+	platform-intel.o probe_roms.o crc32c.o drive_encryption.o
 
 MON_SRCS = $(patsubst %.o,%.c,$(MON_OBJS))
 
