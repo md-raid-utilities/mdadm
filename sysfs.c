@@ -1121,3 +1121,32 @@ void sysfsline(char *line)
 	sr->next = sysfs_rules;
 	sysfs_rules = sr;
 }
+
+/**
+ * sysfs_is_libata_allow_tpm_enabled() - check if libata allow_tmp is enabled.
+ * @verbose: verbose flag.
+ *
+ * Check if libata allow_tmp flag is set, this is required for SATA Opal Security commands to work.
+ *
+ * Return: true if allow_tpm enable, false otherwise.
+ */
+bool sysfs_is_libata_allow_tpm_enabled(const int verbose)
+{
+	const char *path = "/sys/module/libata/parameters/allow_tpm";
+	const char *expected_value = "1";
+	int fd = open(path, O_RDONLY);
+	char buf[3];
+
+	if (!is_fd_valid(fd)) {
+		pr_vrb("Failed open file descriptor to %s. Cannot check libata allow_tpm param.\n",
+		       path);
+		return false;
+	}
+
+	sysfs_fd_get_str(fd, buf, sizeof(buf));
+	close(fd);
+
+	if (strncmp(buf, expected_value, 1) == 0)
+		return true;
+	return false;
+}

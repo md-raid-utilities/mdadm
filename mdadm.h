@@ -853,6 +853,7 @@ extern int restore_stripes(int *dest, unsigned long long *offsets,
 			   int source, unsigned long long read_offset,
 			   unsigned long long start, unsigned long long length,
 			   char *src_buf);
+extern bool sysfs_is_libata_allow_tpm_enabled(const int verbose);
 
 #ifndef Sendmail
 #define Sendmail "/usr/lib/sendmail -t"

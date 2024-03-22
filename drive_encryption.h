@@ -30,3 +30,6 @@ typedef struct encryption_information {
 mdadm_status_t
 get_nvme_opal_encryption_information(int disk_fd, struct encryption_information *information,
 				     const int verbose);
+mdadm_status_t
+get_ata_encryption_information(int disk_fd, struct encryption_information *information,
+			       const int verbose);
