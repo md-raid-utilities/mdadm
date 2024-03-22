@@ -656,10 +656,18 @@ get_ata_encryption_information(int disk_fd, struct encryption_information *infor
 	if (status == MDADM_STATUS_ERROR)
 		return MDADM_STATUS_ERROR;
 
-	if (is_ata_trusted_computing_supported(buffer_identify) &&
-	    !sysfs_is_libata_allow_tpm_enabled(verbose)) {
-		pr_vrb("For SATA with Trusted Computing support, required libata.tpm_enabled=1.\n");
-		return MDADM_STATUS_ERROR;
+	/* Possible OPAL support, further checks require tpm_enabled.*/
+	if (is_ata_trusted_computing_supported(buffer_identify)) {
+		/* OPAL SATA encryption checking disabled. */
+		if (conf_get_sata_opal_encryption_no_verify())
+			return MDADM_STATUS_SUCCESS;
+
+		if (!sysfs_is_libata_allow_tpm_enabled(verbose)) {
+			pr_vrb("Detected SATA drive /dev/%s with Trusted Computing support.\n",
+			       fd2kname(disk_fd));
+			pr_vrb("Cannot verify encryption state. Requires libata.tpm_enabled=1.\n");
+			return MDADM_STATUS_ERROR;
+		}
 	}
 
 	ata_opal_status = is_ata_opal(disk_fd, buffer_identify, verbose);

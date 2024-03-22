@@ -81,7 +81,7 @@ char DefaultAltConfDir[] = CONFFILE2 ".d";
 
 enum linetype { Devices, Array, Mailaddr, Mailfrom, Program, CreateDev,
 		Homehost, HomeCluster, AutoMode, Policy, PartPolicy, Sysfs,
-		MonitorDelay, LTEnd };
+		MonitorDelay, EncryptionNoVerify, LTEnd };
 char *keywords[] = {
 	[Devices]  = "devices",
 	[Array]    = "array",
@@ -96,6 +96,7 @@ char *keywords[] = {
 	[PartPolicy]="part-policy",
 	[Sysfs]    = "sysfs",
 	[MonitorDelay] = "monitordelay",
+	[EncryptionNoVerify] = "ENCRYPTION_NO_VERIFY",
 	[LTEnd]    = NULL
 };
 
@@ -729,6 +730,19 @@ void monitordelayline(char *line)
 	}
 }
 
+static bool sata_opal_encryption_no_verify;
+void encryption_no_verify_line(char *line)
+{
+	char *word;
+
+	for (word = dl_next(line); word != line; word = dl_next(word)) {
+		if (strcasecmp(word, "sata_opal") == 0)
+			sata_opal_encryption_no_verify = true;
+		else
+			pr_err("unrecognised word on ENCRYPTION_NO_VERIFY line: %s\n", word);
+	}
+}
+
 char auto_yes[] = "yes";
 char auto_no[] = "no";
 char auto_homehost[] = "homehost";
@@ -913,6 +927,9 @@ void conf_file(FILE *f)
 		case MonitorDelay:
 			monitordelayline(line);
 			break;
+		case EncryptionNoVerify:
+			encryption_no_verify_line(line);
+			break;
 		default:
 			pr_err("Unknown keyword %s\n", line);
 		}
@@ -1073,6 +1090,12 @@ int conf_get_monitor_delay(void)
 {
 	load_conffile();
 	return monitor_delay;
+}
+
+bool conf_get_sata_opal_encryption_no_verify(void)
+{
+	load_conffile();
+	return sata_opal_encryption_no_verify;
 }
 
 struct createinfo *conf_get_create_info(void)

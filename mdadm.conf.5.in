@@ -636,6 +636,17 @@ If multiple
 .B MINITORDELAY
 lines are provided, only first non-zero value is considered.
 
+.TP
+.B ENCRYPTION_NO_VERIFY
+The
+.B ENCRYPTION_NO_VERIFY
+disables encryption verification for devices with particular encryption support detected.
+Currently, only verification of SATA OPAL encryption can be disabled.
+It does not disable ATA security encryption verification.
+Available parameter
+.I "sata_opal".
+
+
 .SH FILES
 
 .SS {CONFFILE}
@@ -744,6 +755,8 @@ SYSFS uuid=bead5eb6:31c17a27:da120ba2:7dfda40d group_thread_cnt=4
 sync_speed_max=1000000
 .br
 MONITORDELAY 60
+.br
+ENCRYPTION_NO_VERIFY sata_opal
 
 .SH SEE ALSO
 .BR mdadm (8),
