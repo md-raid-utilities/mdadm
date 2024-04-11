@@ -1,0 +1,41 @@
+name: review
+on: [pull_request]
+env:
+  cflags: -Werror
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    name: Compilation test with gcc
+    strategy:
+      matrix:
+        gcc-version: [7, 8, 9, 10, 11, 12, 13]
+    steps:
+        - uses: actions/checkout@v3
+        - name: 'Add ubuntu repository and install dependencies'
+          run: .github/tools/install_ubuntu_packages.sh ${{ matrix.gcc-version }}
+        - name: 'Make with DEBUG flag'
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-DEBUG && make clean
+        - name: 'Make with DEBIAN flag'
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXGALGS=-DEBIAN && make clean
+        - name: 'Make with USE_PTHREADS flag'
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-USE_PTHREADS && make clean
+        - name: 'Make with DNO_LIBUDEV flag'
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-DNO_LIBUDEV && make clean
+        - name: 'Make'
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc)
+        - name: hardening-check mdadm
+          run: hardening-check mdadm
+        - name: hardening-check mdmon
+          run: hardening-check mdmon
+  checkpatch:
+    runs-on: ubuntu-latest
+    name: checkpatch review
+    steps:
+    - name: 'Calculate PR commits + 1'
+      run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: ${{ env.PR_FETCH_DEPTH }}
+    - name: Run checkpatch review
+      uses: webispy/checkpatch-action@v9
