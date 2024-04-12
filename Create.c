@@ -32,6 +32,10 @@
 #include	<sys/signalfd.h>
 #include	<sys/wait.h>
 
+#ifndef FALLOC_FL_ZERO_RANGE
+#define FALLOC_FL_ZERO_RANGE 16
+#endif
+
 static int round_size_and_verify(unsigned long long *size, int chunk)
 {
 	if (*size == 0)
