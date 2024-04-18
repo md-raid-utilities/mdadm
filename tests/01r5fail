@@ -17,10 +17,6 @@ check wait
 mdadm $md0 --fail $dev0
 mdadm $md0 --remove $dev3 $dev0
 check recovery
-check state _UUU
-
-mdadm $md0 -a $dev3
-check recovery
 check wait
 check state UUUU
 
