@@ -10,7 +10,7 @@ jobs:
       matrix:
         gcc-version: [7, 8, 9, 10, 11, 12, 13]
     steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
         - name: 'Add ubuntu repository and install dependencies'
           run: .github/tools/install_ubuntu_packages.sh ${{ matrix.gcc-version }}
         - name: 'Make with DEBUG flag'
@@ -33,7 +33,7 @@ jobs:
     steps:
     - name: 'Calculate PR commits + 1'
       run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: ${{ env.PR_FETCH_DEPTH }}
