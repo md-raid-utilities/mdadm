@@ -2147,19 +2147,14 @@ int Grow_reshape(char *devname, int fd,
 		if (s->size == MAX_SIZE)
 			s->size = 0;
 		array.size = s->size;
-		if (s->size & ~INT32_MAX) {
-			/* got truncated to 32bit, write to
-			 * component_size instead
-			 */
-			rv = sysfs_set_num(sra, NULL, "component_size", s->size);
-		} else {
-			rv = md_set_array_info(fd, &array);
+		rv = sysfs_set_num(sra, NULL, "component_size", s->size);
 
-			/* manage array size when it is managed externally
-			 */
-			if ((rv == 0) && st->ss->external)
-				rv = set_array_size(st, sra, sra->text_version);
-		}
+		/*
+		 * For native metadata, md/array_size is updated by kernel,
+		 * for external management update it here.
+		 */
+		if (st->ss->external && rv == MDADM_STATUS_SUCCESS)
+			rv = set_array_size(st, sra, sra->text_version);
 
 		if (raid0_takeover) {
 			/* do not recync non-existing parity,
