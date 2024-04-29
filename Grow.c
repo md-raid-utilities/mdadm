@@ -864,8 +864,7 @@ static void wait_reshape(struct mdinfo *sra)
 
 static int reshape_super(struct supertype *st, unsigned long long size,
 			 int level, int layout, int chunksize, int raid_disks,
-			 int delta_disks, char *backup_file, char *dev,
-			 int direction, int verbose)
+			 int delta_disks, char *dev, int direction, struct context *c)
 {
 	/* nothing extra to check in the native case */
 	if (!st->ss->external)
@@ -876,9 +875,8 @@ static int reshape_super(struct supertype *st, unsigned long long size,
 		return 1;
 	}
 
-	return st->ss->reshape_super(st, size, level, layout, chunksize,
-				     raid_disks, delta_disks, backup_file, dev,
-				     direction, verbose);
+	return st->ss->reshape_super(st, size, level, layout, chunksize, raid_disks,
+				     delta_disks, dev, direction, c);
 }
 
 static void sync_metadata(struct supertype *st)
@@ -1764,9 +1762,8 @@ static int reshape_container(char *container, char *devname,
 			     int mdfd,
 			     struct supertype *st,
 			     struct mdinfo *info,
-			     int force,
-			     char *backup_file, int verbose,
-			     int forked, int restart, int freeze_reshape);
+			     struct context *c,
+			     int forked, int restart);
 
 /**
  * prepare_external_reshape() - prepares update on external metadata if supported.
@@ -2004,9 +2001,8 @@ int Grow_reshape(char *devname, int fd,
 			goto release;
 		}
 
-		if (reshape_super(st, s->size, UnSet, UnSet, 0, 0, UnSet, NULL,
-				  devname, APPLY_METADATA_CHANGES,
-				  c->verbose > 0)) {
+		if (reshape_super(st, s->size, UnSet, UnSet, 0, 0, UnSet,
+				  devname, APPLY_METADATA_CHANGES, c)) {
 			rv = 1;
 			goto release;
 		}
@@ -2124,10 +2120,8 @@ size_change_error:
 			int err = errno;
 
 			/* restore metadata */
-			if (reshape_super(st, orig_size, UnSet, UnSet, 0, 0,
-					  UnSet, NULL, devname,
-					  ROLLBACK_METADATA_CHANGES,
-					  c->verbose) == 0)
+			if (reshape_super(st, orig_size, UnSet, UnSet, 0, 0, UnSet,
+			                  devname, ROLLBACK_METADATA_CHANGES, c) == 0)
 				sync_metadata(st);
 			pr_err("Cannot set device size for %s: %s\n",
 				devname, strerror(err));
@@ -2338,8 +2332,7 @@ size_change_error:
 		 */
 		close_fd(&fd);
 		rv = reshape_container(container, devname, -1, st, &info,
-				       c->force, c->backup_file, c->verbose,
-				       0, 0, 0);
+				       c, 0, 0);
 		frozen = 0;
 	} else {
 		/* get spare devices from external metadata
@@ -2356,13 +2349,13 @@ size_change_error:
 		}
 
 		/* Impose these changes on a single array.  First
-		 * check that the metadata is OK with the change. */
+		 * check that the metadata is OK with the change.
+		 */
 
 		if (reshape_super(st, 0, info.new_level,
 				  info.new_layout, info.new_chunk,
 				  info.array.raid_disks, info.delta_disks,
-				  c->backup_file, devname,
-				  APPLY_METADATA_CHANGES, c->verbose)) {
+				  devname, APPLY_METADATA_CHANGES, c)) {
 			rv = 1;
 			goto release;
 		}
@@ -3668,9 +3661,8 @@ int reshape_container(char *container, char *devname,
 		      int mdfd,
 		      struct supertype *st,
 		      struct mdinfo *info,
-		      int force,
-		      char *backup_file, int verbose,
-		      int forked, int restart, int freeze_reshape)
+		      struct context *c,
+		      int forked, int restart)
 {
 	struct mdinfo *cc = NULL;
 	int rv = restart;
@@ -3683,8 +3675,7 @@ int reshape_container(char *container, char *devname,
 	    reshape_super(st, 0, info->new_level,
 			  info->new_layout, info->new_chunk,
 			  info->array.raid_disks, info->delta_disks,
-			  backup_file, devname, APPLY_METADATA_CHANGES,
-			  verbose)) {
+			  devname, APPLY_METADATA_CHANGES, c)) {
 		unfreeze(st);
 		return 1;
 	}
@@ -3695,7 +3686,7 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked && !freeze_reshape)
+	if (!forked && !c->freeze_reshape)
 		if (continue_via_systemd(container, GROW_SERVICE, NULL))
 			return 0;
 
@@ -3705,7 +3696,7 @@ int reshape_container(char *container, char *devname,
 		unfreeze(st);
 		return 1;
 	default: /* parent */
-		if (!freeze_reshape)
+		if (!c->freeze_reshape)
 			printf("%s: multi-array reshape continues in background\n", Name);
 		return 0;
 	case 0: /* child */
@@ -3802,12 +3793,12 @@ int reshape_container(char *container, char *devname,
 			flush_mdmon(container);
 
 		rv = reshape_array(container, fd, adev, st,
-				   content, force, NULL, INVALID_SECTORS,
-				   backup_file, verbose, 1, restart,
-				   freeze_reshape);
+				   content, c->force, NULL, INVALID_SECTORS,
+				   c->backup_file, c->verbose, 1, restart,
+				   c->freeze_reshape);
 		close(fd);
 
-		if (freeze_reshape) {
+		if (c->freeze_reshape) {
 			sysfs_free(cc);
 			exit(0);
 		}
@@ -4970,8 +4961,7 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 	return 1;
 }
 
-int Grow_continue_command(char *devname, int fd,
-			  char *backup_file, int verbose)
+int Grow_continue_command(char *devname, int fd, struct context *c)
 {
 	int ret_val = 0;
 	struct supertype *st = NULL;
@@ -5157,7 +5147,7 @@ int Grow_continue_command(char *devname, int fd,
 
 	/* continue reshape
 	 */
-	ret_val = Grow_continue(fd, st, content, backup_file, 1, 0);
+	ret_val = Grow_continue(fd, st, content, 1, c);
 
 Grow_continue_command_exit:
 	if (cfd > -1)
@@ -5171,7 +5161,7 @@ Grow_continue_command_exit:
 }
 
 int Grow_continue(int mdfd, struct supertype *st, struct mdinfo *info,
-		  char *backup_file, int forked, int freeze_reshape)
+		  int forked, struct context *c)
 {
 	int ret_val = 2;
 
@@ -5187,14 +5177,12 @@ int Grow_continue(int mdfd, struct supertype *st, struct mdinfo *info,
 		st->ss->load_container(st, cfd, st->container_devnm);
 		close(cfd);
 		ret_val = reshape_container(st->container_devnm, NULL, mdfd,
-					    st, info, 0, backup_file, 0,
-					    forked, 1 | info->reshape_active,
-					    freeze_reshape);
+					    st, info, c, forked, 1 | info->reshape_active);
 	} else
 		ret_val = reshape_array(NULL, mdfd, "array", st, info, 1,
-					NULL, INVALID_SECTORS, backup_file,
+					NULL, INVALID_SECTORS, c->backup_file,
 					0, forked, 1 | info->reshape_active,
-					freeze_reshape);
+					c->freeze_reshape);
 
 	return ret_val;
 }

@@ -12153,10 +12153,8 @@ exit:
 }
 
 static int imsm_reshape_super(struct supertype *st, unsigned long long size,
-			      int level,
-			      int layout, int chunksize, int raid_disks,
-			      int delta_disks, char *backup, char *dev,
-			      int direction, int verbose)
+			      int level, int layout, int chunksize, int raid_disks,
+			      int delta_disks, char *dev, int direction, struct context *c)
 {
 	int ret_val = 1;
 	struct geo_params geo;

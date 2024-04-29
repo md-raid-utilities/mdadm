@@ -1197,9 +1197,7 @@ static int start_array(int mdfd,
 			rv = sysfs_set_str(content, NULL,
 					   "array_state", "readonly");
 			if (rv == 0)
-				rv = Grow_continue(mdfd, st, content,
-						   c->backup_file, 0,
-						   c->freeze_reshape);
+				rv = Grow_continue(mdfd, st, content, 0, c);
 		} else if (c->readonly &&
 			   sysfs_attribute_available(content, NULL,
 						     "array_state")) {
@@ -2180,8 +2178,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 				st->update_tail = &st->updates;
 		}
 
-		err = Grow_continue(mdfd, st, content, c->backup_file,
-				    0, c->freeze_reshape);
+		err = Grow_continue(mdfd, st, content, 0, c);
 	} else switch(content->array.level) {
 		case LEVEL_LINEAR:
 		case LEVEL_MULTIPATH:
