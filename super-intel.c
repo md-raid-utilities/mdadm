@@ -62,6 +62,8 @@
 #define MPB_ATTRIB_RAIDCNG		__cpu_to_le32(0x00000020)
 /* supports expanded stripe sizes of  256K, 512K and 1MB */
 #define MPB_ATTRIB_EXP_STRIPE_SIZE	__cpu_to_le32(0x00000040)
+/* supports RAID10 with more than 4 drives */
+#define MPB_ATTRIB_RAID10_EXT		__cpu_to_le32(0x00000080)
 
 /* The OROM Support RST Caching of Volumes */
 #define MPB_ATTRIB_NVM			__cpu_to_le32(0x02000000)
@@ -89,6 +91,7 @@
 					MPB_ATTRIB_RAID10          | \
 					MPB_ATTRIB_RAID5           | \
 					MPB_ATTRIB_EXP_STRIPE_SIZE | \
+					MPB_ATTRIB_RAID10_EXT      | \
 					MPB_ATTRIB_BBM)
 
 /* Define attributes that are unused but not harmful */
@@ -5552,6 +5555,8 @@ static void imsm_update_version_info(struct intel_super *super)
 			break;
 		case IMSM_T_RAID10:
 			mpb->attributes |= MPB_ATTRIB_RAID10;
+			if (map->num_members > 4)
+				mpb->attributes |= MPB_ATTRIB_RAID10_EXT;
 			break;
 		}
 	}
