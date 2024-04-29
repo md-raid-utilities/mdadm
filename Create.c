@@ -965,6 +965,13 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		return 1;
 	}
 
+	if (st->ss == &super_imsm && s->level == 10 && s->raiddisks > 4) {
+		/* Print no matter runstop was specifed */
+		pr_err("Warning! VROC UEFI driver does not support RAID10 in requested layout.\n");
+		pr_err("Array won't be suitable as boot device.\n");
+		warn = 1;
+	}
+
 	if (!have_container && s->level > 0 && ((maxsize-s->size)*100 > maxsize)) {
 		if (c->runstop != 1 || c->verbose >= 0)
 			pr_err("largest drive (%s) exceeds size (%lluK) by more than 1%%\n",
@@ -984,7 +991,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	if (warn) {
 		if (c->runstop!= 1) {
-			if (!ask("Continue creating array? ")) {
+			if (!ask("Continue creating array")) {
 				pr_err("create aborted.\n");
 				return 1;
 			}

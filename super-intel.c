@@ -523,6 +523,7 @@ enum imsm_reshape_type {
 	CH_TAKEOVER,
 	CH_MIGRATION,
 	CH_ARRAY_SIZE,
+	CH_ABORT
 };
 
 /* definition of messages passed to imsm_process_update */
@@ -11898,7 +11899,7 @@ success:
 ****************************************************************************/
 enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 					   struct geo_params *geo,
-					   int direction)
+					   int direction, struct context *c)
 {
 	struct mdinfo info;
 	int change = -1;
@@ -11925,6 +11926,14 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 				check_devs = 1;
 				raid_disks += 1; /* parity disk added */
 			} else if (geo->level == IMSM_T_RAID10) {
+				if (geo->level == IMSM_T_RAID10 && geo->raid_disks > 2 &&
+				    !c->force) {
+					pr_err("Warning! VROC UEFI driver does not support RAID10 in requested layout.\n");
+					pr_err("Array won't be suitable as boot device.\n");
+					pr_err("Note: You can omit this check with \"--force\"\n");
+					if (ask("Do you want to continue") < 1)
+						return CH_ABORT;
+				}
 				change = CH_TAKEOVER;
 				check_devs = 1;
 				raid_disks *= 2; /* mirrors added */
@@ -12219,7 +12228,7 @@ static int imsm_reshape_super(struct supertype *st, struct shape *shape, struct 
 			goto exit_imsm_reshape_super;
 		}
 		super->current_vol = dev->index;
-		change = imsm_analyze_change(st, &geo, shape->direction);
+		change = imsm_analyze_change(st, &geo, shape->direction, c);
 		switch (change) {
 		case CH_TAKEOVER:
 			ret_val = imsm_takeover(st, &geo);
@@ -12262,6 +12271,7 @@ static int imsm_reshape_super(struct supertype *st, struct shape *shape, struct 
 				free(u);
 		}
 		break;
+		case CH_ABORT:
 		default:
 			ret_val = 1;
 		}
