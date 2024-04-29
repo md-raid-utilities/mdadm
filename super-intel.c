@@ -166,7 +166,8 @@ struct imsm_map {
 	__u8  raid_level;
 #define IMSM_T_RAID0 0
 #define IMSM_T_RAID1 1
-#define IMSM_T_RAID5 5		/* since metadata version 1.2.02 ? */
+#define IMSM_T_RAID5 5
+#define IMSM_T_RAID10 10
 	__u8  num_members;	/* number of member disks */
 	__u8  num_domains;	/* number of parity domains */
 	__u8  failed_disk_num;  /* valid only when state is degraded */
@@ -1259,14 +1260,42 @@ static int get_imsm_disk_slot(struct imsm_map *map, const unsigned int idx)
 
 	return IMSM_STATUS_ERROR;
 }
+/**
+ * update_imsm_raid_level() - update raid level appropriately in &imsm_map.
+ * @map:	&imsm_map pointer.
+ * @new_level:	MD style level.
+ *
+ * For backward compatibility reasons we need to differentiate RAID10.
+ * In the past IMSM RAID10 was presented as RAID1.
+ * Keep compatibility unless it is not explicitly updated by UEFI driver.
+ *
+ * Routine needs num_members to be set and (optionally) raid_level.
+ */
+static void update_imsm_raid_level(struct imsm_map *map, int new_level)
+{
+	if (new_level != IMSM_T_RAID10) {
+		map->raid_level = new_level;
+		return;
+	}
+
+	if (map->num_members == 4) {
+		if (map->raid_level == IMSM_T_RAID10 || map->raid_level == IMSM_T_RAID1)
+			return;
+
+		map->raid_level = IMSM_T_RAID1;
+		return;
+	}
+
+	map->raid_level = IMSM_T_RAID10;
+}
 
 static int get_imsm_raid_level(struct imsm_map *map)
 {
-	if (map->raid_level == 1) {
+	if (map->raid_level == IMSM_T_RAID1) {
 		if (map->num_members == 2)
-			return 1;
+			return IMSM_T_RAID1;
 		else
-			return 10;
+			return IMSM_T_RAID10;
 	}
 
 	return map->raid_level;
@@ -5678,7 +5707,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	set_pba_of_lba0(map, super->create_offset);
 	map->blocks_per_strip = __cpu_to_le16(info_to_blocks_per_strip(info));
 	map->failed_disk_num = ~0;
-	if (info->level > 0)
+	if (info->level > IMSM_T_RAID0)
 		map->map_state = (info->state ? IMSM_T_STATE_NORMAL
 				  : IMSM_T_STATE_UNINITIALIZED);
 	else
@@ -5686,16 +5715,15 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 						      IMSM_T_STATE_NORMAL;
 	map->ddf = 1;
 
-	if (info->level == 1 && info->raid_disks > 2) {
+	if (info->level == IMSM_T_RAID1 && info->raid_disks > 2) {
 		free(dev);
 		free(dv);
-		pr_err("imsm does not support more than 2 disksin a raid1 volume\n");
+		pr_err("imsm does not support more than 2 disks in a raid1 volume\n");
 		return 0;
 	}
+	map->num_members = info->raid_disks;
 
-	map->raid_level = info->level;
-	if (info->level == 10)
-		map->raid_level = 1;
+	update_imsm_raid_level(map, info->level);
 	set_num_domains(map);
 
 	size_per_member += NUM_BLOCKS_DIRTY_STRIPE_REGION;
@@ -5703,7 +5731,6 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 							     size_per_member /
 							     BLOCKS_PER_KB));
 
-	map->num_members = info->raid_disks;
 	update_num_data_stripes(map, array_blocks);
 	for (i = 0; i < map->num_members; i++) {
 		/* initialized in add_to_super */
@@ -8275,7 +8302,7 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 			info_d->data_offset = pba_of_lba0(map);
 			info_d->component_size = calc_component_size(map, dev);
 
-			if (map->raid_level == 5) {
+			if (map->raid_level == IMSM_T_RAID5) {
 				info_d->ppl_sector = this->ppl_sector;
 				info_d->ppl_size = this->ppl_size;
 				if (this->consistency_policy == CONSISTENCY_POLICY_PPL &&
@@ -9533,7 +9560,7 @@ static int apply_reshape_migration_update(struct imsm_update_reshape_migration *
 			}
 
 			to_state = map->map_state;
-			if ((u->new_level == 5) && (map->raid_level == 0)) {
+			if ((u->new_level == IMSM_T_RAID5) && (map->raid_level == IMSM_T_RAID0)) {
 				map->num_members++;
 				/* this should not happen */
 				if (u->new_disks[0] < 0) {
@@ -9544,11 +9571,13 @@ static int apply_reshape_migration_update(struct imsm_update_reshape_migration *
 					to_state = IMSM_T_STATE_NORMAL;
 			}
 			migrate(new_dev, super, to_state, MIGR_GEN_MIGR);
+
 			if (u->new_level > -1)
-				map->raid_level = u->new_level;
+				update_imsm_raid_level(map, u->new_level);
+
 			migr_map = get_imsm_map(new_dev, MAP_1);
-			if ((u->new_level == 5) &&
-			    (migr_map->raid_level == 0)) {
+			if ((u->new_level == IMSM_T_RAID5) &&
+			    (migr_map->raid_level == IMSM_T_RAID0)) {
 				int ord = map->num_members - 1;
 				migr_map->num_members--;
 				if (u->new_disks[0] < 0)
@@ -9584,7 +9613,7 @@ static int apply_reshape_migration_update(struct imsm_update_reshape_migration *
 
 			/* add disk
 			 */
-			if (u->new_level != 5 || migr_map->raid_level != 0 ||
+			if (u->new_level != IMSM_T_RAID5 || migr_map->raid_level != IMSM_T_RAID0 ||
 			    migr_map->raid_level == map->raid_level)
 				goto skip_disk_add;
 
@@ -9963,7 +9992,7 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 		/* update map */
 		map->num_members /= map->num_domains;
 		map->map_state = IMSM_T_STATE_NORMAL;
-		map->raid_level = 0;
+		update_imsm_raid_level(map, IMSM_T_RAID0);
 		set_num_domains(map);
 		update_num_data_stripes(map, imsm_dev_size(dev));
 		map->failed_disk_num = -1;
@@ -10007,7 +10036,7 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 		map = get_imsm_map(dev_new, MAP_0);
 
 		map->map_state = IMSM_T_STATE_DEGRADED;
-		map->raid_level = 1;
+		update_imsm_raid_level(map, IMSM_T_RAID10);
 		set_num_domains(map);
 		map->num_members = map->num_members * map->num_domains;
 		update_num_data_stripes(map, imsm_dev_size(dev));
