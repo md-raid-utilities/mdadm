@@ -2681,6 +2681,15 @@ static int ahci_get_port_count(const char *hba_path, int *port_count)
 	return host_base;
 }
 
+static void print_imsm_level_capability(const struct imsm_orom *orom)
+{
+	int idx;
+
+	for (idx = 0; imsm_level_ops[idx].name; idx++)
+		if (imsm_level_ops[idx].is_level_supported(orom))
+			printf("%s ", imsm_level_ops[idx].name);
+}
+
 static void print_imsm_capability(const struct imsm_orom *orom)
 {
 	printf("       Platform : Intel(R) ");
@@ -2699,12 +2708,11 @@ static void print_imsm_capability(const struct imsm_orom *orom)
 			printf("        Version : %d.%d.%d.%d\n", orom->major_ver,
 			       orom->minor_ver, orom->hotfix_ver, orom->build);
 	}
-	printf("    RAID Levels :%s%s%s%s%s\n",
-	       imsm_orom_has_raid0(orom) ? " raid0" : "",
-	       imsm_orom_has_raid1(orom) ? " raid1" : "",
-	       imsm_orom_has_raid1e(orom) ? " raid1e" : "",
-	       imsm_orom_has_raid10(orom) ? " raid10" : "",
-	       imsm_orom_has_raid5(orom) ? " raid5" : "");
+
+	printf("    RAID Levels : ");
+	print_imsm_level_capability(orom);
+	printf("\n");
+
 	printf("    Chunk Sizes :%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 	       imsm_orom_has_chunk(orom, 2) ? " 2k" : "",
 	       imsm_orom_has_chunk(orom, 4) ? " 4k" : "",
@@ -2739,12 +2747,11 @@ static void print_imsm_capability_export(const struct imsm_orom *orom)
 	if (orom->major_ver || orom->minor_ver || orom->hotfix_ver || orom->build)
 		printf("IMSM_VERSION=%d.%d.%d.%d\n", orom->major_ver, orom->minor_ver,
 				orom->hotfix_ver, orom->build);
-	printf("IMSM_SUPPORTED_RAID_LEVELS=%s%s%s%s%s\n",
-			imsm_orom_has_raid0(orom) ? "raid0 " : "",
-			imsm_orom_has_raid1(orom) ? "raid1 " : "",
-			imsm_orom_has_raid1e(orom) ? "raid1e " : "",
-			imsm_orom_has_raid5(orom) ? "raid10 " : "",
-			imsm_orom_has_raid10(orom) ? "raid5 " : "");
+
+	printf("IMSM_SUPPORTED_RAID_LEVELS=");
+	print_imsm_level_capability(orom);
+	printf("\n");
+
 	printf("IMSM_SUPPORTED_CHUNK_SIZES=%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 			imsm_orom_has_chunk(orom, 2) ? "2k " : "",
 			imsm_orom_has_chunk(orom, 4) ? "4k " : "",
@@ -6992,26 +6999,41 @@ static unsigned long long merge_extents(struct intel_super *super, const bool ex
 	return free_size - reservation_size;
 }
 
-static int is_raid_level_supported(const struct imsm_orom *orom, int level, int raiddisks)
+/**
+ * is_raid_level_supported() - check if this count of drives and level is supported by platform.
+ * @orom: hardware properties, could be NULL.
+ * @level: requested raid level.
+ * @raiddisks: requested disk count.
+ *
+ * IMSM UEFI/OROM does not provide information about supported count of raid disks
+ * for particular level. That is why it is hardcoded.
+ * It is recommended to not allow of usage other levels than supported,
+ * IMSM code is not tested against different level implementations.
+ *
+ * Return: true if supported, false otherwise.
+ */
+static bool is_raid_level_supported(const struct imsm_orom *orom, int level, int raiddisks)
 {
-	if (level < 0 || level == 6 || level == 4)
-		return 0;
+	int idx;
 
-	/* if we have an orom prevent invalid raid levels */
-	if (orom)
-		switch (level) {
-		case 0: return imsm_orom_has_raid0(orom);
-		case 1:
-			if (raiddisks > 2)
-				return imsm_orom_has_raid1e(orom);
-			return imsm_orom_has_raid1(orom) && raiddisks == 2;
-		case 10: return imsm_orom_has_raid10(orom) && raiddisks == 4;
-		case 5: return imsm_orom_has_raid5(orom) && raiddisks > 2;
-		}
-	else
-		return 1; /* not on an Intel RAID platform so anything goes */
+	for (idx = 0; imsm_level_ops[idx].name; idx++) {
+		if (imsm_level_ops[idx].level == level)
+			break;
+	}
 
-	return 0;
+	if (!imsm_level_ops[idx].name)
+		return false;
+
+	if (!imsm_level_ops[idx].is_raiddisks_count_supported(raiddisks))
+		return false;
+
+	if (!orom)
+		return true;
+
+	if (imsm_level_ops[idx].is_level_supported(orom))
+		return true;
+
+	return false;
 }
 
 static int
@@ -11962,18 +11984,17 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 	int change = -1;
 	int check_devs = 0;
 	int chunk;
-	/* number of added/removed disks in operation result */
-	int devNumChange = 0;
 	/* imsm compatible layout value for array geometry verification */
 	int imsm_layout = -1;
+	int raid_disks = geo->raid_disks;
 	imsm_status_t rv;
 
 	getinfo_super_imsm_volume(st, &info, NULL);
-	if (geo->level != info.array.level && geo->level >= 0 &&
+	if (geo->level != info.array.level && geo->level >= IMSM_T_RAID0 &&
 	    geo->level != UnSet) {
 		switch (info.array.level) {
-		case 0:
-			if (geo->level == 5) {
+		case IMSM_T_RAID0:
+			if (geo->level == IMSM_T_RAID5) {
 				change = CH_MIGRATION;
 				if (geo->layout != ALGORITHM_LEFT_ASYMMETRIC) {
 					pr_err("Error. Requested Layout not supported (left-asymmetric layout is supported only)!\n");
@@ -11982,20 +12003,20 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 				}
 				imsm_layout =  geo->layout;
 				check_devs = 1;
-				devNumChange = 1; /* parity disk added */
-			} else if (geo->level == 10) {
+				raid_disks += 1; /* parity disk added */
+			} else if (geo->level == IMSM_T_RAID10) {
 				change = CH_TAKEOVER;
 				check_devs = 1;
-				devNumChange = 2; /* two mirrors added */
+				raid_disks *= 2; /* mirrors added */
 				imsm_layout = 0x102; /* imsm supported layout */
 			}
 			break;
-		case 1:
-		case 10:
+		case IMSM_T_RAID1:
+		case IMSM_T_RAID10:
 			if (geo->level == 0) {
 				change = CH_TAKEOVER;
 				check_devs = 1;
-				devNumChange = -(geo->raid_disks/2);
+				raid_disks /= 2;
 				imsm_layout = 0; /* imsm raid0 layout */
 			}
 			break;
@@ -12011,10 +12032,10 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 	if (geo->layout != info.array.layout &&
 	    (geo->layout != UnSet && geo->layout != -1)) {
 		change = CH_MIGRATION;
-		if (info.array.layout == 0 && info.array.level == 5 &&
+		if (info.array.layout == 0 && info.array.level == IMSM_T_RAID5 &&
 		    geo->layout == 5) {
 			/* reshape 5 -> 4 */
-		} else if (info.array.layout == 5 && info.array.level == 5 &&
+		} else if (info.array.layout == 5 && info.array.level == IMSM_T_RAID5 &&
 			   geo->layout == 0) {
 			/* reshape 4 -> 5 */
 			geo->layout = 0;
@@ -12033,7 +12054,7 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 
 	if (geo->chunksize > 0 && geo->chunksize != UnSet &&
 	    geo->chunksize != info.array.chunk_size) {
-		if (info.array.level == 10) {
+		if (info.array.level == IMSM_T_RAID10) {
 			pr_err("Error. Chunk size change for RAID 10 is not supported.\n");
 			change = -1;
 			goto analyse_change_exit;
@@ -12058,14 +12079,16 @@ enum imsm_reshape_type imsm_analyze_change(struct supertype *st,
 		rv = imsm_analyze_expand(st, geo, &info, direction);
 		if (rv != IMSM_STATUS_OK)
 			goto analyse_change_exit;
+		raid_disks = geo->raid_disks;
 		change = CH_ARRAY_SIZE;
 	}
 
 	chunk = geo->chunksize / 1024;
+
 	if (!validate_geometry_imsm(st,
 				    geo->level,
 				    imsm_layout,
-				    geo->raid_disks + devNumChange,
+				    raid_disks,
 				    &chunk,
 				    geo->size, INVALID_SECTORS,
 				    0, 0, info.consistency_policy, 1))
