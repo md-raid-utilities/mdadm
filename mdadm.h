@@ -1768,8 +1768,8 @@ extern int is_subarray_active(char *subarray, char *devname);
 extern int open_subarray(char *dev, char *subarray, struct supertype *st, int quiet);
 extern struct superswitch *version_to_superswitch(char *vers);
 
-extern int mdmon_running(char *devnm);
-extern int mdmon_pid(char *devnm);
+extern int mdmon_running(const char *devnm);
+extern int mdmon_pid(const char *devnm);
 extern int check_env(char *name);
 extern __u32 random32(void);
 extern void random_uuid(__u8 *buf);

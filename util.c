@@ -1902,7 +1902,7 @@ unsigned long long min_recovery_start(struct mdinfo *array)
 	return recovery_start;
 }
 
-int mdmon_pid(char *devnm)
+int mdmon_pid(const char *devnm)
 {
 	char path[100];
 	char pid[10];
@@ -1922,7 +1922,7 @@ int mdmon_pid(char *devnm)
 	return atoi(pid);
 }
 
-int mdmon_running(char *devnm)
+int mdmon_running(const char *devnm)
 {
 	int pid = mdmon_pid(devnm);
 	if (pid <= 0)
