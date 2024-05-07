@@ -1932,6 +1932,35 @@ int mdmon_running(const char *devnm)
 	return 0;
 }
 
+/*
+ * wait_for_mdmon() - Waits for mdmon within specified time.
+ * @devnm: Device for which mdmon should start.
+ *
+ * Function waits for mdmon to start. It may need few seconds
+ * to start, we set timeout to 5, it should be sufficient.
+ * Do not wait if mdmon has been started.
+ *
+ * Return: MDADM_STATUS_SUCCESS if mdmon is running, error code otherwise.
+ */
+mdadm_status_t wait_for_mdmon(const char *devnm)
+{
+	const time_t mdmon_timeout = 5;
+	time_t start_time = time(0);
+
+	if (mdmon_running(devnm))
+		return MDADM_STATUS_SUCCESS;
+
+	pr_info("Waiting for mdmon to start\n");
+	while (time(0) - start_time < mdmon_timeout) {
+		sleep_for(0, MSEC_TO_NSEC(200), true);
+		if (mdmon_running(devnm))
+			return MDADM_STATUS_SUCCESS;
+	};
+
+	pr_err("Timeout waiting for mdmon\n");
+	return MDADM_STATUS_ERROR;
+}
+
 int start_mdmon(char *devnm)
 {
 	int i;

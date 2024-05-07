@@ -1770,6 +1770,8 @@ extern struct superswitch *version_to_superswitch(char *vers);
 
 extern int mdmon_running(const char *devnm);
 extern int mdmon_pid(const char *devnm);
+extern mdadm_status_t wait_for_mdmon(const char *devnm);
+
 extern int check_env(char *name);
 extern __u32 random32(void);
 extern void random_uuid(__u8 *buf);

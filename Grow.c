@@ -2134,7 +2134,7 @@ int Grow_reshape(char *devname, int fd,
 			if (!mdmon_running(st->container_devnm))
 				start_mdmon(st->container_devnm);
 			ping_monitor(container);
-			if (mdmon_running(st->container_devnm) == false) {
+			if (wait_for_mdmon(st->container_devnm) != MDADM_STATUS_SUCCESS) {
 				pr_err("No mdmon found. Grow cannot continue.\n");
 				goto release;
 			}
@@ -3218,7 +3218,8 @@ static int reshape_array(char *container, int fd, char *devname,
 			if (!mdmon_running(container))
 				start_mdmon(container);
 			ping_monitor(container);
-			if (mdmon_running(container) && st->update_tail == NULL)
+			if (wait_for_mdmon(container) == MDADM_STATUS_SUCCESS &&
+			    !st->update_tail)
 				st->update_tail = &st->updates;
 		}
 	}
@@ -5173,7 +5174,7 @@ int Grow_continue_command(char *devname, int fd, struct context *c)
 			start_mdmon(container);
 		ping_monitor(container);
 
-		if (mdmon_running(container) == false) {
+		if (wait_for_mdmon(container) != MDADM_STATUS_SUCCESS) {
 			pr_err("No mdmon found. Grow cannot continue.\n");
 			ret_val = 1;
 			goto Grow_continue_command_exit;

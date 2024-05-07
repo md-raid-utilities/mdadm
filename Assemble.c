@@ -2173,8 +2173,8 @@ int assemble_container_content(struct supertype *st, int mdfd,
 			if (!mdmon_running(st->container_devnm))
 				start_mdmon(st->container_devnm);
 			ping_monitor(st->container_devnm);
-			if (mdmon_running(st->container_devnm) &&
-			    st->update_tail == NULL)
+			if (wait_for_mdmon(st->container_devnm) == MDADM_STATUS_SUCCESS &&
+			    !st->update_tail)
 				st->update_tail = &st->updates;
 		}
 
