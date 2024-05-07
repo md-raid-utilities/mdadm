@@ -800,7 +800,7 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 		return 0;
 
 	for (elem = list; elem; elem = elem->next)
-		if (path_attached_to_hba(disk_path, elem->path))
+		if (is_path_attached_to_hba(disk_path, elem->path))
 			break;
 
 	if (disk_path != devname)
@@ -2412,7 +2412,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, i
 		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
-		if (!path_attached_to_hba(path, hba->path)) {
+		if (!is_path_attached_to_hba(path, hba->path)) {
 			free(path);
 			path = NULL;
 			continue;
@@ -2563,7 +2563,7 @@ static int print_nvme_info(struct sys_dev *hba)
 		    !diskfd_to_devpath(fd, 1, cntrl_path))
 			goto skip;
 
-		if (!path_attached_to_hba(cntrl_path, hba->path))
+		if (!is_path_attached_to_hba(cntrl_path, hba->path))
 			goto skip;
 
 		if (!imsm_is_nvme_namespace_supported(fd, 0))
@@ -7077,7 +7077,7 @@ get_devices(const char *hba_path)
 		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
-		if (!path_attached_to_hba(path, hba_path)) {
+		if (!is_path_attached_to_hba(path, hba_path)) {
 			free(path);
 			path = NULL;
 			continue;
