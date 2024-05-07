@@ -20,57 +20,67 @@
     **IMPORTANT:** DDF is in **maintenance only** mode. There is no active development around it.
     Please do not use it in new solutions.
 
+# Questions and Support
+
+This Github site is **not** right place to ask if your are looking for:
+- support from Linux Raid Community;
+- support with kernel issues;
+
+This is the place where development of mdadm application is done. Please, do not use for
+looking for support. You should always ask on [Mailing List](https://lore.kernel.org/linux-raid/).
+
+Please use issues if you have confirmation that issue you are experiencing is related to mdadm
+components:
+- mdadm;
+- mdmon;
+- raid6check;
+- swap_super;
+- test_stripe;
+- systemd services ( see systemd/);
+- udev rules;
+- manual pages (including md.man)
+
+For example:
+- mdadm issues (e.g segfaults, memory leaks, crashes, bad communication with MD driver);
+- feature requests for mdadm;
+- suggestions or minor fixes requested (e.g. better error messages);
+
+Generally, if you are not sure it is better to ask on
+[Mailing List](https://lore.kernel.org/linux-raid/) first.
+
 # How to Contribute
 
- **mdadm** is hosted on [kernel.org](https://kernel.org/). You can access repository
+Effective immediately [Github](https://github.com/md-raid-utilities/mdadm) is the primary
+location for **mdadm**. Use pull request to contribute.
+
+It was originally hosted on [kernel.org](https://kernel.org/). You can access the old repository
 [here](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git).
 
-It is maintained similarly to kernel, using *mailing list*. Patches must be send through email.
-Please familiarize with general kernel
+Patches sent through Mailing list are accepted but Github is preferred. Sent then to ML only
+if you cannot use Github. Please add "mdadm:" to the subject to allow automation to create Github
+Pull Request and run checks.
+
+**NOTE:** Maintainers may ask you to send RFC to mailing list if the proposed code requires
+consultation with kernel developers.
+
+Kernel coding style is used. Please familiarize with general kernel
 [submitting patches](https://www.kernel.org/doc/html/v4.17/process/submitting-patches.html)
 documentation. Formatting, tags and commit message guidelines applies to **mdadm**.
 
-## Sending patches step-by-step
+[Checkpatch](https://docs.kernel.org/dev-tools/checkpatch.html) script is run on
+every patch in pull request so be sure that your commits are not generating
+issues. There are some excludes, so the best is to follow github checkpatch action result.
 
-To maximize change of patches being taken, follow this instruction when submitting:
+Pull Request are closed by `Rebase and Merge` option, so it requires to keep every commit
+meaningful. Kernel style requires that. The review changes must be pushed with **push --force**
+to the chosen branch, then Pull Request will be automatically updated.
 
-1. Create possibly logically separated commits and generate patches:
+# Maintainers of mdadm repository on kernel.org
 
-   Use ``git format-patch --cover-letter --signoff -v <nr>`` to create patches:
-   * ``--cover-letter`` can be skipped if it is only one patch;
-   * ``--signoff`` adds sign-off tag;
-   * ``-v <nr>`` indicates review revision number, sender should increment it before resending.
-
-2. Check style of every patch with kernel
-   [checkpatch](https://docs.kernel.org/dev-tools/checkpatch.html) script:
-
-   It is important to keep same coding style that is why in **mdadm**
-   [kernel coding style](https://www.kernel.org/doc/html/v4.10/process/coding-style.html)
-   is preferred. ``checkpath --no-tree <patch_file>`` can be used to verify patches.
-   Following checkpatch issues can be ignored:
-   - New typedefs.
-   - comparing with *True/False*.
-   - kernel *MAINTAINERS* file warning.
-   - *extern* keyword in headers.
-
-3. Send patches using ``git send-mail --to=linux-raid@vger.kernel.org <cover-letter> <patch1> <patch2> (...)``
-
-# Maintainers
-
-It is good practice to add **mdadm maintainers** to recipients for patches:
+If there are differences between github and kernel.org, please contact kernel.org mdadm maintainers:
 
 - Jes Sorensen <jes@trained-monkey.org>;
 - Mariusz Tkaczyk <mariusz.tkaczyk@linux.intel.com>;
-
-Adding **MD maintainers** could be reasonable, especially if patches may affect MD driver:
-
-- Song Liu <song@kernel.org>;
-- Yu Kuai <yukuai3@huawei.com>;
-
-# Reviewers
-
-**mdadm** utility is not part of kernel tree, so there is no certificated *Reviewers* list. Everyone
-can comment on mailing list, last decision (and merging) belongs to maintainers.
 
 # Minimal supported kernel version
 
