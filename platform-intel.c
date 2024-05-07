@@ -1331,31 +1331,28 @@ char *diskfd_to_devpath(int fd, int dev_level, char *buf)
 
 	return devt_to_devpath(st.st_rdev, dev_level, buf);
 }
-
-int path_attached_to_hba(const char *disk_path, const char *hba_path)
+/**
+ * is_path_attached_to_hba() - Check if disk is attached to hba
+ *
+ * @disk_path: Path to disk.
+ * @hba_path: Path to hba.
+ *
+ * Returns: true if disk is attached to hba, false otherwise.
+ */
+bool is_path_attached_to_hba(const char *disk_path, const char *hba_path)
 {
-	int rc;
-
-	if (check_env("IMSM_TEST_AHCI_DEV") ||
-	    check_env("IMSM_TEST_SCU_DEV")) {
-		return 1;
-	}
-
 	if (!disk_path || !hba_path)
-		return 0;
-	dprintf("hba: %s - disk: %s\n", hba_path, disk_path);
+		return false;
 	if (strncmp(disk_path, hba_path, strlen(hba_path)) == 0)
-		rc = 1;
-	else
-		rc = 0;
+		return true;
 
-	return rc;
+	return false;
 }
 
 int devt_attached_to_hba(dev_t dev, const char *hba_path)
 {
 	char *disk_path = devt_to_devpath(dev, 1, NULL);
-	int rc = path_attached_to_hba(disk_path, hba_path);
+	int rc = is_path_attached_to_hba(disk_path, hba_path);
 
 	if (disk_path)
 		free(disk_path);
@@ -1366,7 +1363,7 @@ int devt_attached_to_hba(dev_t dev, const char *hba_path)
 int disk_attached_to_hba(int fd, const char *hba_path)
 {
 	char *disk_path = diskfd_to_devpath(fd, 1, NULL);
-	int rc = path_attached_to_hba(disk_path, hba_path);
+	int rc = is_path_attached_to_hba(disk_path, hba_path);
 
 	if (disk_path)
 		free(disk_path);
