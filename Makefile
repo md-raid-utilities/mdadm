@@ -132,12 +132,12 @@ CFLAGS += -DUSE_PTHREADS
 MON_LDFLAGS += -pthread
 endif
 
-LDFLAGS = -Wl,-z,now,-z,noexecstack
+LDFLAGS ?= -pie -Wl,-z,now,-z,noexecstack
 
 # If you want a static binary, you might uncomment these
 # LDFLAGS += -static
 # STRIP = -s
-LDLIBS = -ldl -pie
+LDLIBS = -ldl
 
 # To explicitly disable libudev, set -DNO_LIBUDEV in CXFLAGS
 ifeq (, $(findstring -DNO_LIBUDEV,  $(CXFLAGS)))
