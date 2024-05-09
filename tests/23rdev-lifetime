@@ -4,7 +4,7 @@ pid=""
 runtime=2
 
 clean_up_test() {
-	pill -9 $pid
+	kill -9 $pid
 	echo clear > /sys/block/md0/md/array_state
 }
 
