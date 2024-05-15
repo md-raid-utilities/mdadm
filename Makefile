@@ -56,21 +56,21 @@ CWFLAGS += -Wp -O3
 endif
 
 ifeq ($(origin FALLTHROUGH), undefined)
-	FALLTHROUGH := $(shell gcc -Q --help=warnings 2>&1 | grep "implicit-fallthrough" | wc -l)
+	FALLTHROUGH := $(shell $(CC) -Q --help=warnings 2>&1 | grep "implicit-fallthrough" | wc -l)
 	ifneq "$(FALLTHROUGH)"  "0"
 	CWFLAGS += -Wimplicit-fallthrough=0
 	endif
 endif
 
 ifeq ($(origin FORMATOVERFLOW), undefined)
-	FORMATOVERFLOW := $(shell gcc -Q --help=warnings 2>&1 | grep "format-overflow" | wc -l)
+	FORMATOVERFLOW := $(shell $(CC) -Q --help=warnings 2>&1 | grep "format-overflow" | wc -l)
 	ifneq "$(FORMATOVERFLOW)"  "0"
 	CWFLAGS += -Wformat-overflow
 	endif
 endif
 
 ifeq ($(origin STRINGOPOVERFLOW), undefined)
-	STRINGOPOVERFLOW := $(shell gcc -Q --help=warnings 2>&1 | grep "stringop-overflow" | wc -l)
+	STRINGOPOVERFLOW := $(shell $(CC) -Q --help=warnings 2>&1 | grep "stringop-overflow" | wc -l)
 	ifneq "$(STRINGOPOVERFLOW)"  "0"
 	CWFLAGS += -Wstringop-overflow
 	endif
