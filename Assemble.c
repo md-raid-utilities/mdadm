@@ -1974,7 +1974,7 @@ out:
 	return rv == 2 ? 0 : rv;
 }
 
-int assemble_container_content(struct supertype *st, int mdfd,
+mdadm_status_t assemble_container_content(struct supertype *st, int mdfd,
 			       struct mdinfo *content, struct context *c,
 			       char *chosen_name, int *result)
 {
@@ -1990,19 +1990,19 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	sra = sysfs_read(mdfd, NULL, GET_VERSION|GET_DEVS);
 	if (sra == NULL) {
 		pr_err("Failed to read sysfs parameters\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	if (sysfs_get_str(content, NULL, "array_state", buf, sizeof(buf)) == 0) {
 		pr_err("Failed to read array_state!");
 		sysfs_free(sra);
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	/* Array is already started, nothing to do here */
@@ -2020,18 +2020,18 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		if (sysfs_init_array(content) != MDADM_STATUS_SUCCESS) {
 			pr_err("Failed initiating sysfs for the array!\n");
 			sysfs_free(sra);
-			return 1;
+			return MDADM_STATUS_ERROR;
 		}
 	} else if (sysfs_update_raid_disks(content) != MDADM_STATUS_SUCCESS) {
 		/* reason already spewed */
 		sysfs_free(sra);
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 	/* If Incremental used with "--force-set-array", sync all sysfs info. */
 	if (c->force_set_array && sysfs_set_array(content) != 0) {
 		pr_err("Failed writing sysfs array info!\n");
 		sysfs_free(sra);
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	/* There are two types of reshape: container wide or sub-array specific
@@ -2068,7 +2068,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		if (sysfs_set_str(sra, dev2, "slot", STR_COMMON_NONE) < 0 && errno == EBUSY) {
 			pr_err("Cannot remove old device %s: not updating %s\n", dev2->sys_name, sra->sys_name);
 			sysfs_free(sra);
-			return 1;
+			return MDADM_STATUS_ERROR;
 		}
 		sysfs_set_str(sra, dev2, "state", "remove");
 	}
@@ -2146,7 +2146,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 		if (err) {
 			free(avail);
-			return err;
+			return MDADM_STATUS_ERROR;
 		}
 	} else if (c->force) {
 		/* Set the array as 'clean' so that we can proceed with starting
@@ -2170,7 +2170,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 			pr_err("Consider running --assemble --force to start dirty degraded array\n");
 
 		free(avail);
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 	free(avail);
 
@@ -2184,7 +2184,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 		if (c->verbose >= 0 && c->force)
 			pr_err("Consider --run to start array as degraded.\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	/*
@@ -2193,7 +2193,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	 */
 	if (c->force_set_array == false && sysfs_set_array(content) != MDADM_STATUS_SUCCESS) {
 		pr_err("Failed writing sysfs array info!\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	if (is_raid456 && content->resync_start != MaxSector && c->force &&
@@ -2202,7 +2202,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		content->resync_start = MaxSector;
 		err = sysfs_set_num(content, NULL, "resync_start", MaxSector);
 		if (err)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		pr_err("%s array state forced to clean. It may cause data corruption.\n",
 		       chosen_name);
@@ -2222,7 +2222,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		if (restore_backup(st, content,
 				   array.new_cnt,
 				   spare, &c->backup_file, c->verbose) == 1)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		if (content->reshape_progress == 0) {
 			/* If reshape progress is 0 - we are assembling the
@@ -2241,7 +2241,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		}
 
 		if (err)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		if (st->ss->external) {
 			if (!mdmon_running(st->container_devnm))
@@ -2289,6 +2289,10 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		sysfs_rules_apply(chosen_name, content);
 	}
 
-	return err;
+	if (err != 0)
+		return MDADM_STATUS_ERROR;
+
+	return MDADM_STATUS_SUCCESS;
+
 	/* FIXME should have an O_EXCL and wait for read-auto */
 }
