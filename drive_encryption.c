@@ -233,7 +233,7 @@ nvme_security_recv_ioctl(int disk_fd, __u8 sec_protocol, __u16 comm_id, void *re
 	nvme_cmd.cdw10 = sec_protocol << 24 | comm_id << 8;
 	nvme_cmd.cdw11 = buf_size;
 	nvme_cmd.data_len = buf_size;
-	nvme_cmd.addr = (__u64)response_buffer;
+	nvme_cmd.addr = (__u64)(uintptr_t)response_buffer;
 
 	status = ioctl(disk_fd, NVME_IOCTL_ADMIN_CMD, &nvme_cmd);
 	if (status != 0) {
@@ -268,7 +268,7 @@ nvme_identify_ioctl(int disk_fd, void *response_buffer, size_t buf_size, const i
 	nvme_cmd.opcode = NVME_IDENTIFY;
 	nvme_cmd.cdw10 = NVME_IDENTIFY_CONTROLLER_DATA;
 	nvme_cmd.data_len = buf_size;
-	nvme_cmd.addr = (__u64)response_buffer;
+	nvme_cmd.addr = (__u64)(uintptr_t)response_buffer;
 
 	status = ioctl(disk_fd, NVME_IOCTL_ADMIN_CMD, &nvme_cmd);
 	if (status != 0) {
