@@ -2499,11 +2499,11 @@ static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_ba
 	if (dir)
 		closedir(dir);
 	if (err == 0) {
-		int i;
+		int64_t i;
 
 		for (i = 0; i < port_count; i++)
-			if (port_mask & (1 << i))
-				printf("          Port%d : - no device attached -\n", i);
+			if (port_mask & (1LL << i))
+				printf("          Port%ld : - no device attached -\n", i);
 	}
 
 	return err;
