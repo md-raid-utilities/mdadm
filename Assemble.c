@@ -652,7 +652,9 @@ static int load_devices(struct devs *devices, char *devmap,
 			/* prepare useful information in info structures */
 			struct stat stb2;
 			int err;
-			fstat(mdfd, &stb2);
+
+			if (fstat(mdfd, &stb2) != 0)
+				goto error;
 
 			if (c->update == UOPT_UUID && !ident->uuid_set)
 				random_uuid((__u8 *)ident->uuid);
@@ -675,13 +677,10 @@ static int load_devices(struct devs *devices, char *devmap,
 				       devname);
 				if (dfd >= 0)
 					close(dfd);
-				close(mdfd);
-				free(devices);
-				free(devmap);
 				tst->ss->free_super(tst);
 				free(tst);
 				*stp = st;
-				return -1;
+				goto error;
 			}
 			tst->ss->getinfo_super(tst, content, devmap + devcnt * content->array.raid_disks);
 
@@ -715,12 +714,9 @@ static int load_devices(struct devs *devices, char *devmap,
 					       map_num(update_options, c->update), tst->ss->name);
 				tst->ss->free_super(tst);
 				free(tst);
-				close(mdfd);
 				close(dfd);
-				free(devices);
-				free(devmap);
 				*stp = st;
-				return -1;
+				goto error;
 			}
 			if (c->update == UOPT_UUID &&
 			    !ident->uuid_set) {
@@ -751,18 +747,23 @@ static int load_devices(struct devs *devices, char *devmap,
 				       devname);
 				if (dfd >= 0)
 					close(dfd);
-				close(mdfd);
-				free(devices);
-				free(devmap);
 				tst->ss->free_super(tst);
 				free(tst);
 				*stp = st;
-				return -1;
+				goto error;
 			}
 			tst->ss->getinfo_super(tst, content, devmap + devcnt * content->array.raid_disks);
 		}
 
-		fstat(dfd, &stb);
+		if (fstat(dfd, &stb) != 0) {
+			close(dfd);
+			free(devices);
+			free(devmap);
+			tst->ss->free_super(tst);
+			free(tst);
+			*stp = st;
+			return -1;
+		}
 		close(dfd);
 
 		if (c->verbose > 0)
@@ -842,12 +843,9 @@ static int load_devices(struct devs *devices, char *devmap,
 				       inargv ? "the list" :
 				       "the\n      DEVICE list in mdadm.conf"
 					);
-				close(mdfd);
-				free(devices);
-				free(devmap);
 				free(best);
 				*stp = st;
-				return -1;
+				goto error;
 			}
 			if (best[i] == -1 || (devices[best[i]].i.events
 					      < devices[devcnt].i.events))
@@ -863,6 +861,13 @@ static int load_devices(struct devs *devices, char *devmap,
 	*bestp = best;
 	*stp = st;
 	return devcnt;
+
+error:
+	close(mdfd);
+	free(devices);
+	free(devmap);
+	return -1;
+
 }
 
 static int force_array(struct mdinfo *content,
