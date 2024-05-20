@@ -1223,13 +1223,14 @@ int reshape_open_backup_file(char *backup_file,
 	 * way this will not notice, but it is better than
 	 * nothing.
 	 */
-	fstat(*fdlist, &stb);
+	if (fstat(*fdlist, &stb) != 0)
+		goto error;
 	dev = stb.st_dev;
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0)
+		goto error;
 	if (stb.st_rdev == dev) {
 		pr_err("backup file must NOT be on the array being reshaped.\n");
-		close(*fdlist);
-		return 0;
+		goto error;
 	}
 
 	memset(buf, 0, 512);
@@ -1255,6 +1256,9 @@ int reshape_open_backup_file(char *backup_file,
 	}
 
 	return 1;
+error:
+	close(*fdlist);
+	return 0;
 }
 
 unsigned long compute_backup_blocks(int nchunk, int ochunk,

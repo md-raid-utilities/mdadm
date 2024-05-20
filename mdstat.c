@@ -348,7 +348,8 @@ void mdstat_wait_fd(int fd, const sigset_t *sigmask)
 
 	if (fd >= 0) {
 		struct stat stb;
-		fstat(fd, &stb);
+		if (fstat(fd, &stb) != 0)
+			return;
 		if ((stb.st_mode & S_IFMT) == S_IFREG)
 			/* Must be a /proc or /sys fd, so expect
 			 * POLLPRI

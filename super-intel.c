@@ -4239,7 +4239,10 @@ load_imsm_disk(int fd, struct intel_super *super, char *devname, int keep_fd)
 
 	dl = xcalloc(1, sizeof(*dl));
 
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0) {
+		free(dl);
+		return 1;
+	}
 	dl->major = major(stb.st_rdev);
 	dl->minor = minor(stb.st_rdev);
 	dl->next = super->disks;
@@ -5981,7 +5984,8 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	if (super->current_vol >= 0)
 		return add_to_super_imsm_volume(st, dk, fd, devname);
 
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0)
+		return 1;
 	dd = xcalloc(sizeof(*dd), 1);
 	dd->major = major(stb.st_rdev);
 	dd->minor = minor(stb.st_rdev);
