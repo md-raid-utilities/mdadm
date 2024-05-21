@@ -223,6 +223,14 @@ struct dlm_lksb {
 struct __una_u16 { __u16 x; } __attribute__ ((packed));
 struct __una_u32 { __u32 x; } __attribute__ ((packed));
 
+/*
+ * Ensure GNU basename behavior on GLIBC less systems.
+ */
+#ifndef __GLIBC__
+#define basename(path) \
+       (strrchr((path), '/') ? strrchr((path),'/') + 1 : (path))
+#endif
+
 static inline __u16 __get_unaligned16(const void *p)
 {
 	const struct __una_u16 *ptr = (const struct __una_u16 *)p;
