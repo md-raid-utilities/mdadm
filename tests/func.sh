@@ -125,6 +125,7 @@ check_env() {
 		MULTIPATH="yes"
 	if [ "$MULTIPATH" != "yes" ]; then
 		echo "test: skipping tests for multipath, which is removed in upstream 6.8+ kernels"
+		skipping_multipath="yes"
 	fi
 
 	# Check whether to run linear tests
@@ -133,6 +134,7 @@ check_env() {
 		LINEAR="yes"
 	if [ "$LINEAR" != "yes" ]; then
 		echo "test: skipping tests for linear, which is removed in upstream 6.8+ kernels"
+		skipping_linear="yes"
 	fi
 }
 

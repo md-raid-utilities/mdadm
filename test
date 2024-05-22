@@ -17,6 +17,9 @@ devlist=
 # device node will be /dev/md127 (127 is choosed by mdadm autumatically)
 is_foreign="no"
 
+skipping_linear="no"
+skipping_multipath="no"
+
 savelogs=0
 exitonerror=1
 ctrl_c_error=0
