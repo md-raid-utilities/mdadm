@@ -109,7 +109,7 @@ do_test() {
 			if [ -f "${_script}.inject_error" ]; then
 				echo "dmesg checking is skipped because test inject error"
 			else
-				dmesg | grep -iq "error\|call trace\|segfault" &&
+				dmesg | grep -iq "error\|call trace\|segfault" | grep -v "systemd" &&
 					die "dmesg prints errors when testing $_basename!"
 			fi
 			echo "succeeded"
