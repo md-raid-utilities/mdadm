@@ -7046,7 +7046,6 @@ get_devices(const char *hba_path)
 	struct md_list *dv;
 	struct dirent *ent;
 	DIR *dir;
-	int err = 0;
 
 #if DEBUG_LOOP
 	devlist = get_loop_devices();
@@ -7087,14 +7086,6 @@ get_devices(const char *hba_path)
 		dv->devname = xstrdup(buf);
 		dv->next = devlist;
 		devlist = dv;
-	}
-	if (err) {
-		while(devlist) {
-			dv = devlist;
-			devlist = devlist->next;
-			free(dv->devname);
-			free(dv);
-		}
 	}
 	closedir(dir);
 	return devlist;
