@@ -11328,7 +11328,7 @@ check_policy:
 			return MDADM_STATUS_SUCCESS;
 
 		fd2devname(disk_fd, devname);
-		pr_vrb("Encryption status \"%s\" detected for disk %s, but \"%s\" status was detected eariler.\n",
+		pr_vrb("Encryption status \"%s\" detected for disk %s, but \"%s\" status was detected earlier.\n",
 		       encryption_state, devname, expected_policy->value);
 		pr_vrb("Disks with different encryption status cannot be used.\n");
 		return MDADM_STATUS_ERROR;
