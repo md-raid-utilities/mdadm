@@ -535,7 +535,8 @@ enum special_options {
 };
 
 enum update_opt {
-	UOPT_NAME = 1,
+	UOPT_UNDEFINED = 0,
+	UOPT_NAME,
 	UOPT_PPL,
 	UOPT_NO_PPL,
 	UOPT_BITMAP,
@@ -575,7 +576,6 @@ enum update_opt {
 	UOPT_SPEC_FAILFAST,
 	UOPT_SPEC_NOFAILFAST,
 	UOPT_SPEC_REVERT_RESHAPE_NOBACKUP,
-	UOPT_UNDEFINED
 };
 extern void fprint_update_options(FILE *outf, enum update_opt update_mode);
 
