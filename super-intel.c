@@ -2343,7 +2343,8 @@ void print_encryption_information(int disk_fd, enum sys_dev_type hba_type)
 	       get_encryption_status_string(information.status));
 }
 
-static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_base, int verbose)
+static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, int host_base,
+				int verbose)
 {
 	/* dump an unsorted list of devices attached to AHCI Intel storage
 	 * controller, as well as non-connected ports
@@ -2357,7 +2358,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_ba
 
 	if (port_count > (int)sizeof(port_mask) * 8) {
 		if (verbose > 0)
-			pr_err("port_count %d out of range\n", port_count);
+			pr_err("port_count %ld out of range\n", port_count);
 		return 2;
 	}
 
@@ -2499,11 +2500,11 @@ static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_ba
 	if (dir)
 		closedir(dir);
 	if (err == 0) {
-		int i;
+		unsigned long i;
 
 		for (i = 0; i < port_count; i++)
-			if (port_mask & (1 << i))
-				printf("          Port%d : - no device attached -\n", i);
+			if (port_mask & (1L << i))
+				printf("          Port%ld : - no device attached -\n", i);
 	}
 
 	return err;
