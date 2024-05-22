@@ -167,6 +167,15 @@ is_raid_foreign() {
 	fi
 }
 
+record_selinux() {
+	sys_selinux=`getenforce`
+	setenforce Permissive
+}
+
+restore_selinux() {
+	setenforce $sys_selinux
+}
+
 do_setup() {
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
@@ -247,6 +256,7 @@ do_setup() {
 	echo 0 > /sys/module/md_mod/parameters/start_ro
 	record_system_speed_limit
 	is_raid_foreign
+	record_selinux
 }
 
 # check various things

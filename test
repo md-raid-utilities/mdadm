@@ -16,6 +16,8 @@ devlist=
 # For example, /dev/md0 is created, stops it, then assemble it, the
 # device node will be /dev/md127 (127 is choosed by mdadm autumatically)
 is_foreign="no"
+#disable selinux
+sys_selinux="Permissive"
 
 skipping_linear="no"
 skipping_multipath="no"
@@ -351,6 +353,7 @@ main() {
 		fi
 	done
 
+	restore_selinux
 	exit 0
 }
 
