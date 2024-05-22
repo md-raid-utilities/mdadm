@@ -1214,23 +1214,19 @@ static int start_array(int mdfd,
 		if (rv == 0) {
 			sysfs_rules_apply(mddev, content);
 			if (c->verbose >= 0) {
-				pr_err("%s has been started with %d drive%s",
+				pr_info("%s has been started with %d drive%s",
 				       mddev, okcnt, okcnt==1?"":"s");
 				if (okcnt < (unsigned)content->array.raid_disks)
-					fprintf(stderr, " (out of %d)",
-						content->array.raid_disks);
+					printf(" (out of %d)", content->array.raid_disks);
 				if (rebuilding_cnt)
-					fprintf(stderr, "%s %d rebuilding",
-						sparecnt?",":" and",
+					printf("%s %d rebuilding", sparecnt?",":" and",
 						rebuilding_cnt);
 				if (sparecnt)
-					fprintf(stderr, " and %d spare%s",
-						sparecnt,
+					printf(" and %d spare%s", sparecnt,
 						sparecnt == 1 ? "" : "s");
 				if (content->journal_clean)
-					fprintf(stderr, " and %d journal",
-						journalcnt);
-				fprintf(stderr, ".\n");
+					printf(" and %d journal", journalcnt);
+				printf(".\n");
 			}
 			if (content->reshape_active &&
 			    is_level456(content->array.level)) {

@@ -463,7 +463,7 @@ done:
 	}
 
 	if (verbose >= 0)
-		pr_err("stopped %s\n", devname);
+		pr_info("stopped %s\n", devname);
 	map_lock(&map);
 	map_remove(&map, devnm);
 	map_unlock(&map);

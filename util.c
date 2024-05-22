@@ -633,9 +633,9 @@ int check_ext2(int fd, char *name)
 	bsize = sb[24]|(sb[25]|(sb[26]|sb[27]<<8)<<8)<<8;
 	size = sb[4]|(sb[5]|(sb[6]|sb[7]<<8)<<8)<<8;
 	size <<= bsize;
-	pr_err("%s appears to contain an ext2fs file system\n",
+	pr_info("%s appears to contain an ext2fs file system\n",
 		name);
-	cont_err("size=%lluK  mtime=%s", size, ctime(&mtime));
+	pr_info("size=%lluK  mtime=%s", size, ctime(&mtime));
 	return 1;
 }
 
