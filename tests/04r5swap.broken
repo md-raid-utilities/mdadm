@@ -1,7 +1,0 @@
-always fails
-
-Fails with errors:
-
-  mdadm: /dev/loop0 has no superblock - assembly aborted
-
-   ERROR: no recovery happening
