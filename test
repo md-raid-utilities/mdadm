@@ -6,7 +6,10 @@ targetdir="/var/tmp"
 logdir="$targetdir"
 config=/tmp/mdadm.conf
 testdir=$PWD/tests
-system_speed_limit=`cat /proc/sys/dev/raid/speed_limit_max`
+system_speed_limit_max=0
+system_speed_limit_min=0
+test_speed_limit_min=100
+test_speed_limit_max=500
 devlist=
 
 savelogs=0
@@ -37,10 +40,6 @@ die() {
 ctrl_c() {
 	exitonerror=1
 	ctrl_c_error=1
-}
-
-restore_system_speed_limit() {
-	echo $system_speed_limit > /proc/sys/dev/raid/speed_limit_max
 }
 
 mdadm() {
@@ -103,6 +102,7 @@ do_test() {
 		do_clean
 		# source script in a subshell, so it has access to our
 		# namespace, but cannot change it.
+		control_system_speed_limit
 		echo -ne "$_script... "
 		if ( set -ex ; . $_script ) &> $targetdir/log
 		then

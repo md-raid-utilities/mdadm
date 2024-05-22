@@ -136,6 +136,23 @@ check_env() {
 	fi
 }
 
+record_system_speed_limit() {
+	system_speed_limit_max=`cat /proc/sys/dev/raid/speed_limit_max`
+	system_speed_limit_min=`cat /proc/sys/dev/raid/speed_limit_min`
+}
+
+# To avoid sync action finishes before checking it, it needs to limit
+# the sync speed
+control_system_speed_limit() {
+	echo $test_speed_limit_min > /proc/sys/dev/raid/speed_limit_min
+	echo $test_speed_limit_max > /proc/sys/dev/raid/speed_limit_max
+}
+
+restore_system_speed_limit() {
+	echo $system_speed_limit_min > /proc/sys/dev/raid/speed_limit_max
+	echo $system_speed_limit_max > /proc/sys/dev/raid/speed_limit_max
+}
+
 do_setup() {
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
@@ -214,6 +231,7 @@ do_setup() {
 	ulimit -c unlimited
 	[ -f /proc/mdstat ] || modprobe md_mod
 	echo 0 > /sys/module/md_mod/parameters/start_ro
+	record_system_speed_limit
 }
 
 # check various things
@@ -265,15 +283,17 @@ check() {
 		fi
 	;;
 	wait )
-		p=`cat /proc/sys/dev/raid/speed_limit_max`
-		echo 2000000 > /proc/sys/dev/raid/speed_limit_max
+		min=`cat /proc/sys/dev/raid/speed_limit_min`
+		max=`cat /proc/sys/dev/raid/speed_limit_max`
+		echo 200000 > /proc/sys/dev/raid/speed_limit_max
 		sleep 0.1
 		while grep -Eq '(resync|recovery|reshape|check|repair) *=' /proc/mdstat ||
 			grep -v idle > /dev/null /sys/block/md*/md/sync_action
 		do
 			sleep 0.5
 		done
-		echo $p > /proc/sys/dev/raid/speed_limit_max
+		echo $min > /proc/sys/dev/raid/speed_limit_min
+		echo $max > /proc/sys/dev/raid/speed_limit_max
 	;;
 	state )
 		grep -sq "blocks.*\[$2\]\$" /proc/mdstat ||
