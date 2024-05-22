@@ -33,6 +33,9 @@ LVM_VOLGROUP=mdtest
 md0=/dev/md0
 md1=/dev/md1
 md2=/dev/md2
+# if user doesn't specify minor number, mdadm chooses minor number
+# automatically from 127.
+md127=/dev/md127
 mdp0=/dev/md_d0
 mdp1=/dev/md_d1
 
