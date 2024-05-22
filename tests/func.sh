@@ -153,6 +153,18 @@ restore_system_speed_limit() {
 	echo $system_speed_limit_max > /proc/sys/dev/raid/speed_limit_max
 }
 
+is_raid_foreign() {
+
+	# If the length of hostname is >= 32, super1 doesn't use
+	# hostname in metadata
+	hostname=$(hostname)
+	if [ `expr length $(hostname)` -lt 32 ]; then
+		is_foreign="no"
+	else
+		is_foreign="yes"
+	fi
+}
+
 do_setup() {
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
@@ -232,6 +244,7 @@ do_setup() {
 	[ -f /proc/mdstat ] || modprobe md_mod
 	echo 0 > /sys/module/md_mod/parameters/start_ro
 	record_system_speed_limit
+	is_raid_foreign
 }
 
 # check various things

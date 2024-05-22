@@ -11,6 +11,11 @@ system_speed_limit_min=0
 test_speed_limit_min=100
 test_speed_limit_max=500
 devlist=
+# If super1 metadata name doesn't have the same hostname with machine,
+# it's treated as foreign.
+# For example, /dev/md0 is created, stops it, then assemble it, the
+# device node will be /dev/md127 (127 is choosed by mdadm autumatically)
+is_foreign="no"
 
 savelogs=0
 exitonerror=1
