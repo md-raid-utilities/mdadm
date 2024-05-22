@@ -4488,7 +4488,6 @@ int child_monitor(int afd, struct mdinfo *sra, struct reshape *reshape,
 	 */
 	char *buf;
 	int degraded = -1;
-	unsigned long long speed;
 	unsigned long long suspend_point, array_size;
 	unsigned long long backup_point, wait_point;
 	unsigned long long reshape_completed;
@@ -4544,10 +4543,6 @@ int child_monitor(int afd, struct mdinfo *sra, struct reshape *reshape,
 	if (posix_memalign((void**)&buf, 4096, disks * chunk))
 		/* Don't start the 'reshape' */
 		return 0;
-	if (reshape->before.data_disks == reshape->after.data_disks) {
-		sysfs_get_ll(sra, NULL, "sync_speed_min", &speed);
-		sysfs_set_num(sra, NULL, "sync_speed_min", 200000);
-	}
 
 	if (increasing) {
 		array_size = sra->component_size * reshape->after.data_disks;
@@ -4680,8 +4675,6 @@ int child_monitor(int afd, struct mdinfo *sra, struct reshape *reshape,
 	sysfs_set_num(sra, NULL, "suspend_lo", 0);
 	sysfs_set_num(sra, NULL, "sync_min", 0);
 
-	if (reshape->before.data_disks == reshape->after.data_disks)
-		sysfs_set_num(sra, NULL, "sync_speed_min", speed);
 	free(buf);
 	return done;
 }
