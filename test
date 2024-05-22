@@ -39,6 +39,8 @@ md2=/dev/md2
 # if user doesn't specify minor number, mdadm chooses minor number
 # automatically from 127.
 md127=/dev/md127
+md126=/dev/md126
+md125=/dev/md125
 mdp0=/dev/md_d0
 mdp1=/dev/md_d1
 
