@@ -7706,9 +7706,11 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 				  char *dev, unsigned long long *freesize,
 				  int consistency_policy, int verbose)
 {
-	int fd, cfd;
+	struct intel_super *super = st->sb;
 	struct mdinfo *sra;
 	int is_member = 0;
+	imsm_status_t rv;
+	int fd, cfd;
 
 	/* load capability
 	 * if given unused devices create a container
@@ -7733,11 +7735,10 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 	}
 
 	if (!dev) {
-		struct intel_super *super = st->sb;
-
 		/*
 		 * Autolayout mode, st->sb must be set.
 		 */
+
 		if (!super) {
 			pr_vrb("superblock must be set for autolayout, aborting\n");
 			return 0;
@@ -7749,20 +7750,19 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 			return 0;
 
 		if (super->orom && freesize) {
-			imsm_status_t rv;
-			int count = count_volumes(super->hba, super->orom->dpa,
-					      verbose);
+			int count = count_volumes(super->hba, super->orom->dpa, verbose);
+
 			if (super->orom->vphba <= count) {
 				pr_vrb("platform does not support more than %d raid volumes.\n",
 				       super->orom->vphba);
 				return 0;
 			}
+		}
 
-			rv = autolayout_imsm(super, raiddisks, size, *chunk,
-					     freesize);
+		rv = autolayout_imsm(super, raiddisks, size, *chunk, freesize);
 			if (rv != IMSM_STATUS_OK)
 				return 0;
-		}
+
 		return 1;
 	}
 	if (st->sb) {
