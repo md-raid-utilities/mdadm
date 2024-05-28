@@ -907,14 +907,14 @@ char *get_nvme_multipath_dev_hw_path(const char *dev_path)
 		return NULL;
 
 	for (ent = readdir(dir); ent; ent = readdir(dir)) {
-		char buf[strlen(dev_path) + strlen(ent->d_name) + 1];
+		char buf[PATH_MAX];
 
 		/* Check if dir is a controller, ignore namespaces*/
 		if (!(strncmp(ent->d_name, "nvme", 4) == 0) ||
 		    (strrchr(ent->d_name, 'n') != &ent->d_name[0]))
 			continue;
 
-		sprintf(buf, "%s/%s", dev_path, ent->d_name);
+		snprintf(buf, PATH_MAX, "%s/%s", dev_path, ent->d_name);
 		rp = realpath(buf, NULL);
 		break;
 	}
