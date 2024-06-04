@@ -401,6 +401,7 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 	 */
 	sigemptyset(&sigset);
 	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGCHLD);
 	sigprocmask(SIG_BLOCK, &sigset, &orig_sigset);
 	memset(zero_pids, 0, sizeof(zero_pids));
 
