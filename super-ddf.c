@@ -1053,7 +1053,10 @@ static int load_ddf_local(int fd, struct ddf_super *super,
 		     0);
 	dl->devname = devname ? xstrdup(devname) : NULL;
 
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0) {
+		free(dl);
+		return 1;
+	}
 	dl->major = major(stb.st_rdev);
 	dl->minor = minor(stb.st_rdev);
 	dl->next = super->dlist;
@@ -2786,7 +2789,8 @@ static int add_to_super_ddf(struct supertype *st,
 	/* This is device numbered dk->number.  We need to create
 	 * a phys_disk entry and a more detailed disk_data entry.
 	 */
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0)
+		return 1;
 	n = find_unused_pde(ddf);
 	if (n == DDF_NOTFOUND) {
 		pr_err("No free slot in array, cannot add disk\n");

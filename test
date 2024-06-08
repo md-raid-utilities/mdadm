@@ -6,8 +6,21 @@ targetdir="/var/tmp"
 logdir="$targetdir"
 config=/tmp/mdadm.conf
 testdir=$PWD/tests
-system_speed_limit=`cat /proc/sys/dev/raid/speed_limit_max`
+system_speed_limit_max=0
+system_speed_limit_min=0
+test_speed_limit_min=100
+test_speed_limit_max=500
 devlist=
+# If super1 metadata name doesn't have the same hostname with machine,
+# it's treated as foreign.
+# For example, /dev/md0 is created, stops it, then assemble it, the
+# device node will be /dev/md127 (127 is choosed by mdadm autumatically)
+is_foreign="no"
+#disable selinux
+sys_selinux="Permissive"
+
+skipping_linear="no"
+skipping_multipath="no"
 
 savelogs=0
 exitonerror=1
@@ -25,6 +38,11 @@ LVM_VOLGROUP=mdtest
 md0=/dev/md0
 md1=/dev/md1
 md2=/dev/md2
+# if user doesn't specify minor number, mdadm chooses minor number
+# automatically from 127.
+md127=/dev/md127
+md126=/dev/md126
+md125=/dev/md125
 mdp0=/dev/md_d0
 mdp1=/dev/md_d1
 
@@ -37,10 +55,6 @@ die() {
 ctrl_c() {
 	exitonerror=1
 	ctrl_c_error=1
-}
-
-restore_system_speed_limit() {
-	echo $system_speed_limit > /proc/sys/dev/raid/speed_limit_max
 }
 
 mdadm() {
@@ -103,13 +117,14 @@ do_test() {
 		do_clean
 		# source script in a subshell, so it has access to our
 		# namespace, but cannot change it.
+		control_system_speed_limit
 		echo -ne "$_script... "
 		if ( set -ex ; . $_script ) &> $targetdir/log
 		then
 			if [ -f "${_script}.inject_error" ]; then
 				echo "dmesg checking is skipped because test inject error"
 			else
-				dmesg | grep -iq "error\|call trace\|segfault" &&
+				dmesg | grep -iq "error\|call trace\|segfault" | grep -v "systemd" &&
 					die "dmesg prints errors when testing $_basename!"
 			fi
 			echo "succeeded"
@@ -338,6 +353,7 @@ main() {
 		fi
 	done
 
+	restore_selinux
 	exit 0
 }
 

@@ -2343,7 +2343,8 @@ void print_encryption_information(int disk_fd, enum sys_dev_type hba_type)
 	       get_encryption_status_string(information.status));
 }
 
-static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_base, int verbose)
+static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, int host_base,
+				int verbose)
 {
 	/* dump an unsorted list of devices attached to AHCI Intel storage
 	 * controller, as well as non-connected ports
@@ -2357,7 +2358,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_ba
 
 	if (port_count > (int)sizeof(port_mask) * 8) {
 		if (verbose > 0)
-			pr_err("port_count %d out of range\n", port_count);
+			pr_err("port_count %ld out of range\n", port_count);
 		return 2;
 	}
 
@@ -2499,11 +2500,11 @@ static int ahci_enumerate_ports(struct sys_dev *hba, int port_count, int host_ba
 	if (dir)
 		closedir(dir);
 	if (err == 0) {
-		int i;
+		unsigned long i;
 
 		for (i = 0; i < port_count; i++)
-			if (port_mask & (1 << i))
-				printf("          Port%d : - no device attached -\n", i);
+			if (port_mask & (1L << i))
+				printf("          Port%ld : - no device attached -\n", i);
 	}
 
 	return err;
@@ -4239,7 +4240,10 @@ load_imsm_disk(int fd, struct intel_super *super, char *devname, int keep_fd)
 
 	dl = xcalloc(1, sizeof(*dl));
 
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0) {
+		free(dl);
+		return 1;
+	}
 	dl->major = major(stb.st_rdev);
 	dl->minor = minor(stb.st_rdev);
 	dl->next = super->disks;
@@ -5981,7 +5985,8 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	if (super->current_vol >= 0)
 		return add_to_super_imsm_volume(st, dk, fd, devname);
 
-	fstat(fd, &stb);
+	if (fstat(fd, &stb) != 0)
+		return 1;
 	dd = xcalloc(sizeof(*dd), 1);
 	dd->major = major(stb.st_rdev);
 	dd->minor = minor(stb.st_rdev);
@@ -7042,7 +7047,6 @@ get_devices(const char *hba_path)
 	struct md_list *dv;
 	struct dirent *ent;
 	DIR *dir;
-	int err = 0;
 
 #if DEBUG_LOOP
 	devlist = get_loop_devices();
@@ -7083,14 +7087,6 @@ get_devices(const char *hba_path)
 		dv->devname = xstrdup(buf);
 		dv->next = devlist;
 		devlist = dv;
-	}
-	if (err) {
-		while(devlist) {
-			dv = devlist;
-			devlist = devlist->next;
-			free(dv->devname);
-			free(dv);
-		}
 	}
 	closedir(dir);
 	return devlist;
@@ -7710,9 +7706,11 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 				  char *dev, unsigned long long *freesize,
 				  int consistency_policy, int verbose)
 {
-	int fd, cfd;
+	struct intel_super *super = st->sb;
 	struct mdinfo *sra;
 	int is_member = 0;
+	imsm_status_t rv;
+	int fd, cfd;
 
 	/* load capability
 	 * if given unused devices create a container
@@ -7737,11 +7735,10 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 	}
 
 	if (!dev) {
-		struct intel_super *super = st->sb;
-
 		/*
 		 * Autolayout mode, st->sb must be set.
 		 */
+
 		if (!super) {
 			pr_vrb("superblock must be set for autolayout, aborting\n");
 			return 0;
@@ -7753,20 +7750,19 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 			return 0;
 
 		if (super->orom && freesize) {
-			imsm_status_t rv;
-			int count = count_volumes(super->hba, super->orom->dpa,
-					      verbose);
+			int count = count_volumes(super->hba, super->orom->dpa, verbose);
+
 			if (super->orom->vphba <= count) {
 				pr_vrb("platform does not support more than %d raid volumes.\n",
 				       super->orom->vphba);
 				return 0;
 			}
+		}
 
-			rv = autolayout_imsm(super, raiddisks, size, *chunk,
-					     freesize);
+		rv = autolayout_imsm(super, raiddisks, size, *chunk, freesize);
 			if (rv != IMSM_STATUS_OK)
 				return 0;
-		}
+
 		return 1;
 	}
 	if (st->sb) {
@@ -11324,7 +11320,7 @@ check_policy:
 			return MDADM_STATUS_SUCCESS;
 
 		fd2devname(disk_fd, devname);
-		pr_vrb("Encryption status \"%s\" detected for disk %s, but \"%s\" status was detected eariler.\n",
+		pr_vrb("Encryption status \"%s\" detected for disk %s, but \"%s\" status was detected earlier.\n",
 		       encryption_state, devname, expected_policy->value);
 		pr_vrb("Disks with different encryption status cannot be used.\n");
 		return MDADM_STATUS_ERROR;

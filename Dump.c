@@ -37,6 +37,7 @@ int Dump_metadata(char *dev, char *dir, struct context *c,
 	unsigned long long size;
 	DIR *dirp;
 	struct dirent *de;
+	int ret = 0;
 
 	if (stat(dir, &stb) != 0 ||
 	    (S_IFMT & stb.st_mode) != S_IFDIR) {
@@ -112,9 +113,15 @@ int Dump_metadata(char *dev, char *dir, struct context *c,
 	}
 	if (c->verbose >= 0)
 		printf("%s saved as %s.\n", dev, fname);
-	fstat(fd, &dstb);
-	close(fd);
+
 	close(fl);
+	ret = fstat(fd, &dstb);
+	close(fd);
+	if (ret) {
+		unlink(fname);
+		free(fname);
+		return 1;
+	}
 	if ((dstb.st_mode & S_IFMT) != S_IFBLK) {
 		/* Not a block device, so cannot create links */
 		free(fname);

@@ -157,7 +157,7 @@ ifndef UDEVDIR
  UDEVDIR = /lib/udev
 endif
 
-ifeq (,$(findstring s,$(MAKEFLAGS)))
+ifeq (,$(findstring s,$(firstword -$(MAKEFLAGS))))
 	ECHO=echo
 else
 	ECHO=:

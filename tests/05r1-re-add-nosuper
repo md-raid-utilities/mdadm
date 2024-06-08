@@ -6,7 +6,7 @@
 #
 bmf=$targetdir/bitmap2
 rm -f $bmf
-mdadm -B $md0 -l1 -n2 -b$bmf -d1 $dev1 $dev2
+yes | mdadm -B $md0 -l1 -n2 -b$bmf -d1 $dev1 $dev2
 check resync
 check wait
 testdev $md0 1 $size 1

@@ -727,29 +727,25 @@ same as
 
 .TP
 .BR \-b ", " \-\-bitmap=
-Specify a file to store a write-intent bitmap in.  The file should not
-exist unless
-.B \-\-force
-is also given.  The same file should be provided
-when assembling the array.  If the word
-.B "internal"
-is given, then the bitmap is stored with the metadata on the array,
-and so is replicated on all devices.  If the word
-.B "none"
-is given with
-.B \-\-grow
-mode, then any bitmap that is present is removed. If the word
-.B "clustered"
-is given, the array is created for a clustered environment. One bitmap
-is created for each node as defined by the
+Specify how to store a write-intent bitmap.  Following values are supported:
+
+.B internal
+- the bitmap is stored with the metadata on the array and so is replicated on all devices.
+
+.B clustered
+- the array is created for a clustered environment. One bitmap is created for each node as defined
+by the
 .B \-\-nodes
 parameter and are stored internally.
 
-To help catch typing errors, the filename must contain at least one
-slash ('/') if it is a real file (not 'internal' or 'none').
+.B none
+- create array with no bitmap or remove any present bitmap (grow mode).
 
-Note: external bitmaps are only known to work on ext2 and ext3.
-Storing bitmap files on other filesystems may result in serious problems.
+Setting bitmap for file is deprecated and should not be used. The file should not exist unless
+.B \-\-force
+is also given. The same file should be provided when assembling the array. The file name must
+contain at least one slash ('/'). Bitmap files are only known to work on ext2 and ext3. Storing
+bitmap files on other filesystems may result in serious problems.
 
 When creating an array on devices which are 100G or larger,
 .I mdadm

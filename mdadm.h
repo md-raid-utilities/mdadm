@@ -223,6 +223,14 @@ struct dlm_lksb {
 struct __una_u16 { __u16 x; } __attribute__ ((packed));
 struct __una_u32 { __u32 x; } __attribute__ ((packed));
 
+/*
+ * Ensure GNU basename behavior on GLIBC less systems.
+ */
+#ifndef __GLIBC__
+#define basename(path) \
+       (strrchr((path), '/') ? strrchr((path),'/') + 1 : (path))
+#endif
+
 static inline __u16 __get_unaligned16(const void *p)
 {
 	const struct __una_u16 *ptr = (const struct __una_u16 *)p;
@@ -535,7 +543,8 @@ enum special_options {
 };
 
 enum update_opt {
-	UOPT_NAME = 1,
+	UOPT_UNDEFINED = 0,
+	UOPT_NAME,
 	UOPT_PPL,
 	UOPT_NO_PPL,
 	UOPT_BITMAP,
@@ -575,7 +584,6 @@ enum update_opt {
 	UOPT_SPEC_FAILFAST,
 	UOPT_SPEC_NOFAILFAST,
 	UOPT_SPEC_REVERT_RESHAPE_NOBACKUP,
-	UOPT_UNDEFINED
 };
 extern void fprint_update_options(FILE *outf, enum update_opt update_mode);
 

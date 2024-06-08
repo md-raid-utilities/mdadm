@@ -9,15 +9,21 @@ set -x -e
 levels=(raid0 raid1 raid5)
 
 if [ "$LINEAR" == "yes" ]; then
-  levels+=( linear )
+	levels+=( linear )
 fi
 
 for l in ${levels[@]}
 do
-  mdadm -CR $md0 -l $l -n5 $dev0 $dev1 $dev2 $dev3 $dev4 --assume-clean
-  mdadm -S md0
-  mdadm -I $dev1
-  mdadm -I $dev3
-  mdadm -A /dev/md0  $dev0 $dev1 $dev2 $dev3 $dev4
-  mdadm -S /dev/md0
+	mdadm -CR $md0 -l $l -n5 $dev0 $dev1 $dev2 $dev3 $dev4 --assume-clean
+	mdadm -S $md0
+	mdadm -I $dev1
+	mdadm -I $dev3
+	mdadm -A $md0  $dev0 $dev1 $dev2 $dev3 $dev4
+	# If one array is foreign (metadata name doesn't have the machine's
+	# hostname), mdadm chooses a minor number automatically from 127
+	if [ $is_foreign == "no" ]; then
+		mdadm -S $md0
+	else
+		mdadm -S $md127
+	fi
 done

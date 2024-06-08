@@ -949,7 +949,8 @@ void conf_file_or_dir(FILE *f)
 	struct dirent *dp;
 	struct fname *list = NULL;
 
-	fstat(fileno(f), &st);
+	if (fstat(fileno(f), &st) != 0)
+		return;
 	if (S_ISREG(st.st_mode))
 		conf_file(f);
 	else if (!S_ISDIR(st.st_mode))
