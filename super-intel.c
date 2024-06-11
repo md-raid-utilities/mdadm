@@ -7749,7 +7749,7 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 						 verbose))
 			return 0;
 
-		if (super->orom && freesize) {
+		if (super->orom) {
 			int count = count_volumes(super->hba, super->orom->dpa, verbose);
 
 			if (super->orom->vphba <= count) {
@@ -7759,9 +7759,11 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 			}
 		}
 
-		rv = autolayout_imsm(super, raiddisks, size, *chunk, freesize);
-			if (rv != IMSM_STATUS_OK)
-				return 0;
+		if (freesize) {
+			rv = autolayout_imsm(super, raiddisks, size, *chunk, freesize);
+				if (rv != IMSM_STATUS_OK)
+					return 0;
+		}
 
 		return 1;
 	}
