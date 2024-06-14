@@ -181,10 +181,12 @@ restore_system_speed_limit() {
 
 is_raid_foreign() {
 
-	# If the length of hostname is >= 32, super1 doesn't use
-	# hostname in metadata
+	name=$1
+	# super1 uses this formula strlen(homehost)+1+strlen(name) < 32
+	# to decide if an array is foreign or local. It adds homehost if
+	# one array is local
 	hostname=$(hostname)
-	if [ `expr length $(hostname)` -lt 32 ]; then
+	if [ `expr length "$(hostname)$name"` -lt 31 ]; then
 		is_foreign="no"
 	else
 		is_foreign="yes"
@@ -299,7 +301,6 @@ do_setup() {
 	[ -f /proc/mdstat ] || modprobe md_mod
 	echo 0 > /sys/module/md_mod/parameters/start_ro
 	record_system_speed_limit
-	is_raid_foreign
 	record_selinux
 }
 

@@ -2,6 +2,8 @@ set -x
 
 # create an array with a name
 
+is_raid_foreign $md0
+
 mdadm -CR $md0 -l0 -n2 --metadata=1 --name="Fred" $dev0 $dev1
 
 if [ $is_foreign == "no" ]; then

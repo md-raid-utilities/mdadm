@@ -2,6 +2,9 @@
 # create two raid1s, build a raid0 on top, then
 # tear it down and get auto-assemble to rebuild it.
 
+#the length of md0/md1/md2 is same. So use md0 here.
+is_raid_foreign $md0
+
 mdadm -CR $md1 -l1 -n2 $dev0 $dev1  --homehost=testing
 mdadm -CR $md2 -l1 -n2 $dev2 $dev3  --homehost=testing
 mdadm -CR $md0 -l0 -n2 $md1 $md2  --homehost=testing

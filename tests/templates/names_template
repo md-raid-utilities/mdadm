@@ -4,6 +4,8 @@ function names_create() {
 	local NAME=$2
 	local NEG_TEST=$3
 
+	is_raid_foreign $DEVNAME
+
 	if [[ -z "$NAME" ]]; then
 		mdadm -CR "$DEVNAME" -l0 -n 1 $dev0 --force
 	else
