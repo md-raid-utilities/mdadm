@@ -151,7 +151,6 @@ int connect_monitor(char *devname)
 	struct sockaddr_un addr;
 	int pos;
 	char *c;
-	int rv, retry_count = 0;
 
 	pos = sprintf(path, "%s/", MDMON_DIR);
 	if (is_subarray(devname)) {
@@ -171,24 +170,7 @@ int connect_monitor(char *devname)
 
 	addr.sun_family = PF_LOCAL;
 	strcpy(addr.sun_path, path);
-
-	/* In foreground mode, when mdadm is trying to connect to control
-	 * socket it is possible that the mdmon has not created it yet.
-	 * Give some time to mdmon to create socket.
-	 */
-	for (retry_count = 0; retry_count < 10; retry_count++) {
-		rv = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
-
-		if (rv < 0) {
-			sleep_for(0, MSEC_TO_NSEC(200), true);
-			continue;
-		}
-		break;
-	}
-
-	if (rv < 0) {
-		pr_err("Failed to connect to control socket. (%s!!)\n",
-				strerror(errno));
+	if (connect(sfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		close(sfd);
 		return -1;
 	}
