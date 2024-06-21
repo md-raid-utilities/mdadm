@@ -815,12 +815,12 @@ static int load_devices(struct devs *devices, char *devmap,
 			if (i >= bestcnt) {
 				int newbestcnt = i+10;
 				int *newbest = xmalloc(sizeof(int)*newbestcnt);
-				int c;
-				for (c=0; c < newbestcnt; c++)
-					if (c < bestcnt)
-						newbest[c] = best[c];
+				int cc;
+				for (cc=0; cc < newbestcnt; cc++)
+					if (cc < bestcnt)
+						newbest[cc] = best[cc];
 					else
-						newbest[c] = -1;
+						newbest[cc] = -1;
 				if (best)free(best);
 				best = newbest;
 				bestcnt = newbestcnt;
@@ -1610,6 +1610,7 @@ try_again:
 		err = assemble_container_content(st, mdfd, content, c,
 						 chosen_name, NULL);
 		close(mdfd);
+		sysfs_free(pre_exist);
 		return err;
 	}
 
@@ -1749,23 +1750,27 @@ try_again:
 				 : (O_RDONLY|O_EXCL)))< 0) {
 			pr_err("Cannot open %s: %s\n",
 			       devices[j].devname, strerror(errno));
+			free(avail);
 			goto out;
 		}
 		if (st->ss->load_super(st,fd, NULL)) {
 			close(fd);
 			pr_err("RAID superblock has disappeared from %s\n",
 			       devices[j].devname);
+			free(avail);
 			goto out;
 		}
 		close(fd);
 	}
 	if (st->sb == NULL) {
 		pr_err("No suitable drives found for %s\n", mddev);
+		free(avail);
 		goto out;
 	}
 	st->ss->getinfo_super(st, content, NULL);
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
+		free(avail);
 		goto out;
 	}
 
@@ -1828,12 +1833,14 @@ try_again:
 		if (fd < 0) {
 			pr_err("Could not open %s for write - cannot Assemble array.\n",
 			       devices[chosen_drive].devname);
+			free(avail);
 			goto out;
 		}
 		if (st->ss->store_super(st, fd)) {
 			close(fd);
 			pr_err("Could not re-write superblock on %s\n",
 			       devices[chosen_drive].devname);
+			free(avail);
 			goto out;
 		}
 		if (c->verbose >= 0)
@@ -1892,6 +1899,7 @@ try_again:
 			pr_err("Failed to restore critical section for reshape, sorry.\n");
 			if (c->backup_file == NULL)
 				cont_err("Possibly you needed to specify the --backup-file\n");
+			free(avail);
 			goto out;
 		}
 	}
@@ -1920,6 +1928,7 @@ try_again:
 	if (rv == 1 && !pre_exist)
 		ioctl(mdfd, STOP_ARRAY, NULL);
 	free(devices);
+	free(avail);
 out:
 	map_unlock(&map);
 	if (rv == 0) {
@@ -1955,11 +1964,14 @@ out:
 		close(mdfd);
 
 	free(best);
+	sysfs_free(pre_exist);
+
 	/* '2' means 'OK, but not started yet' */
 	if (rv == -1) {
 		free(devices);
 		return 1;
 	}
+	close(mdfd);
 	return rv == 2 ? 0 : rv;
 }
 
