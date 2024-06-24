@@ -1776,6 +1776,7 @@ extern int is_subarray_active(char *subarray, char *devname);
 extern int open_subarray(char *dev, char *subarray, struct supertype *st, int quiet);
 extern struct superswitch *version_to_superswitch(char *vers);
 
+extern mdadm_status_t wait_for_mdmon_control_socket(const char *container_devnm);
 extern int mdmon_running(const char *devnm);
 extern int mdmon_pid(const char *devnm);
 extern mdadm_status_t wait_for_mdmon(const char *devnm);
