@@ -41,7 +41,7 @@ ACTION=="change", KERNEL!="dm-*|md*", GOTO="md_inc_end"
 ACTION!="remove", IMPORT{program}="BINDIR/mdadm --incremental --export $devnode --offroot $env{DEVLINKS}"
 ACTION!="remove", ENV{MD_STARTED}=="*unsafe*", ENV{MD_FOREIGN}=="no", ENV{SYSTEMD_WANTS}+="mdadm-last-resort@$env{MD_DEVICE}.timer"
 
-ACTION=="remove", ENV{ID_PATH}=="?*", RUN+="BINDIR/mdadm -If $name --path $env{ID_PATH}"
-ACTION=="remove", ENV{ID_PATH}!="?*", RUN+="BINDIR/mdadm -If $name"
+ACTION=="remove", ENV{ID_PATH}=="?*", RUN+="BINDIR/mdadm -If $devnode --path $env{ID_PATH}"
+ACTION=="remove", ENV{ID_PATH}!="?*", RUN+="BINDIR/mdadm -If $devnode"
 
 LABEL="md_inc_end"

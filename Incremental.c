@@ -1674,33 +1674,52 @@ static void remove_from_member_array(struct mdstat_ent *memb,
 	}
 }
 
-/*
- * IncrementalRemove - Attempt to see if the passed in device belongs to any
- * raid arrays, and if so first fail (if needed) and then remove the device.
+/**
+ * is_devnode_path() - check if the devname passed might be devnode path.
+ * @devnode: the path to check.
  *
- * @devname - The device we want to remove
- * @id_path - name as found in /dev/disk/by-path for this device
+ * Devnode must be located directly in /dev directory. It is not checking existence of the file
+ * because the device might no longer exist during removal from raid array.
+ */
+static bool is_devnode_path(char *devnode)
+{
+	char *devnm = strrchr(devnode, '/');
+
+	if (!devnm || *(devnm + 1) == 0)
+		return false;
+
+	if (strncmp(devnode, DEV_DIR, DEV_DIR_LEN) == 0 && devnode + DEV_DIR_LEN - 1 == devnm)
+		return true;
+
+	return false;
+}
+
+/**
+ * IncrementalRemove() - Remove the device from all raid arrays.
+ * @devname: the device we want to remove, it could be kernel device name or devnode.
+ * @id_path: optional, /dev/disk/by-path path to save for bare scenarios support.
+ * @verbose: verbose flag.
  *
- * Note: the device name must be a kernel name like "sda", so
- * that we can find it in /proc/mdstat
+ * First, fail the device (if needed) and then remove the device from native raid array or external
+ * container.  If it is external container, the device is removed from each subarray first.
  */
 int IncrementalRemove(char *devname, char *id_path, int verbose)
 {
-	struct mdstat_ent *ent = NULL;
+	char *devnm = basename(devname);
+	struct mddev_dev devlist = {0};
 	char buf[SYSFS_MAX_BUF_SIZE];
 	struct mdstat_ent *mdstat;
-	struct mddev_dev devlist;
+	struct mdstat_ent *ent;
 	struct mdinfo mdi;
 	int rv = 1;
 	int mdfd;
 
-	if (!id_path)
-		dprintf("incremental removal without --path <id_path> lacks the possibility to re-add new device in this port\n");
-
-	if (strchr(devname, '/')) {
-		pr_err("incremental removal requires a kernel device name, not a file: %s\n", devname);
-		return 1;
-	}
+	if (strcmp(devnm, devname) != 0)
+		if (!is_devnode_path(devname)) {
+			pr_err("Cannot remove \"%s\", devnode path or kernel device name is allowed.\n",
+			       devname);
+			return 1;
+		}
 
 	mdstat = mdstat_read(0, 0);
 	if (!mdstat) {
@@ -1708,15 +1727,15 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		return 1;
 	}
 
-	ent = mdstat_find_by_member_name(mdstat, devname);
+	ent = mdstat_find_by_member_name(mdstat, devnm);
 	if (!ent) {
 		if (verbose >= 0)
-			pr_err("%s does not appear to be a component of any array\n", devname);
+			pr_vrb("%s does not appear to be a component of any array\n", devnm);
 		goto out;
 	}
 
 	if (sysfs_init(&mdi, -1, ent->devnm)) {
-		pr_err("unable to initialize sysfs for: %s\n", devname);
+		pr_err("unable to initialize sysfs for: %s\n", devnm);
 		goto out;
 	}
 
@@ -1746,8 +1765,7 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		map_free(map);
 	}
 
-	memset(&devlist, 0, sizeof(devlist));
-	devlist.devname = devname;
+	devlist.devname = devnm;
 	devlist.disposition = 'I';
 	/* for a container, we must fail each member array */
 	if (is_mdstat_ent_external(ent)) {
