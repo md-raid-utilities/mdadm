@@ -567,6 +567,9 @@ static int select_devices(struct mddev_dev *devlist,
 			tmpdev->used = 1;
 			content = *contentp;
 
+			if (!st)
+				return -1;
+
 			if (!st->sb) {
 				/* we need sb from one of the spares */
 				int dfd = dev_open(tmpdev->devname, O_RDONLY);
@@ -815,12 +818,12 @@ static int load_devices(struct devs *devices, char *devmap,
 			if (i >= bestcnt) {
 				int newbestcnt = i+10;
 				int *newbest = xmalloc(sizeof(int)*newbestcnt);
-				int c;
-				for (c=0; c < newbestcnt; c++)
-					if (c < bestcnt)
-						newbest[c] = best[c];
+				int cc;
+				for (cc = 0; cc < newbestcnt; cc++)
+					if (cc < bestcnt)
+						newbest[cc] = best[cc];
 					else
-						newbest[c] = -1;
+						newbest[cc] = -1;
 				if (best)free(best);
 				best = newbest;
 				bestcnt = newbestcnt;
@@ -1493,8 +1496,11 @@ try_again:
 		mp = map_by_uuid(&map, content->uuid);
 	if (mp) {
 		struct mdinfo *dv;
-		/* array already exists. */
 		pre_exist = sysfs_read(-1, mp->devnm, GET_LEVEL|GET_DEVS);
+		if (!pre_exist)
+			goto out;
+
+		/* array already exists. */
 		if (pre_exist->array.level != UnSet) {
 			pr_err("Found some drive for an array that is already active: %s\n",
 			       mp->path);
@@ -1606,6 +1612,7 @@ try_again:
 		err = assemble_container_content(st, mdfd, content, c,
 						 chosen_name, NULL);
 		close(mdfd);
+		sysfs_free(pre_exist);
 		return err;
 	}
 
@@ -1745,23 +1752,27 @@ try_again:
 				 : (O_RDONLY|O_EXCL)))< 0) {
 			pr_err("Cannot open %s: %s\n",
 			       devices[j].devname, strerror(errno));
+			free(avail);
 			goto out;
 		}
 		if (st->ss->load_super(st,fd, NULL)) {
 			close(fd);
 			pr_err("RAID superblock has disappeared from %s\n",
 			       devices[j].devname);
+			free(avail);
 			goto out;
 		}
 		close(fd);
 	}
 	if (st->sb == NULL) {
 		pr_err("No suitable drives found for %s\n", mddev);
+		free(avail);
 		goto out;
 	}
 	st->ss->getinfo_super(st, content, NULL);
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
+		free(avail);
 		goto out;
 	}
 
@@ -1824,12 +1835,14 @@ try_again:
 		if (fd < 0) {
 			pr_err("Could not open %s for write - cannot Assemble array.\n",
 			       devices[chosen_drive].devname);
+			free(avail);
 			goto out;
 		}
 		if (st->ss->store_super(st, fd)) {
 			close(fd);
 			pr_err("Could not re-write superblock on %s\n",
 			       devices[chosen_drive].devname);
+			free(avail);
 			goto out;
 		}
 		if (c->verbose >= 0)
@@ -1888,6 +1901,7 @@ try_again:
 			pr_err("Failed to restore critical section for reshape, sorry.\n");
 			if (c->backup_file == NULL)
 				cont_err("Possibly you needed to specify the --backup-file\n");
+			free(avail);
 			goto out;
 		}
 	}
@@ -1916,6 +1930,7 @@ try_again:
 	if (rv == 1 && !pre_exist)
 		ioctl(mdfd, STOP_ARRAY, NULL);
 	free(devices);
+	free(avail);
 out:
 	map_unlock(&map);
 	if (rv == 0) {
@@ -1951,11 +1966,14 @@ out:
 		close(mdfd);
 
 	free(best);
+	sysfs_free(pre_exist);
+
 	/* '2' means 'OK, but not started yet' */
 	if (rv == -1) {
 		free(devices);
 		return 1;
 	}
+	close(mdfd);
 	return rv == 2 ? 0 : rv;
 }
 
