@@ -1673,18 +1673,17 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 	mdadm_status_t rv = MDADM_STATUS_ERROR;
 	char buf[SYSFS_MAX_BUF_SIZE];
 	struct mdstat_ent *ent;
+	char *devnm = devname;
 	struct mdinfo mdi;
 	int mdfd;
 
-	if (strchr(devname, '/')) {
-		pr_err("incremental removal requires a kernel device name, not a file: %s\n", devname);
-		return 1;
-	}
+	if (strchr(devname, '/'))
+		devnm = basename(devname);
 
 	if (verbose)
 		pr_info("incremental removal without --path <id_path> lacks the possibility to re-add new device in this port\n");
 
-	ent = mdstat_by_component(devname);
+	ent = mdstat_by_component(devnm);
 	if (!ent) {
 		if (verbose >= 0)
 			pr_err("%s does not appear to be a component of any array\n", devname);
