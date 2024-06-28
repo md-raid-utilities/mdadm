@@ -379,6 +379,7 @@ struct mddev_dev *load_containers(void)
 			map = NULL;
 		}
 	free_mdstat(mdstat);
+	map_free(map);
 
 	return rv;
 }
