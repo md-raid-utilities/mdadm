@@ -1344,9 +1344,11 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		if (c->verbose >= 0)
 			pr_info("array %s started.\n", chosen_name);
 		if (st->ss->external && st->container_devnm[0]) {
-			if (need_mdmon)
+			if (need_mdmon) {
 				start_mdmon(st->container_devnm);
-
+				if (wait_for_mdmon_control_socket(st->container_devnm) != MDADM_STATUS_SUCCESS)
+					goto abort;
+			}
 			ping_monitor(st->container_devnm);
 			close(container_fd);
 		}

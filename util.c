@@ -1933,6 +1933,51 @@ int mdmon_running(const char *devnm)
 }
 
 /*
+ * wait_for_mdmon_control_socket() - Waits for mdmon control socket
+ * to be created within specified time.
+ * @container_devnm: Device for which mdmon control socket should start.
+ *
+ * In foreground mode, when mdadm is trying to connect to control
+ * socket it is possible that the mdmon has not created it yet.
+ * Give some time to mdmon to create socket. Timeout set to 2 sec.
+ *
+ * Return: MDADM_STATUS_SUCCESS if connect succeed, otherwise return
+ * error code.
+ */
+mdadm_status_t wait_for_mdmon_control_socket(const char *container_devnm)
+{
+	enum mdadm_status status = MDADM_STATUS_SUCCESS;
+	int sfd, rv, retry_count = 0;
+	struct sockaddr_un addr;
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "%s/%s.sock", MDMON_DIR, container_devnm);
+	sfd = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (!is_fd_valid(sfd))
+		return MDADM_STATUS_ERROR;
+
+	addr.sun_family = PF_LOCAL;
+        strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+        addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
+
+	for (retry_count = 0; retry_count < 10; retry_count++) {
+		rv = connect(sfd, (struct sockaddr*)&addr, sizeof(addr));
+		if (rv < 0) {
+			sleep_for(0, MSEC_TO_NSEC(200), true);
+			continue;
+		}
+		break;
+	}
+
+	if (rv < 0) {
+		pr_err("Failed to connect to control socket.\n");
+		status = MDADM_STATUS_ERROR;
+	}
+	close(sfd);
+	return status;
+}
+
+/*
  * wait_for_mdmon() - Waits for mdmon within specified time.
  * @devnm: Device for which mdmon should start.
  *
