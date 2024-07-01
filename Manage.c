@@ -165,7 +165,7 @@ int Manage_run(char *devname, int fd, struct context *c)
 		pr_err("Cannot find %s in sysfs!!\n", devname);
 		return 1;
 	}
-	strcpy(nm, nmp);
+	snprintf(nm, sizeof(nm), "%s", nmp);
 	return IncrementalScan(c, nm);
 }
 
@@ -187,7 +187,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	if (will_retry && verbose == 0)
 		verbose = -1;
 
-	strcpy(devnm, fd2devnm(fd));
+	snprintf(devnm, sizeof(devnm), "%s", fd2devnm(fd));
 	/* Get EXCL access first.  If this fails, then attempting
 	 * to stop is probably a bad idea.
 	 */
@@ -469,6 +469,7 @@ done:
 	map_unlock(&map);
 out:
 	sysfs_free(mdi);
+	close(fd);
 
 	return rv;
 }
@@ -1100,7 +1101,8 @@ int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 		 */
 		int ret;
 		char devnm[32];
-		strcpy(devnm, fd2devnm(fd));
+
+		snprintf(devnm, sizeof(devnm), "%s", fd2devnm(fd));
 		lfd = open_dev_excl(devnm);
 		if (lfd < 0) {
 			pr_err("Cannot get exclusive access  to container - odd\n");
@@ -1157,15 +1159,15 @@ int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 			/* Old kernels rejected this if no personality
 			 * is registered */
 			struct mdinfo *sra = sysfs_read(fd, NULL, GET_DEVS);
-			struct mdinfo *dv = NULL;
+			struct mdinfo *dev = NULL;
 			if (sra)
-				dv = sra->devs;
-			for ( ; dv ; dv=dv->next)
-				if (dv->disk.major == (int)major(rdev) &&
-				    dv->disk.minor == (int)minor(rdev))
+				dev = sra->devs;
+			for ( ; dev ; dev=dev->next)
+				if (dev->disk.major == (int)major(rdev) &&
+				    dev->disk.minor == (int)minor(rdev))
 					break;
-			if (dv)
-				err = sysfs_set_str(sra, dv,
+			if (dev)
+				err = sysfs_set_str(sra, dev,
 						    "state", "remove");
 			else
 				err = -1;
@@ -1190,6 +1192,7 @@ int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 
 		if (!devnm) {
 			pr_err("unable to get container name\n");
+			close(lfd);
 			return -1;
 		}
 
@@ -1218,7 +1221,7 @@ int Manage_replace(struct supertype *tst, int fd, struct mddev_dev *dv,
 	if (!mdi || !mdi->devs) {
 		pr_err("Cannot find status of %s to enable replacement - strange\n",
 		       devname);
-		return -1;
+		goto abort;
 	}
 	for (di = mdi->devs; di; di = di->next)
 		if (di->disk.major == (int)major(rdev) &&
@@ -1229,16 +1232,14 @@ int Manage_replace(struct supertype *tst, int fd, struct mddev_dev *dv,
 		if (di->disk.raid_disk < 0) {
 			pr_err("%s is not active and so cannot be replaced.\n",
 			       dv->devname);
-			sysfs_free(mdi);
-			return -1;
+			goto abort;
 		}
 		rv = sysfs_set_str(mdi, di,
 				   "state", "want_replacement");
 		if (rv) {
-			sysfs_free(mdi);
 			pr_err("Failed to request replacement for %s\n",
 			       dv->devname);
-			return -1;
+			goto abort;
 		}
 		if (verbose >= 0)
 			pr_err("Marked %s (device %d in %s) for replacement\n",
@@ -1252,11 +1253,13 @@ int Manage_replace(struct supertype *tst, int fd, struct mddev_dev *dv,
 			dv->disposition = 'w';
 			dv->used = di->disk.raid_disk;
 		}
+		sysfs_free(mdi);
 		return 1;
 	}
-	sysfs_free(mdi);
 	pr_err("%s not found in %s so cannot --replace it\n",
 	       dv->devname, devname);
+abort:
+	sysfs_free(mdi);
 	return -1;
 }
 
@@ -1269,7 +1272,7 @@ int Manage_with(struct supertype *tst, int fd, struct mddev_dev *dv,
 	if (!mdi || !mdi->devs) {
 		pr_err("Cannot find status of %s to enable replacement - strange\n",
 		       devname);
-		return -1;
+		goto abort;
 	}
 	for (di = mdi->devs; di; di = di->next)
 		if (di->disk.major == (int)major(rdev) &&
@@ -1280,31 +1283,30 @@ int Manage_with(struct supertype *tst, int fd, struct mddev_dev *dv,
 		if (di->disk.state & (1<<MD_DISK_FAULTY)) {
 			pr_err("%s is faulty and cannot be a replacement\n",
 			       dv->devname);
-			sysfs_free(mdi);
-			return -1;
+			goto abort;
 		}
 		if (di->disk.raid_disk >= 0) {
 			pr_err("%s is active and cannot be a replacement\n",
 			       dv->devname);
-			sysfs_free(mdi);
-			return -1;
+			goto abort;
 		}
 		rv = sysfs_set_num(mdi, di,
 				   "slot", dv->used);
 		if (rv) {
-			sysfs_free(mdi);
 			pr_err("Failed to set %s as preferred replacement.\n",
 			       dv->devname);
-			return -1;
+			goto abort;
 		}
 		if (verbose >= 0)
 			pr_err("Marked %s in %s as replacement for device %d\n",
 			       dv->devname, devname, dv->used);
+		sysfs_free(mdi);
 		return 1;
 	}
-	sysfs_free(mdi);
 	pr_err("%s not found in %s so cannot make it preferred replacement\n",
 	       dv->devname, devname);
+abort:
+	sysfs_free(mdi);
 	return -1;
 }
 
@@ -1324,6 +1326,7 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
 {
 	dev_t devid = devnm2devid(devname + 5);
 	struct mdinfo *mdi = sysfs_read(fd, NULL, GET_DEVS | GET_DISKS | GET_STATE);
+	struct mdinfo *disk;
 
 	if (!mdi) {
 		if (verbose)
@@ -1333,14 +1336,14 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
 
 	char *avail = xcalloc(array->raid_disks, sizeof(char));
 
-	for (mdi = mdi->devs; mdi; mdi = mdi->next) {
-		if (mdi->disk.raid_disk < 0)
+	for (disk = mdi->devs; disk; disk = mdi->next) {
+		if (disk->disk.raid_disk < 0)
 			continue;
-		if (!(mdi->disk.state & (1 << MD_DISK_SYNC)))
+		if (!(disk->disk.state & (1 << MD_DISK_SYNC)))
 			continue;
-		if (makedev(mdi->disk.major, mdi->disk.minor) == devid)
+		if (makedev(disk->disk.major, disk->disk.minor) == devid)
 			continue;
-		avail[mdi->disk.raid_disk] = 1;
+		avail[disk->disk.raid_disk] = 1;
 	}
 	sysfs_free(mdi);
 
@@ -1655,7 +1658,6 @@ int Manage_subdevs(char *devname, int fd,
 					force, verbose, devname, update,
 					rdev, array_size, raid_slot);
 			close(tfd);
-			tfd = -1;
 			if (rv < 0)
 				goto abort;
 			if (rv > 0)
