@@ -296,8 +296,7 @@ static int add_disk_to_super(int mdfd, struct shape *s, struct context *c,
 		remove_partitions(fd);
 	if (st->ss->add_to_super(st, &info->disk, fd, dv->devname,
 				 dv->data_offset)) {
-		ioctl(mdfd, STOP_ARRAY, NULL);
-		close(fd);
+		close_fd(&fd);
 		return 1;
 	}
 	st->ss->getinfo_super(st, info, NULL);
@@ -1370,6 +1369,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	if (mdfd >= 0)
 		close(mdfd);
+
+	close_fd(&container_fd);
 
 	dev_policy_free(custom_pols);
 	return 1;
