@@ -33,6 +33,8 @@ jobs:
     steps:
     - name: 'Calculate PR commits + 1'
       run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
+    - name: 'Move prepared .checkpatch.conf file to main directory'
+      run: mv ${{ GITHUB_WORKSPACE }}/.github/tools/.checkpatch.conf ${{ GITHUB_WORKSPACE }}
     - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
