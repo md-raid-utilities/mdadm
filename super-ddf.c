@@ -809,7 +809,7 @@ static int load_ddf_header(int fd, unsigned long long lba,
 	if (lba >= size-1)
 		return 0;
 
-	if (lseek64(fd, lba<<9, 0) < 0)
+	if (lseek64(fd, lba << 9, 0) == -1L)
 		return 0;
 
 	if (read(fd, hdr, 512) != 512)
@@ -828,8 +828,7 @@ static int load_ddf_header(int fd, unsigned long long lba,
 	    !be64_eq(anchor->primary_lba, hdr->primary_lba) ||
 	    !be64_eq(anchor->secondary_lba, hdr->secondary_lba) ||
 	    hdr->type != type ||
-	    memcmp(anchor->pad2, hdr->pad2, 512 -
-		   offsetof(struct ddf_header, pad2)) != 0) {
+	    memcmp(anchor->pad2, hdr->pad2, sizeof(anchor->pad2)) != 0) {
 		pr_err("header mismatch\n");
 		return 0;
 	}
@@ -863,7 +862,7 @@ static void *load_section(int fd, struct ddf_super *super, void *buf,
 	else
 		offset += be64_to_cpu(super->active->secondary_lba);
 
-	if ((unsigned long long)lseek64(fd, offset<<9, 0) != (offset<<9)) {
+	if ((unsigned long long)lseek64(fd, offset << 9, 0) != (offset << 9)) {
 		if (dofree)
 			free(buf);
 		return NULL;
@@ -882,7 +881,7 @@ static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 
 	get_dev_size(fd, NULL, &dsize);
 
-	if (lseek64(fd, dsize-512, 0) < 0) {
+	if (lseek64(fd, dsize - 512, 0) == -1L) {
 		if (devname)
 			pr_err("Cannot seek to anchor block on %s: %s\n",
 			       devname, strerror(errno));
@@ -909,8 +908,7 @@ static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 	if (memcmp(super->anchor.revision, DDF_REVISION_0, 8) != 0 &&
 	    memcmp(super->anchor.revision, DDF_REVISION_2, 8) != 0) {
 		if (devname)
-			pr_err("can only support super revision %.8s and earlier, not %.8s on %s\n",
-				DDF_REVISION_2, super->anchor.revision,devname);
+			pr_err("The DDF revision on %s\n is not supported", devname);
 		return 2;
 	}
 	super->active = NULL;
@@ -1610,6 +1608,7 @@ static unsigned int get_vd_num_of_subarray(struct supertype *st)
 		return DDF_NOTFOUND;
 	}
 
+	sysfs_free(sra);
 	return vcnum;
 }
 
@@ -1617,11 +1616,11 @@ static void brief_examine_super_ddf(struct supertype *st, int verbose)
 {
 	/* We just write a generic DDF ARRAY entry
 	 */
-	struct mdinfo info;
+	struct mdinfo info = {0};
 	char nbuf[64];
+
 	getinfo_super_ddf(st, &info, NULL);
 	fname_from_uuid(&info, nbuf);
-
 	printf("ARRAY metadata=ddf UUID=%s\n", nbuf + 5);
 }
 
@@ -1631,9 +1630,10 @@ static void brief_examine_subarrays_ddf(struct supertype *st, int verbose)
 	 * by uuid and member by unit number and uuid.
 	 */
 	struct ddf_super *ddf = st->sb;
-	struct mdinfo info;
+	struct mdinfo info = {0};
 	unsigned int i;
 	char nbuf[64];
+
 	getinfo_super_ddf(st, &info, NULL);
 	fname_from_uuid(&info, nbuf);
 
@@ -1658,8 +1658,9 @@ static void brief_examine_subarrays_ddf(struct supertype *st, int verbose)
 
 static void export_examine_super_ddf(struct supertype *st)
 {
-	struct mdinfo info;
+	struct mdinfo info = {0};
 	char nbuf[64];
+
 	getinfo_super_ddf(st, &info, NULL);
 	fname_from_uuid(&info, nbuf);
 	printf("MD_METADATA=ddf\n");
@@ -1692,10 +1693,12 @@ static int copy_metadata_ddf(struct supertype *st, int from, int to)
 	if (!get_dev_size(from, NULL, &dsize))
 		goto err;
 
-	if (lseek64(from, dsize-512, 0) < 0)
+	if (lseek64(from, dsize - 512, 0) == -1L)
 		goto err;
+
 	if (read(from, buf, 512) != 512)
 		goto err;
+
 	ddf = buf;
 	if (!be32_eq(ddf->magic, DDF_HEADER_MAGIC) ||
 	    !be32_eq(calc_crc(ddf, 512), ddf->crc) ||
@@ -1711,9 +1714,9 @@ static int copy_metadata_ddf(struct supertype *st, int from, int to)
 
 	bytes = dsize - offset;
 
-	if (lseek64(from, offset, 0) < 0 ||
-	    lseek64(to, offset, 0) < 0)
+	if (lseek64(from, offset, 0) == -1L || lseek64(to, offset, 0) == -1L)
 		goto err;
+
 	while (written < bytes) {
 		int n = bytes - written;
 		if (n > 4096)
@@ -1795,6 +1798,7 @@ static void brief_detail_super_ddf(struct supertype *st, char *subarray)
 	char nbuf[64];
 	struct ddf_super *ddf = st->sb;
 	unsigned int vcnum = get_vd_num_of_subarray(st);
+
 	if (vcnum == DDF_CONTAINER)
 		uuid_from_super_ddf(st, info.uuid);
 	else if (vcnum == DDF_NOTFOUND)
@@ -2971,7 +2975,9 @@ static int __write_ddf_structure(struct dl *d, struct ddf_super *ddf, __u8 type)
 	header->openflag = 1;
 	header->crc = calc_crc(header, 512);
 
-	lseek64(fd, sector<<9, 0);
+	if (lseek64(fd, sector << 9, 0) == -1L)
+		goto out;
+
 	if (write(fd, header, 512) < 0)
 		goto out;
 
@@ -2982,6 +2988,7 @@ static int __write_ddf_structure(struct dl *d, struct ddf_super *ddf, __u8 type)
 	ddf->phys->crc = calc_crc(ddf->phys, ddf->pdsize);
 	if (write(fd, ddf->phys, ddf->pdsize) < 0)
 		goto out;
+
 	ddf->virt->crc = calc_crc(ddf->virt, ddf->vdsize);
 	if (write(fd, ddf->virt, ddf->vdsize) < 0)
 		goto out;
@@ -3035,7 +3042,9 @@ out:
 	header->openflag = 0;
 	header->crc = calc_crc(header, 512);
 
-	lseek64(fd, sector<<9, 0);
+	if (lseek64(fd, sector << 9, 0) == -1L)
+		return 0;
+
 	if (write(fd, header, 512) < 0)
 		ret = 0;
 
@@ -3088,7 +3097,9 @@ static int _write_super_to_disk(struct ddf_super *ddf, struct dl *d)
 	if (!__write_ddf_structure(d, ddf, DDF_HEADER_SECONDARY))
 		return 0;
 
-	lseek64(fd, (size-1)*512, SEEK_SET);
+	if (lseek64(fd, (size - 1) * 512, SEEK_SET) == -1L)
+		return 0;
+
 	if (write(fd, &ddf->anchor, 512) < 0)
 		return 0;
 
@@ -3299,9 +3310,10 @@ static int validate_geometry_ddf(struct supertype *st,
 				 char *dev, unsigned long long *freesize,
 				 int consistency_policy, int verbose)
 {
-	int fd;
-	struct mdinfo *sra;
+	struct mdinfo *sra = NULL;
+	int ret = 1;
 	int cfd;
+	int fd;
 
 	/* ddf potentially supports lots of things, but it depends on
 	 * what devices are offered (and maybe kernel version?)
@@ -3369,7 +3381,7 @@ static int validate_geometry_ddf(struct supertype *st,
 	 * Later we should check for a BVD and make an SVD.
 	 */
 	fd = open(dev, O_RDONLY|O_EXCL, 0);
-	if (fd >= 0) {
+	if (is_fd_valid(fd)) {
 		close(fd);
 		/* Just a bare device, no good to us */
 		if (verbose)
@@ -3377,44 +3389,58 @@ static int validate_geometry_ddf(struct supertype *st,
 			       dev);
 		return 0;
 	}
+
 	if (errno != EBUSY || (fd = open(dev, O_RDONLY, 0)) < 0) {
 		if (verbose)
 			pr_err("ddf: Cannot open %s: %s\n",
 			       dev, strerror(errno));
 		return 0;
 	}
+
 	/* Well, it is in use by someone, maybe a 'ddf' container. */
 	cfd = open_container(fd);
-	if (cfd < 0) {
-		close(fd);
+	close(fd);
+
+	if (!is_fd_valid(cfd)) {
 		if (verbose)
-			pr_err("ddf: Cannot use %s: %s\n",
-			       dev, strerror(EBUSY));
+			pr_err("ddf: Cannot use %s\n", dev);
 		return 0;
 	}
+
 	sra = sysfs_read(cfd, NULL, GET_VERSION);
-	close(fd);
-	if (sra && sra->array.major_version == -1 &&
-	    strcmp(sra->text_version, "ddf") == 0) {
+	if (!sra) {
+		pr_err("Cannot read sysfs for /dev/%s\n", fd2kname(cfd));
+		goto error;
+	}
+
+	if (sra->array.major_version == -1 && strcmp(sra->text_version, "ddf") == 0) {
 		/* This is a member of a ddf container.  Load the container
 		 * and try to create a bvd
 		 */
-		struct ddf_super *ddf;
+		struct ddf_super *ddf = NULL;
+
 		if (load_super_ddf_all(st, cfd, (void **)&ddf, NULL) == 0) {
 			st->sb = ddf;
-			strcpy(st->container_devnm, fd2devnm(cfd));
+			snprintf(st->container_devnm, sizeof(st->container_devnm),
+				 "%s", fd2kname(cfd));
 			close(cfd);
-			return validate_geometry_ddf_bvd(st, level, layout,
-							 raiddisks, chunk, size,
-							 data_offset,
-							 dev, freesize,
-							 verbose);
-		}
-		close(cfd);
-	} else /* device may belong to a different container */
-		return 0;
+			free(sra);
 
-	return 1;
+			return validate_geometry_ddf_bvd(st, level, layout, raiddisks,
+							 chunk, size, data_offset, dev,
+							 freesize, verbose);
+		}
+		free(ddf);
+	}
+
+	/* device may belong to a different container */
+	ret = 0;
+
+error:
+	free(sra);
+	close(cfd);
+
+	return ret;
 }
 
 static int validate_geometry_ddf_bvd(struct supertype *st,
@@ -3483,35 +3509,42 @@ static int validate_geometry_ddf_bvd(struct supertype *st,
 static int load_super_ddf_all(struct supertype *st, int fd,
 			      void **sbp, char *devname)
 {
-	struct mdinfo *sra;
-	struct ddf_super *super;
 	struct mdinfo *sd, *best = NULL;
+	struct ddf_super *super = NULL;
+	struct mdinfo *sra;
 	int bestseq = 0;
-	int seq;
+	int ret = 1;
 	char nm[20];
+	int seq;
 	int dfd;
 
 	sra = sysfs_read(fd, NULL, GET_LEVEL|GET_VERSION|GET_DEVS|GET_STATE);
 	if (!sra)
 		return 1;
-	if (sra->array.major_version != -1 ||
-	    sra->array.minor_version != -2 ||
+	if (sra->array.major_version != -1 || sra->array.minor_version != -2 ||
 	    strcmp(sra->text_version, "ddf") != 0)
-		return 1;
+		goto out;
 
 	if (posix_memalign((void**)&super, 512, sizeof(*super)) != 0)
-		return 1;
+		goto out;
+
 	memset(super, 0, sizeof(*super));
 
 	/* first, try each device, and choose the best ddf */
 	for (sd = sra->devs ; sd ; sd = sd->next) {
 		int rv;
+
 		sprintf(nm, "%d:%d", sd->disk.major, sd->disk.minor);
+
 		dfd = dev_open(nm, O_RDONLY);
-		if (dfd < 0)
-			return 2;
+		if (!is_fd_valid(dfd)) {
+			ret = 2;
+			goto out;
+		}
+
 		rv = load_ddf_headers(dfd, super, NULL);
 		close(dfd);
+
 		if (rv == 0) {
 			seq = be32_to_cpu(super->active->seq);
 			if (super->active->openflag)
@@ -3523,28 +3556,39 @@ static int load_super_ddf_all(struct supertype *st, int fd,
 		}
 	}
 	if (!best)
-		return 1;
+		goto out;
+
 	/* OK, load this ddf */
 	sprintf(nm, "%d:%d", best->disk.major, best->disk.minor);
+
 	dfd = dev_open(nm, O_RDONLY);
 	if (dfd < 0)
-		return 1;
+		goto out;
+
 	load_ddf_headers(dfd, super, NULL);
 	load_ddf_global(dfd, super, NULL);
 	close(dfd);
+
 	/* Now we need the device-local bits */
 	for (sd = sra->devs ; sd ; sd = sd->next) {
 		int rv;
 
 		sprintf(nm, "%d:%d", sd->disk.major, sd->disk.minor);
+
 		dfd = dev_open(nm, O_RDWR);
-		if (dfd < 0)
-			return 2;
+		if (dfd < 0) {
+			ret = 2;
+			goto out;
+		}
+
 		rv = load_ddf_headers(dfd, super, NULL);
 		if (rv == 0)
 			rv = load_ddf_local(dfd, super, NULL, 1);
-		if (rv)
-			return 1;
+
+		if (rv) {
+			close(dfd);
+			goto out;
+		}
 	}
 
 	*sbp = super;
@@ -3553,8 +3597,16 @@ static int load_super_ddf_all(struct supertype *st, int fd,
 		st->minor_version = 0;
 		st->max_devs = 512;
 	}
-	strcpy(st->container_devnm, fd2devnm(fd));
-	return 0;
+
+	snprintf(st->container_devnm, sizeof(st->container_devnm), "%s", fd2devnm(fd));
+	ret = 0;
+
+out:
+	if (sra)
+		free(sra);
+	if (super && ret != 0)
+		free(super);
+	return ret;
 }
 
 static int load_container_ddf(struct supertype *st, int fd,
@@ -3791,7 +3843,7 @@ static struct mdinfo *container_content_ddf(struct supertype *st, char *subarray
 				be64_to_cpu(LBA_OFFSET(ddf, bvd)[iphys]);
 			dev->component_size = be64_to_cpu(bvd->blocks);
 			if (d->devname)
-				strcpy(dev->name, d->devname);
+				snprintf(dev->name, sizeof(dev->name), "%s", d->devname);
 		}
 	}
 	return rest;
@@ -3840,11 +3892,15 @@ static int store_super_ddf(struct supertype *st, int fd)
 		return 1;
 	memset(buf, 0, 512);
 
-	lseek64(fd, dsize-512, 0);
+	if (lseek64(fd, dsize - 512, 0) == -1L) {
+		free(buf);
+		return 1;
+	}
 	rc = write(fd, buf, 512);
 	free(buf);
 	if (rc < 0)
 		return 1;
+
 	return 0;
 }
 
@@ -3959,6 +4015,7 @@ static int compare_super_ddf(struct supertype *st, struct supertype *tst,
 			if (posix_memalign((void **)&dl1->spare, 512,
 				       first->conf_rec_len*512) != 0) {
 				pr_err("could not allocate spare info buf\n");
+				free(dl1);
 				return 3;
 			}
 			memcpy(dl1->spare, dl2->spare, first->conf_rec_len*512);
@@ -4180,6 +4237,7 @@ static int get_bvd_state(const struct ddf_super *ddf,
 				state = DDF_state_part_optimal;
 			break;
 		}
+	free(avail);
 	return state;
 }
 
