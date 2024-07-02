@@ -168,13 +168,13 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 				goto abort;
 			}
 		}
-		if (bitmap_fd >= 0) {
-			if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-				pr_err("Cannot set bitmap file for %s: %s\n", chosen_name,
-				       strerror(errno));
-				goto abort;
-			}
+		if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
+			pr_err("Cannot set bitmap file for %s: %s\n", chosen_name,
+			       strerror(errno));
+			close(bitmap_fd);
+			goto abort;
 		}
+	close(bitmap_fd);
 	}
 	if (ioctl(mdfd, RUN_ARRAY, &param)) {
 		pr_err("RUN_ARRAY failed: %s\n", strerror(errno));
