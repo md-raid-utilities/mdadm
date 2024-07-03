@@ -165,8 +165,8 @@ void map_add(struct map_ent **melp,
 {
 	struct map_ent *me = xmalloc(sizeof(*me));
 
-	strcpy(me->devnm, devnm);
-	strcpy(me->metadata, metadata);
+	snprintf(me->devnm, sizeof(me->devnm), "%s", devnm);
+	snprintf(me->metadata, sizeof(me->metadata), "%s", metadata);
 	memcpy(me->uuid, uuid, 16);
 	me->path = path ? xstrdup(path) : NULL;
 	me->next = *melp;
@@ -227,7 +227,7 @@ int map_update(struct map_ent **mpp, char *devnm, char *metadata,
 
 	for (mp = map ; mp ; mp=mp->next)
 		if (strcmp(mp->devnm, devnm) == 0) {
-			strcpy(mp->metadata, metadata);
+			snprintf(mp->metadata, sizeof(mp->metadata), "%s", metadata);
 			memcpy(mp->uuid, uuid, 16);
 			free(mp->path);
 			mp->path = path ? xstrdup(path) : NULL;
