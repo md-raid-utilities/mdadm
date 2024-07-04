@@ -30,7 +30,7 @@
 
 # define "CXFLAGS" to give extra flags to CC.
 # e.g.  make CXFLAGS=-O to optimise
-CXFLAGS ?=-O2 -D_FORTIFY_SOURCE=2
+CXFLAGS ?=-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE
 TCC = tcc
 UCLIBC_GCC = $(shell for nm in i386-uclibc-linux-gcc i386-uclibc-gcc; do which $$nm > /dev/null && { echo $$nm ; exit; } ; done; echo false No uclibc found )
 #DIET_GCC = diet gcc
@@ -73,6 +73,27 @@ ifeq ($(origin STRINGOPOVERFLOW), undefined)
 	STRINGOPOVERFLOW := $(shell $(CC) -Q --help=warnings 2>&1 | grep "stringop-overflow" | wc -l)
 	ifneq "$(STRINGOPOVERFLOW)"  "0"
 	CWFLAGS += -Wstringop-overflow
+	endif
+endif
+
+ifeq ($(origin NOSTRICTOVERFLOW), undefined)
+	NOSTRICTOVERFLOW := $(shell $(CC) -Q --help=warning 2>&1 | grep "strict-overflow" | wc -l)
+	ifneq "$(NOSTRICTOVERFLOW)"  "0"
+	CWFLAGS += -fno-strict-overflow
+	endif
+endif
+
+ifeq ($(origin NODELETENULLPOINTER), undefined)
+	NODELETENULLPOINTER := $(shell $(CC) -Q --help=optimizers 2>&1 | grep "delete-null-pointer-checks" | wc -l)
+	ifneq "$(NODELETENULLPOINTER)"  "0"
+	CWFLAGS += -fno-delete-null-pointer-checks
+	endif
+endif
+
+ifeq ($(origin WRAPV), undefined)
+	WRAPV := $(shell $(CC) -Q --help=optimizers 2>&1 | grep "wrapv" | wc -l)
+	ifneq "$(WRAPV)"  "0"
+	CWFLAGS += -fwrapv
 	endif
 endif
 
