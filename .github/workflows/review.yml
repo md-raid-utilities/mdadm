@@ -16,7 +16,7 @@ jobs:
         - name: 'Make with DEBUG flag'
           run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-DEBUG && make clean
         - name: 'Make with DEBIAN flag'
-          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXGALGS=-DEBIAN && make clean
+          run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-DEBIAN && make clean
         - name: 'Make with USE_PTHREADS flag'
           run: CC=gcc-${{ matrix.gcc-version }} && V=1 make -j$(nproc) -B CXFLAGS=-USE_PTHREADS && make clean
         - name: 'Make with DNO_LIBUDEV flag'
