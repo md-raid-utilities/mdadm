@@ -229,7 +229,7 @@ static void examine_super0(struct supertype *st, char *homehost)
 	     d++) {
 		mdp_disk_t *dp;
 		char *dv;
-		char nb[11];
+		char nb[INT_2_DEC_STR_MAX];
 		int wonly, failfast;
 		if (d>=0) dp = &sb->disks[d];
 		else dp = &sb->this_disk;

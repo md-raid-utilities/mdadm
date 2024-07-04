@@ -2021,6 +2021,9 @@ enum r0layout {
 #define PATH_MAX	4096
 #endif
 
+/* The max string length necessary for decimal conversion, cannot be longer than count of bits */
+#define INT_2_DEC_STR_MAX (sizeof(int) * 8)
+
 #define RESYNC_NONE -1
 #define RESYNC_DELAYED -2
 #define RESYNC_PENDING -3
