@@ -394,9 +394,7 @@ int main(int argc, char *argv[])
 		/* launch an mdmon instance for each container found */
 		mdstat = mdstat_read(0, 0);
 		for (e = mdstat; e; e = e->next) {
-			if (e->metadata_version &&
-			    strncmp(e->metadata_version, "external:", 9) == 0 &&
-			    !is_subarray(&e->metadata_version[9])) {
+			if (is_mdstat_ent_external(e) && !is_mdstat_ent_subarray(e)) {
 				/* update cmdline so this mdmon instance can be
 				 * distinguished from others in a call to ps(1)
 				 */

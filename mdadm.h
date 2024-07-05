@@ -743,7 +743,11 @@ extern int mdstat_wait(int seconds);
 extern void mdstat_wait_fd(int fd, const sigset_t *sigmask);
 extern int mddev_busy(char *devnm);
 extern struct mdstat_ent *mdstat_by_component(char *name);
+extern struct mdstat_ent *mdstat_find_by_member_name(struct mdstat_ent *mdstat, char *member_devnm);
 extern struct mdstat_ent *mdstat_by_subdev(char *subdev, char *container);
+
+extern bool is_mdstat_ent_external(struct mdstat_ent *ent);
+extern bool is_mdstat_ent_subarray(struct mdstat_ent *ent);
 
 struct map_ent {
 	struct map_ent *next;
@@ -1771,7 +1775,7 @@ extern int is_mddev(char *dev);
 extern int open_container(int fd);
 extern int metadata_container_matches(char *metadata, char *devnm);
 extern int metadata_subdev_matches(char *metadata, char *devnm);
-extern int is_container_member(struct mdstat_ent *ent, char *devname);
+extern bool is_container_member(struct mdstat_ent *ent, char *devname);
 extern int is_subarray_active(char *subarray, char *devname);
 extern int open_subarray(char *dev, char *subarray, struct supertype *st, int quiet);
 extern struct superswitch *version_to_superswitch(char *vers);

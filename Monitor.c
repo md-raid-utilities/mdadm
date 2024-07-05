@@ -877,9 +877,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	}
 	last_disk = i;
 
-	if (mse->metadata_version &&
-	    strncmp(mse->metadata_version, "external:", 9) == 0 &&
-	    is_subarray(mse->metadata_version+9)) {
+	if (is_mdstat_ent_subarray(mse)) {
 		char *sl;
 		snprintf(st->parent_devnm, MD_NAME_MAX, "%s", mse->metadata_version + 10);
 		sl = strchr(st->parent_devnm, '/');
@@ -989,13 +987,12 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 			snprintf(st->devnm, MD_NAME_MAX, "%s", mse->devnm);
 			st->percent = RESYNC_UNKNOWN;
 			st->expected_spares = -1;
-			if (mse->metadata_version &&
-			    strncmp(mse->metadata_version,
-				    "external:", 9) == 0 &&
-			    is_subarray(mse->metadata_version+9)) {
+
+			if (is_mdstat_ent_subarray(mse)) {
 				char *sl;
-				snprintf(st->parent_devnm, MD_NAME_MAX,
-					 "%s", mse->metadata_version + 10);
+
+				snprintf(st->parent_devnm, MD_NAME_MAX, "%s",
+					 mse->metadata_version + 10);
 				sl = strchr(st->parent_devnm, '/');
 				*sl = 0;
 			} else
@@ -1294,8 +1291,7 @@ int Wait(char *dev)
 			}
 		}
 		if (!e || e->percent == RESYNC_NONE) {
-			if (e && e->metadata_version &&
-			    strncmp(e->metadata_version, "external:", 9) == 0) {
+			if (e && is_mdstat_ent_external(e)) {
 				if (is_subarray(&e->metadata_version[9]))
 					ping_monitor(&e->metadata_version[9]);
 				else

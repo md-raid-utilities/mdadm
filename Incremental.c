@@ -1686,12 +1686,13 @@ static void remove_from_member_array(struct mdstat_ent *memb,
  */
 int IncrementalRemove(char *devname, char *id_path, int verbose)
 {
-	int mdfd;
-	int rv = 0;
-	struct mdstat_ent *ent;
+	struct mdstat_ent *ent = NULL;
+	char buf[SYSFS_MAX_BUF_SIZE];
+	struct mdstat_ent *mdstat;
 	struct mddev_dev devlist;
 	struct mdinfo mdi;
-	char buf[SYSFS_MAX_BUF_SIZE];
+	int rv = 1;
+	int mdfd;
 
 	if (!id_path)
 		dprintf("incremental removal without --path <id_path> lacks the possibility to re-add new device in this port\n");
@@ -1700,16 +1701,25 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 		pr_err("incremental removal requires a kernel device name, not a file: %s\n", devname);
 		return 1;
 	}
-	ent = mdstat_by_component(devname);
+
+	mdstat = mdstat_read(0, 0);
+	if (!mdstat) {
+		pr_err("Cannot read /proc/mdstat file, aborting\n");
+		return 1;
+	}
+
+	ent = mdstat_find_by_member_name(mdstat, devname);
 	if (!ent) {
 		if (verbose >= 0)
 			pr_err("%s does not appear to be a component of any array\n", devname);
-		return 1;
+		goto out;
 	}
+
 	if (sysfs_init(&mdi, -1, ent->devnm)) {
 		pr_err("unable to initialize sysfs for: %s\n", devname);
-		return 1;
+		goto out;
 	}
+
 	mdfd = open_dev_excl(ent->devnm);
 	if (is_fd_valid(mdfd)) {
 		close_fd(&mdfd);
@@ -1725,8 +1735,7 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 	if (mdfd < 0) {
 		if (verbose >= 0)
 			pr_err("Cannot open array %s!!\n", ent->devnm);
-		free_mdstat(ent);
-		return 1;
+		goto out;
 	}
 
 	if (id_path) {
@@ -1741,16 +1750,13 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 	devlist.devname = devname;
 	devlist.disposition = 'I';
 	/* for a container, we must fail each member array */
-	if (ent->metadata_version &&
-	    strncmp(ent->metadata_version, "external:", 9) == 0) {
-		struct mdstat_ent *mdstat = mdstat_read(0, 0);
+	if (is_mdstat_ent_external(ent)) {
 		struct mdstat_ent *memb;
 		for (memb = mdstat ; memb ; memb = memb->next) {
 			if (is_container_member(memb, ent->devnm))
 				remove_from_member_array(memb,
 					&devlist, verbose);
 		}
-		free_mdstat(mdstat);
 	} else {
 		/*
 		 * This 'I' incremental remove is a try-best effort,
@@ -1765,7 +1771,8 @@ int IncrementalRemove(char *devname, char *id_path, int verbose)
 	rv = Manage_subdevs(ent->devnm, mdfd, &devlist,
 			    verbose, 0, UOPT_UNDEFINED, 0);
 
-	close(mdfd);
-	free_mdstat(ent);
+	close_fd(&mdfd);
+out:
+	free_mdstat(mdstat);
 	return rv;
 }
