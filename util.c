@@ -1671,16 +1671,6 @@ int metadata_subdev_matches(char *metadata, char *devnm)
 	return 0;
 }
 
-int is_container_member(struct mdstat_ent *mdstat, char *container)
-{
-	if (mdstat->metadata_version == NULL ||
-	    strncmp(mdstat->metadata_version, "external:", 9) != 0 ||
-	    !metadata_container_matches(mdstat->metadata_version+9, container))
-		return 0;
-
-	return 1;
-}
-
 int is_subarray_active(char *subarray, char *container)
 {
 	struct mdstat_ent *mdstat = mdstat_read(0, 0);

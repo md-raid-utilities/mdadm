@@ -276,10 +276,8 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 		 */
 		mds = mdstat_read(0, 0);
 		for (m = mds; m; m = m->next)
-			if (m->metadata_version &&
-			    strncmp(m->metadata_version, "external:", 9)==0 &&
-			    metadata_container_matches(m->metadata_version+9,
-						       devnm)) {
+			if (is_mdstat_ent_external(m) &&
+			    metadata_container_matches(m->metadata_version + 9, devnm)) {
 				if (verbose >= 0)
 					pr_err("Cannot stop container %s: member %s still active\n",
 					       devname, m->devnm);

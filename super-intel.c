@@ -6974,13 +6974,11 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 	int found;
 
 	for (memb = mdstat ; memb ; memb = memb->next) {
-		if (memb->metadata_version &&
-		    (strncmp(memb->metadata_version, "external:", 9) == 0) &&
-		    (strcmp(&memb->metadata_version[9], name) == 0) &&
-		    !is_subarray(memb->metadata_version+9) &&
-		    memb->members) {
+		if (is_mdstat_ent_external(memb) && !is_subarray(memb->metadata_version + 9) &&
+		    strcmp(&memb->metadata_version[9], name) == 0 && memb->members) {
 			struct dev_member *dev = memb->members;
 			int fd = -1;
+
 			while (dev && !is_fd_valid(fd)) {
 				char *path = xmalloc(strlen(dev->name) + strlen("/dev/") + 1);
 				num = snprintf(path, PATH_MAX, "%s%s", "/dev/", dev->name);
@@ -6998,7 +6996,6 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 				struct mdstat_ent *vol;
 				for (vol = mdstat ; vol ; vol = vol->next) {
 					if (vol->active > 0 &&
-					    vol->metadata_version &&
 					    is_container_member(vol, memb->devnm)) {
 						found++;
 						count++;

@@ -360,35 +360,38 @@ struct mddev_dev *load_partitions(void)
 struct mddev_dev *load_containers(void)
 {
 	struct mdstat_ent *mdstat = mdstat_read(0, 0);
+	struct mddev_dev *dev_list = NULL;
+	struct map_ent *map_list = NULL;
 	struct mdstat_ent *ent;
-	struct mddev_dev *d;
-	struct mddev_dev *rv = NULL;
-	struct map_ent *map = NULL, *me;
 
-	if (!mdstat)
-		return NULL;
+	for (ent = mdstat; ent; ent = ent->next) {
+		struct mddev_dev *d;
+		struct map_ent *map;
 
-	for (ent = mdstat; ent; ent = ent->next)
-		if (ent->metadata_version &&
-		    strncmp(ent->metadata_version, "external:", 9) == 0 &&
-		    !is_subarray(&ent->metadata_version[9])) {
-			d = xcalloc(1, sizeof(*d));
-			me = map_by_devnm(&map, ent->devnm);
-			if (me)
-				d->devname = xstrdup(me->path);
-			else if (asprintf(&d->devname, "/dev/%s", ent->devnm) < 0) {
-				free(d);
-				continue;
-			}
-			d->next = rv;
-			rv = d;
-			map_free(map);
-			map = NULL;
+		if (!is_mdstat_ent_external(ent))
+			continue;
+
+		if (is_mdstat_ent_subarray(ent))
+			continue;
+
+		d = xcalloc(1, sizeof(*d));
+
+		map = map_by_devnm(&map_list, ent->devnm);
+		if (map) {
+			d->devname = xstrdup(map->path);
+		} else if (asprintf(&d->devname, "/dev/%s", ent->devnm) < 0) {
+			free(d);
+			continue;
 		}
-	free_mdstat(mdstat);
-	map_free(map);
 
-	return rv;
+		d->next = dev_list;
+		dev_list = d;
+	}
+
+	free_mdstat(mdstat);
+	map_free(map_list);
+
+	return dev_list;
 }
 
 struct createinfo createinfo = {

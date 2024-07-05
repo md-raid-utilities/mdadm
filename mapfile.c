@@ -339,18 +339,14 @@ struct map_ent *map_by_name(struct map_ent **map, char *name)
  */
 static char *get_member_info(struct mdstat_ent *ent)
 {
+	char *subarray;
 
-	if (ent->metadata_version == NULL ||
-	    strncmp(ent->metadata_version, "external:", 9) != 0)
+	if (!is_mdstat_ent_subarray(ent))
 		return NULL;
 
-	if (is_subarray(&ent->metadata_version[9])) {
-		char *subarray;
+	subarray = strrchr(ent->metadata_version, '/');
 
-		subarray = strrchr(ent->metadata_version, '/');
-		return subarray + 1;
-	}
-	return NULL;
+	return subarray + 1;
 }
 
 void RebuildMap(void)

@@ -110,6 +110,28 @@ static int add_member_devname(struct dev_member **m, char *name)
 	return 1;
 }
 
+/* Detach element from the list, it may modify list_head */
+static void mdstat_ent_list_detach_element(struct mdstat_ent **list_head, struct mdstat_ent *el)
+{
+	struct mdstat_ent *ent = *list_head;
+
+	if (ent == el) {
+		*list_head = ent->next;
+	} else {
+		while (ent) {
+			if (ent->next == el) {
+				ent->next = el->next;
+				break;
+			}
+		}
+
+		ent = ent->next;
+	}
+
+	assert(ent);
+	ent->next = NULL;
+}
+
 void free_mdstat(struct mdstat_ent *ms)
 {
 	while (ms) {
@@ -122,6 +144,32 @@ void free_mdstat(struct mdstat_ent *ms)
 		ms = ms->next;
 		free(t);
 	}
+}
+
+bool is_mdstat_ent_external(struct mdstat_ent *ent)
+{
+	if (!ent->metadata_version)
+		return false;
+
+	if (strncmp(ent->metadata_version, "external:", 9) == 0)
+		return true;
+	return false;
+}
+
+bool is_mdstat_ent_subarray(struct mdstat_ent *ent)
+{
+	if (is_mdstat_ent_external(ent) && is_subarray(ent->metadata_version + 9))
+		return true;
+	return false;
+}
+
+bool is_container_member(struct mdstat_ent *mdstat, char *container)
+{
+	if (is_mdstat_ent_external(mdstat) &&
+	    metadata_container_matches(mdstat->metadata_version + 9, container))
+		return true;
+
+	return false;
 }
 
 static int mdstat_fd = -1;
@@ -382,31 +430,43 @@ int mddev_busy(char *devnm)
 	return me != NULL;
 }
 
+/**
+ * mdstat_find_by_member_devnm()- Return first array or external container with member device.
+ * @mdstat: Preloaded mdstat to iterate over.
+ * @member_devnm: devnm of the device to find.
+ *
+ * External subarrays are skipped.
+ */
+struct mdstat_ent *mdstat_find_by_member_name(struct mdstat_ent *mdstat, char *member_devnm)
+{
+	struct mdstat_ent *ent;
+
+	for (ent = mdstat; ent; ent = ent->next) {
+		struct dev_member *member;
+
+		if (is_mdstat_ent_subarray(ent))
+			continue;
+
+		for (member = ent->members; member; member = member->next)
+			if (strcmp(member->name, member_devnm) == 0)
+				return ent;
+	}
+
+	return NULL;
+}
+
+
 struct mdstat_ent *mdstat_by_component(char *name)
 {
 	struct mdstat_ent *mdstat = mdstat_read(0, 0);
+	struct mdstat_ent *ent = mdstat_find_by_member_name(mdstat, name);
 
-	while (mdstat) {
-		struct dev_member *m;
-		struct mdstat_ent *ent;
-		if (mdstat->metadata_version &&
-		    strncmp(mdstat->metadata_version, "external:", 9) == 0 &&
-		    is_subarray(mdstat->metadata_version+9))
-			/* don't return subarrays, only containers */
-			;
-		else for (m = mdstat->members; m; m = m->next) {
-				if (strcmp(m->name, name) == 0) {
-					free_mdstat(mdstat->next);
-					mdstat->next = NULL;
-					return mdstat;
-				}
-			}
-		ent = mdstat;
-		mdstat = mdstat->next;
-		ent->next = NULL;
-		free_mdstat(ent);
-	}
-	return NULL;
+	if (ent)
+		mdstat_ent_list_detach_element(&mdstat, ent);
+
+	free_mdstat(mdstat);
+
+	return ent;
 }
 
 struct mdstat_ent *mdstat_by_subdev(char *subdev, char *container)
@@ -414,29 +474,26 @@ struct mdstat_ent *mdstat_by_subdev(char *subdev, char *container)
 	struct mdstat_ent *mdstat = mdstat_read(0, 0);
 	struct mdstat_ent *ent = NULL;
 
-	while (mdstat) {
+	for (ent = mdstat; ent; ent = ent->next) {
 		/* metadata version must match:
 		 *   external:[/-]%s/%s
 		 * where first %s is 'container' and second %s is 'subdev'
 		 */
-		if (ent)
-			free_mdstat(ent);
-		ent = mdstat;
-		mdstat = mdstat->next;
-		ent->next = NULL;
 
-		if (ent->metadata_version == NULL ||
-		    strncmp(ent->metadata_version, "external:", 9) != 0)
+		if (!is_mdstat_ent_external(ent))
 			continue;
 
-		if (!metadata_container_matches(ent->metadata_version+9,
-					       container) ||
-		    !metadata_subdev_matches(ent->metadata_version+9,
-					     subdev))
+		if (!metadata_container_matches(ent->metadata_version + 9, container))
+			continue;
+		if (!metadata_subdev_matches(ent->metadata_version + 9, subdev))
 			continue;
 
-		free_mdstat(mdstat);
-		return ent;
+		break;
 	}
-	return NULL;
+
+	if (ent)
+		mdstat_ent_list_detach_element(&mdstat, ent);
+
+	free_mdstat(mdstat);
+	return ent;
 }
