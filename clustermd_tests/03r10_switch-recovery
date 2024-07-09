@@ -10,9 +10,9 @@ check all state UU
 check all dmesg
 mdadm --manage $md0 --fail $dev0
 sleep 0.2
-check $NODE1 recovery
+check $NODE1 recovery-remote
 stop_md $NODE1 $md0
-check $NODE2 recovery
+check $NODE2 recovery-remote
 check $NODE2 wait
 check $NODE2 state UU
 check all dmesg
