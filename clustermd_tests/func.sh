@@ -1,5 +1,22 @@
 #!/bin/bash
 
+COLOR_FAIL='\033[0;31m' #RED
+COLOR_WARN='\033[1;33m' #YELLOW
+COLOR_SUCCESS='\033[0;32m' #GREEN
+COLOR_NONE='\033[0m'
+
+fail() {
+	printf "${COLOR_FAIL}$1${COLOR_NONE}"
+}
+
+warn() {
+	printf "${COLOR_WARN}$1${COLOR_NONE}"
+}
+
+succeed() {
+	printf "${COLOR_SUCCESS}$1${COLOR_NONE}"
+}
+
 check_ssh()
 {
 	NODE1="$(grep '^NODE1' $CLUSTER_CONF | cut -d'=' -f2)"
@@ -151,6 +168,33 @@ stop_md()
 	fi
 }
 
+record_system_speed_limit() {
+	system_speed_limit_max=`cat /proc/sys/dev/raid/speed_limit_max`
+	system_speed_limit_min=`cat /proc/sys/dev/raid/speed_limit_min`
+}
+
+# To avoid sync action finishes before checking it, it needs to limit
+# the sync speed
+control_system_speed_limit() {
+	echo $test_speed_limit_min > /proc/sys/dev/raid/speed_limit_min
+	echo $test_speed_limit_max > /proc/sys/dev/raid/speed_limit_max
+}
+
+restore_system_speed_limit() {
+	echo $system_speed_limit_min > /proc/sys/dev/raid/speed_limit_max
+	echo $system_speed_limit_max > /proc/sys/dev/raid/speed_limit_max
+}
+
+record_selinux() {
+	# empty
+	return 0
+}
+
+restore_selinux() {
+	# empty
+	return 0
+}
+
 # $1/optional, it shows why to save log
 save_log()
 {
@@ -238,6 +282,22 @@ check()
 			do
 				ssh $ip "grep -sq "$2" /proc/mdstat" ||
 					die "$ip: check '$2' failed."
+			done
+		;;
+		recovery-remote )
+			cnt=5
+			for ip in ${NODES[@]}
+			do
+				while ! ssh $ip "grep -sqE 'recovery|REMOTE' /proc/mdstat"
+				do
+					if [ "$cnt" -gt '0' ]
+					then
+						sleep 0.2
+						cnt=$[cnt-1]
+					else
+						die "$ip: no '$2' happening!"
+					fi
+				done
 			done
 		;;
 		PENDING | recovery | resync | reshape )
