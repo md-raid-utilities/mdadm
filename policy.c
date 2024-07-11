@@ -969,19 +969,13 @@ int generate_entries(int fd)
  */
 int Write_rules(char *rule_name)
 {
-	int fd;
-	char udev_rule_file[PATH_MAX];
+	int fd = fileno(stdout);
 
-	if (rule_name) {
-		strncpy(udev_rule_file, rule_name, sizeof(udev_rule_file) - 6);
-		udev_rule_file[sizeof(udev_rule_file) - 6] = '\0';
-		strcat(udev_rule_file, ".temp");
-		fd = creat(udev_rule_file,
-			   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-		if (fd == -1)
-			return 1;
-	} else
-		fd = 1;
+	if (rule_name)
+		fd = creat(rule_name, 0644);
+
+	if (!is_fd_valid(fd))
+		return 1;
 
 	/* write static invocation */
 	if (write(fd, udev_template_start, sizeof(udev_template_start) - 1) !=
@@ -993,15 +987,14 @@ int Write_rules(char *rule_name)
 		goto abort;
 
 	fsync(fd);
-	if (rule_name) {
+	if (rule_name)
 		close(fd);
-		rename(udev_rule_file, rule_name);
-	}
+
 	return 0;
 abort:
 	if (rule_name) {
 		close(fd);
-		unlink(udev_rule_file);
+		unlink(rule_name);
 	}
 	return 1;
 }
