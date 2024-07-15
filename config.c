@@ -188,8 +188,36 @@ inline void ident_init(struct mddev_ident *ident)
 	ident->uuid_set = 0;
 }
 
+/** ident_check_name() - helper function to verify name.
+ * @name: name to check.
+ * @prop_name: the name of the property it is validated against, used for logging.
+ * @cmdline: context dependent actions.
+ *
+ * @name must follow name's criteria, be POSIX compatible and does not have leading dot.
+ */
+static mdadm_status_t ident_check_name(const char *name, const char *prop_name, const bool cmdline)
+{
+	if (!is_string_lq(name, MD_NAME_MAX + 1)) {
+		ident_log(prop_name, name, "Too long or empty", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (*name == '.') {
+		/* MD device should not be considered as hidden. */
+		ident_log(prop_name, name, "Leading dot forbidden", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	if (!is_name_posix_compatible(name)) {
+		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
+	return MDADM_STATUS_SUCCESS;
+}
+
 /**
- * _ident_set_devname()- verify devname and set it in &mddev_ident.
+ * _ident_set_devname() - verify devname and set it in &mddev_ident.
  * @ident: pointer to &mddev_ident.
  * @devname: devname to be set.
  * @cmdline: context dependent actions. If set, ignore keyword is not allowed.
@@ -202,8 +230,7 @@ inline void ident_init(struct mddev_ident *ident)
  *	/dev/md/{name}
  *	{name}
  *
- * {name} must follow name's criteria and be POSIX compatible.
- * If criteria passed, duplicate memory and set devname in @ident.
+ * If verification passed, duplicate memory and set devname in @ident.
  *
  * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
  */
@@ -216,6 +243,7 @@ mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname
 	static const char named_dev_pref[] = DEV_NUM_PREF "_";
 	static const int named_dev_pref_size = sizeof(named_dev_pref) - 1;
 	const char *prop_name = "devname";
+	mdadm_status_t ret;
 	const char *name;
 
 	if (ident->devname) {
@@ -242,53 +270,40 @@ mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname
 	else
 		name = devname;
 
-	if (is_name_posix_compatible(name) == false) {
-		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
-	if (is_string_lq(name, MD_NAME_MAX + 1) == false) {
-		ident_log(prop_name, devname, "Invalid length", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
+	ret = ident_check_name(name, prop_name, cmdline);
+	if (ret)
+		return ret;
 pass:
 	ident->devname = xstrdup(devname);
 	return MDADM_STATUS_SUCCESS;
 }
 
 /**
- * _ident_set_name()- set name in &mddev_ident.
+ * _ident_set_name() - set name in &mddev_ident.
  * @ident: pointer to &mddev_ident.
  * @name: name to be set.
- * @cmdline: context dependent actions.
  *
  * If criteria passed, set name in @ident.
  * Note: name is not used by config file, it for cmdline only.
  *
  * Return: %MDADM_STATUS_SUCCESS or %MDADM_STATUS_ERROR.
  */
-static mdadm_status_t _ident_set_name(struct mddev_ident *ident, const char *name,
-				      const bool cmdline)
+mdadm_status_t ident_set_name(struct mddev_ident *ident, const char *name)
 {
 	assert(name);
 	assert(ident);
 
 	const char *prop_name = "name";
+	mdadm_status_t ret;
 
 	if (ident->name[0]) {
-		ident_log(prop_name, name, "Already defined", cmdline);
+		ident_log(prop_name, name, "Already defined", true);
 		return MDADM_STATUS_ERROR;
 	}
 
-	if (is_string_lq(name, MD_NAME_MAX + 1) == false) {
-		ident_log(prop_name, name, "Too long or empty", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
-	if (is_name_posix_compatible(name) == false) {
-		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
+	ret = ident_check_name(name, prop_name, true);
+	if (ret)
+		return ret;
 
 	snprintf(ident->name, MD_NAME_MAX + 1, "%s", name);
 	return MDADM_STATUS_SUCCESS;
@@ -300,14 +315,6 @@ static mdadm_status_t _ident_set_name(struct mddev_ident *ident, const char *nam
 mdadm_status_t ident_set_devname(struct mddev_ident *ident, const char *name)
 {
 	return _ident_set_devname(ident, name, true);
-}
-
-/**
- * ident_set_name()- exported, for cmdline.
- */
-mdadm_status_t ident_set_name(struct mddev_ident *ident, const char *name)
-{
-	return _ident_set_name(ident, name, true);
 }
 
 struct conf_dev {
