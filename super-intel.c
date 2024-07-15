@@ -2318,7 +2318,7 @@ void print_encryption_information(int disk_fd, enum sys_dev_type hba_type)
 {
 	struct encryption_information information = {0};
 	mdadm_status_t status = MDADM_STATUS_SUCCESS;
-	const char *indent = "                  ";
+	const char *indent = "                    ";
 
 	switch (hba_type) {
 	case SYS_DEV_VMD:
