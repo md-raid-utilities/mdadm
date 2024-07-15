@@ -782,7 +782,9 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	if (!is_container && !md_array_active(fd))
 		goto disappeared;
 
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+		goto out;
+
 	if (md_get_array_info(fd, &array) < 0)
 		goto disappeared;
 
@@ -997,7 +999,8 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 				snprintf(st->parent_devnm, MD_NAME_MAX,
 					 "%s", mse->metadata_version + 10);
 				sl = strchr(st->parent_devnm, '/');
-				*sl = 0;
+				if (sl)
+					*sl = 0;
 			} else
 				st->parent_devnm[0] = 0;
 			*statelist = st;
@@ -1261,7 +1264,7 @@ int Wait(char *dev)
 		return 2;
 	}
 
-	strcpy(devnm, tmp);
+	snprintf(devnm, sizeof(devnm), "%s", tmp);
 
 	while(1) {
 		struct mdstat_ent *ms = mdstat_read(1, 0);
@@ -1332,7 +1335,8 @@ int WaitClean(char *dev, int verbose)
 		return 1;
 	}
 
-	strcpy(devnm, fd2devnm(fd));
+	snprintf(devnm, sizeof(devnm), "%s", fd2devnm(fd));
+
 	mdi = sysfs_read(fd, devnm, GET_VERSION|GET_LEVEL|GET_SAFEMODE);
 	if (!mdi) {
 		if (verbose)
