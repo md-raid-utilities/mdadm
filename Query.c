@@ -39,7 +39,7 @@ int Query(char *dev)
 	struct mdinfo info;
 	struct mdinfo *sra;
 	struct supertype *st = NULL;
-	unsigned long long larray_size;
+	unsigned long long larray_size = 0;
 	struct stat stb;
 	char *mddev;
 	mdu_disk_info_t disc;
@@ -136,5 +136,7 @@ int Query(char *dev)
 		if (st->ss == &super0)
 			put_md_name(mddev);
 	}
+	free(sra);
+
 	return 0;
 }
