@@ -1333,7 +1333,7 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
 
 	char *avail = xcalloc(array->raid_disks, sizeof(char));
 
-	for (disk = mdi->devs; disk; disk = mdi->next) {
+	for (disk = mdi->devs; disk; disk = disk->next) {
 		if (disk->disk.raid_disk < 0)
 			continue;
 		if (!(disk->disk.state & (1 << MD_DISK_SYNC)))
