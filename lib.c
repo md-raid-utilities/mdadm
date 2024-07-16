@@ -109,7 +109,7 @@ char *devid2kname(dev_t devid)
 		link[n] = 0;
 		cp = strrchr(link, '/');
 		if (cp) {
-			strcpy(devnm, cp + 1);
+			snprintf(devnm, sizeof(devnm), "%s", cp + 1);
 			return devnm;
 		}
 	}
@@ -159,7 +159,7 @@ char *devid2devnm(dev_t devid)
 			ep = strchr(cp, '/');
 			if (ep)
 				*ep = 0;
-			strcpy(devnm, cp);
+			snprintf(devnm, sizeof(devnm), "%s", cp);
 			return devnm;
 		}
 	}
