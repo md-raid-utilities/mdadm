@@ -139,7 +139,7 @@ int sysfs_init(struct mdinfo *mdi, int fd, char *devnm)
 		goto out;
 	if (!S_ISDIR(stb.st_mode))
 		goto out;
-	strcpy(mdi->sys_name, devnm);
+	strncpy(mdi->sys_name, devnm, sizeof(mdi->sys_name) - 1);
 
 	retval = 0;
 out:
@@ -179,6 +179,7 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 			sra->array.major_version = -1;
 			sra->array.minor_version = -2;
 			strcpy(sra->text_version, buf+9);
+			sra->text_version[sizeof(sra->text_version) - 1] = '\0';
 		} else {
 			sscanf(buf, "%d.%d",
 			       &sra->array.major_version,
@@ -340,6 +341,7 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 
 		}
 		strcpy(dev->sys_name, de->d_name);
+		dev->sys_name[sizeof(dev->sys_name) - 1] = '\0';
 		dev->disk.raid_disk = strtoul(buf, &ep, 10);
 		if (*ep) dev->disk.raid_disk = -1;
 
