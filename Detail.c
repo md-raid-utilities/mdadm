@@ -274,7 +274,7 @@ int Detail(char *dev, struct context *c)
 				       array.minor_version);
 		}
 
-		if (info)
+		if (info && memcmp(info->uuid, uuid_zero, sizeof(int[4])) != 0)
 			mp = map_by_uuid(&map, info->uuid);
 		if (!mp)
 			mp = map_by_devnm(&map, fd2devnm(fd));
