@@ -65,6 +65,7 @@
 #define SENSE_DATA_CURRENT_FIXED (0x70)
 #define SENSE_DATA_CURRENT_DESC (0x72)
 #define SENSE_CURRENT_RES_DESC_POS (8)
+#define SENSE_RESPONSE_CODE_MASK (0x7f)
 #define SG_DRIVER_SENSE	(0x08)
 
 typedef enum drive_feature_support_status {
@@ -473,6 +474,7 @@ ata_pass_through12_ioctl(int disk_fd, __u8 ata_command,  __u8 sec_protocol, __u1
 {
 	__u8 cdb[ATA_INQUIRY_LENGTH] = {0};
 	__u8 sense[SG_SENSE_SIZE] = {0};
+	__u8 sense_response_code;
 	__u8 *sense_desc = NULL;
 	sg_io_hdr_t sg = {0};
 
@@ -517,15 +519,17 @@ ata_pass_through12_ioctl(int disk_fd, __u8 ata_command,  __u8 sec_protocol, __u1
 		return MDADM_STATUS_ERROR;
 	}
 
+	sense_response_code = sense[0] & SENSE_RESPONSE_CODE_MASK;
 	/* verify expected sense response code */
-	if (!(sense[0] == SENSE_DATA_CURRENT_DESC || sense[0] == SENSE_DATA_CURRENT_FIXED)) {
+	if (!(sense_response_code == SENSE_DATA_CURRENT_DESC ||
+	      sense_response_code == SENSE_DATA_CURRENT_FIXED)) {
 		pr_vrb("Failed ata passthrough12 ioctl. Device: /dev/%s.\n", fd2kname(disk_fd));
 		return MDADM_STATUS_ERROR;
 	}
 
 	sense_desc = sense + SENSE_CURRENT_RES_DESC_POS;
 	/* verify sense data current response with descriptor format */
-	if (sense[0] == SENSE_DATA_CURRENT_DESC &&
+	if (sense_response_code == SENSE_DATA_CURRENT_DESC &&
 	    !(sense_desc[0] == ATA_STATUS_RETURN_DESCRIPTOR &&
 	    sense_desc[1] == ATA_INQUIRY_LENGTH)) {
 		pr_vrb("Failed ata passthrough12 ioctl. Device: /dev/%s. Sense data ASC: %d, ASCQ: %d.\n",
@@ -534,7 +538,7 @@ ata_pass_through12_ioctl(int disk_fd, __u8 ata_command,  __u8 sec_protocol, __u1
 	}
 
 	/* verify sense data current response with fixed format */
-	if (sense[0] == SENSE_DATA_CURRENT_FIXED &&
+	if (sense_response_code == SENSE_DATA_CURRENT_FIXED &&
 	    !(sense[12] == ATA_PT_INFORMATION_AVAILABLE_ASC &&
 	    sense[13] == ATA_PT_INFORMATION_AVAILABLE_ASCQ)) {
 		pr_vrb("Failed ata passthrough12 ioctl. Device: /dev/%s. Sense data ASC: %d, ASCQ: %d.\n",
