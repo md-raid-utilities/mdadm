@@ -176,8 +176,15 @@ int connect_monitor(char *devname)
 	}
 
 	fl = fcntl(sfd, F_GETFL, 0);
+	if (fl < 0) {
+		close(sfd);
+		return -1;
+	}
 	fl |= O_NONBLOCK;
-	fcntl(sfd, F_SETFL, fl);
+	if (fcntl(sfd, F_SETFL, fl) < 0) {
+		close(sfd);
+		return -1;
+	}
 
 	return sfd;
 }
