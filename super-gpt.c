@@ -105,7 +105,8 @@ static int load_gpt(struct supertype *st, int fd, char *devname)
 		return 1;
 	}
 	/* Set offset to second block (GPT header) */
-	lseek(fd, sector_size, SEEK_SET);
+	if (lseek(fd, sector_size, SEEK_SET) == -1L)
+		goto no_read;
 	/* Seem to have GPT, load the header */
 	gpt_head = (struct GPT*)(super+1);
 	if (read(fd, gpt_head, sizeof(*gpt_head)) != sizeof(*gpt_head))
@@ -118,7 +119,8 @@ static int load_gpt(struct supertype *st, int fd, char *devname)
 	to_read = __le32_to_cpu(gpt_head->part_cnt) * sizeof(struct GPT_part_entry);
 	to_read =  ((to_read+511)/512) * 512;
 	/* Set offset to third block (GPT entries) */
-	lseek(fd, sector_size*2, SEEK_SET);
+	if (lseek(fd, sector_size * 2, SEEK_SET) == -1L)
+		goto no_read;
 	if (read(fd, gpt_head+1, to_read) != to_read)
 		goto no_read;
 
