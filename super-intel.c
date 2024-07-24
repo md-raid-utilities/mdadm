@@ -647,6 +647,31 @@ static const char *_sys_dev_type[] = {
 	[SYS_DEV_SATA_VMD] = "SATA VMD"
 };
 
+struct imsm_chunk_ops {
+	uint chunk;
+	char *chunk_str;
+};
+
+static const struct imsm_chunk_ops imsm_chunk_ops[] = {
+	{IMSM_OROM_SSS_2kB, "2k"},
+	{IMSM_OROM_SSS_4kB, "4k"},
+	{IMSM_OROM_SSS_8kB, "8k"},
+	{IMSM_OROM_SSS_16kB, "16k"},
+	{IMSM_OROM_SSS_32kB, "32k"},
+	{IMSM_OROM_SSS_64kB, "64k"},
+	{IMSM_OROM_SSS_128kB, "128k"},
+	{IMSM_OROM_SSS_256kB, "256k"},
+	{IMSM_OROM_SSS_512kB, "512k"},
+	{IMSM_OROM_SSS_1MB, "1M"},
+	{IMSM_OROM_SSS_2MB, "2M"},
+	{IMSM_OROM_SSS_4MB, "4M"},
+	{IMSM_OROM_SSS_8MB, "8M"},
+	{IMSM_OROM_SSS_16MB, "16M"},
+	{IMSM_OROM_SSS_32MB, "32M"},
+	{IMSM_OROM_SSS_64MB, "64M"},
+	{0, NULL}
+};
+
 static int no_platform = -1;
 
 static int check_no_platform(void)
@@ -2626,6 +2651,16 @@ static void print_imsm_level_capability(const struct imsm_orom *orom)
 			printf("%s ", imsm_level_ops[idx].name);
 }
 
+static void print_imsm_chunk_size_capability(const struct imsm_orom *orom)
+{
+	int idx;
+
+	for (idx = 0; imsm_chunk_ops[idx].chunk_str; idx++)
+		if (imsm_chunk_ops[idx].chunk & orom->sss)
+			printf("%s ", imsm_chunk_ops[idx].chunk_str);
+}
+
+
 static void print_imsm_capability(const struct imsm_orom *orom)
 {
 	printf("       Platform : Intel(R) ");
@@ -2638,41 +2673,25 @@ static void print_imsm_capability(const struct imsm_orom *orom)
 			imsm_orom_is_enterprise(orom) ? " enterprise" : "");
 	if (orom->major_ver || orom->minor_ver || orom->hotfix_ver || orom->build) {
 		if (imsm_orom_is_vmd_without_efi(orom))
-			printf("        Version : %d.%d\n", orom->major_ver,
-			       orom->minor_ver);
+			printf("        Version : %d.%d\n", orom->major_ver, orom->minor_ver);
 		else
-			printf("        Version : %d.%d.%d.%d\n", orom->major_ver,
-			       orom->minor_ver, orom->hotfix_ver, orom->build);
+			printf("        Version : %d.%d.%d.%d\n", orom->major_ver, orom->minor_ver,
+			       orom->hotfix_ver, orom->build);
 	}
 
 	printf("    RAID Levels : ");
 	print_imsm_level_capability(orom);
 	printf("\n");
 
-	printf("    Chunk Sizes :%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-	       imsm_orom_has_chunk(orom, 2) ? " 2k" : "",
-	       imsm_orom_has_chunk(orom, 4) ? " 4k" : "",
-	       imsm_orom_has_chunk(orom, 8) ? " 8k" : "",
-	       imsm_orom_has_chunk(orom, 16) ? " 16k" : "",
-	       imsm_orom_has_chunk(orom, 32) ? " 32k" : "",
-	       imsm_orom_has_chunk(orom, 64) ? " 64k" : "",
-	       imsm_orom_has_chunk(orom, 128) ? " 128k" : "",
-	       imsm_orom_has_chunk(orom, 256) ? " 256k" : "",
-	       imsm_orom_has_chunk(orom, 512) ? " 512k" : "",
-	       imsm_orom_has_chunk(orom, 1024*1) ? " 1M" : "",
-	       imsm_orom_has_chunk(orom, 1024*2) ? " 2M" : "",
-	       imsm_orom_has_chunk(orom, 1024*4) ? " 4M" : "",
-	       imsm_orom_has_chunk(orom, 1024*8) ? " 8M" : "",
-	       imsm_orom_has_chunk(orom, 1024*16) ? " 16M" : "",
-	       imsm_orom_has_chunk(orom, 1024*32) ? " 32M" : "",
-	       imsm_orom_has_chunk(orom, 1024*64) ? " 64M" : "");
-	printf("    2TB volumes :%s supported\n",
-	       (orom->attr & IMSM_OROM_ATTR_2TB)?"":" not");
+	printf("    Chunk Sizes : ");
+	print_imsm_chunk_size_capability(orom);
+	printf("\n");
+
+	printf("    2TB volumes :%s supported\n", (orom->attr & IMSM_OROM_ATTR_2TB) ? "" : " not");
 	printf("      2TB disks :%s supported\n",
-	       (orom->attr & IMSM_OROM_ATTR_2TB_DISK)?"":" not");
+	       (orom->attr & IMSM_OROM_ATTR_2TB_DISK) ? "" : " not");
 	printf("      Max Disks : %d\n", orom->tds);
-	printf("    Max Volumes : %d per array, %d per %s\n",
-	       orom->vpa, orom->vphba,
+	printf("    Max Volumes : %d per array, %d per %s\n", orom->vpa, orom->vphba,
 	       imsm_orom_is_nvme(orom) ? "platform" : "controller");
 	return;
 }
@@ -2688,23 +2707,10 @@ static void print_imsm_capability_export(const struct imsm_orom *orom)
 	print_imsm_level_capability(orom);
 	printf("\n");
 
-	printf("IMSM_SUPPORTED_CHUNK_SIZES=%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-			imsm_orom_has_chunk(orom, 2) ? "2k " : "",
-			imsm_orom_has_chunk(orom, 4) ? "4k " : "",
-			imsm_orom_has_chunk(orom, 8) ? "8k " : "",
-			imsm_orom_has_chunk(orom, 16) ? "16k " : "",
-			imsm_orom_has_chunk(orom, 32) ? "32k " : "",
-			imsm_orom_has_chunk(orom, 64) ? "64k " : "",
-			imsm_orom_has_chunk(orom, 128) ? "128k " : "",
-			imsm_orom_has_chunk(orom, 256) ? "256k " : "",
-			imsm_orom_has_chunk(orom, 512) ? "512k " : "",
-			imsm_orom_has_chunk(orom, 1024*1) ? "1M " : "",
-			imsm_orom_has_chunk(orom, 1024*2) ? "2M " : "",
-			imsm_orom_has_chunk(orom, 1024*4) ? "4M " : "",
-			imsm_orom_has_chunk(orom, 1024*8) ? "8M " : "",
-			imsm_orom_has_chunk(orom, 1024*16) ? "16M " : "",
-			imsm_orom_has_chunk(orom, 1024*32) ? "32M " : "",
-			imsm_orom_has_chunk(orom, 1024*64) ? "64M " : "");
+	printf("IMSM_SUPPORTED_CHUNK_SIZES=");
+	print_imsm_chunk_size_capability(orom);
+	printf("\n");
+
 	printf("IMSM_2TB_VOLUMES=%s\n",(orom->attr & IMSM_OROM_ATTR_2TB) ? "yes" : "no");
 	printf("IMSM_2TB_DISKS=%s\n",(orom->attr & IMSM_OROM_ATTR_2TB_DISK) ? "yes" : "no");
 	printf("IMSM_MAX_DISKS=%d\n",orom->tds);
