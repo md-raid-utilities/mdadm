@@ -776,10 +776,8 @@ static void manage_new(struct mdstat_ent *mdstat,
 
 error:
 	pr_err("failed to monitor %s\n", mdstat->metadata_version);
-	if (new) {
-		new->container = NULL;
-		free_aa(new);
-	}
+	new->container = NULL;
+	free_aa(new);
 	if (mdi)
 		sysfs_free(mdi);
 }
@@ -870,8 +868,15 @@ void read_sock(struct supertype *container)
 		return;
 
 	fl = fcntl(fd, F_GETFL, 0);
+	if (fl < 0) {
+		close_fd(&fd);
+		return;
+	}
 	fl |= O_NONBLOCK;
-	fcntl(fd, F_SETFL, fl);
+	if (fcntl(fd, F_SETFL, fl) < 0) {
+		close_fd(&fd);
+		return;
+	}
 
 	do {
 		msg.buf = NULL;
