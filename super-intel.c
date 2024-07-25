@@ -645,6 +645,14 @@ struct imsm_update_rwh_policy {
 	int dev_idx;
 };
 
+enum imsm_sku {
+	SKU_NO_KEY = 0,
+	SKU_STANDARD_KEY = 1,
+	SKU_PREMIUM_KEY = 2,
+	SKU_INTEL_SSD_ONLY_KEY = 3,
+	SKU_RAID1_ONLY_KEY = 4
+};
+
 static const char *_sys_dev_type[] = {
 	[SYS_DEV_UNKNOWN] = "Unknown",
 	[SYS_DEV_SAS] = "SAS",
@@ -2658,6 +2666,39 @@ static void print_imsm_level_capability(const struct imsm_orom *orom)
 			printf("%s ", imsm_level_ops[idx].name);
 }
 
+static void print_imsm_sku_capability(const struct imsm_orom *orom)
+{
+	int key_val;
+
+	key_val = (orom->driver_features & IMSM_OROM_CAPABILITIES_SKUMode_LOW) >>
+		   IMSM_OROM_CAPABILITIES_SKUMode_LOW_SHIFT;
+	key_val |= (orom->driver_features & IMSM_OROM_CAPABILITIES_SKUMode_HIGH) >>
+		    IMSM_OROM_CAPABILITIES_SKUMode_HIGH_SHIFT;
+
+	switch (key_val) {
+	case SKU_NO_KEY:
+		printf("Pass-through");
+		break;
+	case SKU_STANDARD_KEY:
+		printf("Standard");
+		break;
+	case SKU_PREMIUM_KEY:
+		printf("Premium");
+		break;
+	case SKU_INTEL_SSD_ONLY_KEY:
+		printf("Intel-SSD-only");
+		break;
+	case SKU_RAID1_ONLY_KEY:
+		printf("RAID1 Only");
+		break;
+	default:
+		printf("Unknown");
+	}
+
+	if (orom->driver_features & IMSM_OROM_CAPABILITIES_SKUMode_NON_PRODUCTION)
+		printf(" - for evaluation only");
+}
+
 static void print_imsm_chunk_size_capability(const struct imsm_orom *orom)
 {
 	int idx;
@@ -2688,6 +2729,12 @@ static void print_imsm_capability(const struct orom_entry *entry)
 		else
 			printf("        Version : %d.%d.%d.%d\n", orom->major_ver, orom->minor_ver,
 			       orom->hotfix_ver, orom->build);
+	}
+
+	if (entry->type == SYS_DEV_VMD) {
+		printf("        License : ");
+		print_imsm_sku_capability(orom);
+		printf("\n");
 	}
 
 	printf("    RAID Levels : ");
