@@ -106,7 +106,12 @@ struct imsm_orom {
 	#define IMSM_OROM_CAPABILITIES_ReadPatrol (1 << 6)
 	#define IMSM_OROM_CAPABILITIES_XorHw (1 << 7)
 	#define IMSM_OROM_CAPABILITIES_SKUMode ((1 << 8)|(1 << 9))
+	#define IMSM_OROM_CAPABILITIES_SKUMode_LOW ((1 << 8) | (1 << 9))
+	#define IMSM_OROM_CAPABILITIES_SKUMode_LOW_SHIFT 8
 	#define IMSM_OROM_CAPABILITIES_TPV (1 << 10)
+	#define IMSM_OROM_CAPABILITIES_SKUMode_HIGH ((1 << 11) | (1 << 12))
+	#define IMSM_OROM_CAPABILITIES_SKUMode_HIGH_SHIFT 9
+	#define IMSM_OROM_CAPABILITIES_SKUMode_NON_PRODUCTION (1 << 13)
 } __attribute__((packed));
 
 /* IMSM metadata requirements for each level */
