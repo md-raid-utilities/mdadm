@@ -1694,7 +1694,7 @@ char *analyse_change(char *devname, struct mdinfo *info, struct reshape *re)
 					/* Current RAID6 layout has a RAID5
 					 * equivalent - good
 					 */
-					strcat(strcpy(layout, ls), "-6");
+					snprintf(layout, 40, "%s-6", ls);
 					l = map_name(r6layout, layout);
 					if (l == UnSet)
 						return "Cannot find RAID6 layout to convert to";
