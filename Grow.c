@@ -3261,7 +3261,12 @@ static int reshape_array(char *container, int fd, char *devname,
 					/* This is a spare that wants to
 					 * be part of the array.
 					 */
-					add_disk(fd, st, info2, d);
+					if (add_disk(fd, st, info2, d) < 0) {
+						pr_err("Can not add disk %s\n",
+								d->sys_name);
+						free(info2);
+						goto release;
+					}
 				}
 			}
 			sysfs_free(info2);
@@ -4413,7 +4418,10 @@ static void validate(int afd, int bfd, unsigned long long offset)
 	 */
 	if (afd < 0)
 		return;
-	lseek64(bfd, offset - 4096, 0);
+	if (lseek64(bfd, offset - 4096, 0) < 0) {
+		pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+		return;
+	}
 	if (read(bfd, &bsb2, 512) != 512)
 		fail("cannot read bsb");
 	if (bsb2.sb_csum != bsb_csum((char*)&bsb2,
@@ -4444,12 +4452,19 @@ static void validate(int afd, int bfd, unsigned long long offset)
 			}
 		}
 
-		lseek64(bfd, offset, 0);
+		if (lseek64(bfd, offset, 0) < 0) {
+			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+			goto out;
+		}
 		if ((unsigned long long)read(bfd, bbuf, len) != len) {
 			//printf("len %llu\n", len);
 			fail("read first backup failed");
 		}
-		lseek64(afd, __le64_to_cpu(bsb2.arraystart)*512, 0);
+
+		if (lseek64(afd, __le64_to_cpu(bsb2.arraystart)*512, 0) < 0) {
+			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+			goto out;
+		}
 		if ((unsigned long long)read(afd, abuf, len) != len)
 			fail("read first from array failed");
 		if (memcmp(bbuf, abuf, len) != 0)
@@ -4466,15 +4481,25 @@ static void validate(int afd, int bfd, unsigned long long offset)
 			bbuf = xmalloc(abuflen);
 		}
 
-		lseek64(bfd, offset+__le64_to_cpu(bsb2.devstart2)*512, 0);
+		if (lseek64(bfd, offset+__le64_to_cpu(bsb2.devstart2)*512, 0) < 0) {
+			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+			goto out;
+		}
 		if ((unsigned long long)read(bfd, bbuf, len) != len)
 			fail("read second backup failed");
-		lseek64(afd, __le64_to_cpu(bsb2.arraystart2)*512, 0);
+		if (lseek64(afd, __le64_to_cpu(bsb2.arraystart2)*512, 0) < 0) {
+			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+			goto out;
+		}
 		if ((unsigned long long)read(afd, abuf, len) != len)
 			fail("read second from array failed");
 		if (memcmp(bbuf, abuf, len) != 0)
 			fail("data2 compare failed");
 	}
+out:
+	free(abuf);
+	free(bbuf);
+	return;
 }
 
 int child_monitor(int afd, struct mdinfo *sra, struct reshape *reshape,
@@ -5033,7 +5058,11 @@ int Grow_continue_command(char *devname, int fd, struct context *c)
 			goto Grow_continue_command_exit;
 		}
 		content = &array;
-		sysfs_init(content, fd, NULL);
+		if (sysfs_init(content, fd, NULL) < 0) {
+			pr_err("sysfs_init fails\n");
+			ret_val = 1;
+			goto Grow_continue_command_exit;
+		}
 		/* Need to load a superblock.
 		 * FIXME we should really get what we need from
 		 * sysfs
