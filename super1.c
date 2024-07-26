@@ -1466,8 +1466,6 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 						__le32_to_cpu(sb->chunksize));
 			if (space > optimal_space)
 				space = optimal_space;
-			if (space > UINT16_MAX)
-				space = UINT16_MAX;
 		}
 
 		sb->ppl.offset = __cpu_to_le16(offset);
