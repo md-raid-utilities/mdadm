@@ -923,10 +923,12 @@ static int examine_badblocks_super1(struct supertype *st, int fd, char *devname)
 	offset <<= 9;
 	if (lseek64(fd, offset, 0) < 0) {
 		pr_err("Cannot seek to bad-blocks list\n");
+		free(bbl);
 		return 1;
 	}
 	if (read(fd, bbl, size) != size) {
 		pr_err("Cannot read bad-blocks list\n");
+		free(bbl);
 		return 1;
 	}
 	/* 64bits per entry. 10 bits is block-count, 54 bits is block
@@ -947,6 +949,7 @@ static int examine_badblocks_super1(struct supertype *st, int fd, char *devname)
 
 		printf("%20llu for %d sectors\n", sector, count);
 	}
+	free(bbl);
 	return 0;
 }
 
