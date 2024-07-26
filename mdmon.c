@@ -198,8 +198,12 @@ static void try_kill_monitor(pid_t pid, char *devname, int sock)
 	/* Wait for monitor to exit by reading from the socket, after
 	 * clearing the non-blocking flag */
 	fl = fcntl(sock, F_GETFL, 0);
+	if (fl < 0)
+		return;
+
 	fl &= ~O_NONBLOCK;
-	fcntl(sock, F_SETFL, fl);
+	if (fcntl(sock, F_SETFL, fl) < 0)
+		return;
 	n = read(sock, buf, 100);
 
 	/* If there is I/O going on it might took some time to get to
@@ -249,7 +253,10 @@ static int make_control_sock(char *devname)
 	listen(sfd, 10);
 	fl = fcntl(sfd, F_GETFL, 0);
 	fl |= O_NONBLOCK;
-	fcntl(sfd, F_SETFL, fl);
+	if (fcntl(sfd, F_SETFL, fl) < 0) {
+		close_fd(&sfd);
+		return -1;
+	}
 	return sfd;
 }
 
