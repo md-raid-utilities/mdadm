@@ -456,22 +456,25 @@ static int mdmon(char *devnm, int must_fork, int takeover)
 	if (must_fork) {
 		if (pipe(pfd) != 0) {
 			pr_err("failed to create pipe\n");
+			close_fd(&mdfd);
 			return 1;
 		}
 		switch(fork()) {
 		case -1:
 			pr_err("failed to fork: %s\n", strerror(errno));
+			close_fd(&mdfd);
 			return 1;
 		case 0: /* child */
-			close(pfd[0]);
+			close_fd(&pfd[0]);
 			break;
 		default: /* parent */
-			close(pfd[1]);
+			close_fd(&pfd[1]);
 			if (read(pfd[0], &status, sizeof(status)) != sizeof(status)) {
 				wait(&status);
 				status = WEXITSTATUS(status);
 			}
-			close(pfd[0]);
+			close_fd(&pfd[0]);
+			close_fd(&mdfd);
 			return status;
 		}
 	} else
