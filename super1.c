@@ -340,6 +340,9 @@ static void examine_super1(struct supertype *st, char *homehost)
 	unsigned long long sb_offset;
 	struct mdinfo info;
 	int inconsistent = 0;
+	unsigned int expected_csum = 0;
+
+	expected_csum = calc_sb_1_csum(sb);
 
 	printf("          Magic : %08x\n", __le32_to_cpu(sb->magic));
 	printf("        Version : 1");
@@ -507,13 +510,13 @@ static void examine_super1(struct supertype *st, char *homehost)
 		printf("\n");
 	}
 
-	if (calc_sb_1_csum(sb) == sb->sb_csum)
+	if (expected_csum == sb->sb_csum)
 		printf("       Checksum : %x - correct\n",
 		       __le32_to_cpu(sb->sb_csum));
 	else
 		printf("       Checksum : %x - expected %x\n",
 		       __le32_to_cpu(sb->sb_csum),
-		       __le32_to_cpu(calc_sb_1_csum(sb)));
+		       __le32_to_cpu(expected_csum));
 	printf("         Events : %llu\n",
 	       (unsigned long long)__le64_to_cpu(sb->events));
 	printf("\n");
