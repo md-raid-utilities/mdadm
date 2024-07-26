@@ -75,6 +75,31 @@ void sysfs_free(struct mdinfo *sra)
 }
 
 /**
+ * sysfs_write_descriptor()- write value to file referred by fd.
+ * @fd: file descriptor.
+ * @value: value to set.
+ * @len: length of value.
+ * @errno_p: On write() failure, buffer to copy errno value, might be NULL.
+ */
+mdadm_status_t sysfs_write_descriptor(const int fd, const char *value, const ssize_t len,
+				      int *errno_p)
+{
+	ssize_t ret;
+
+	ret = write(fd, value, len);
+	if (ret == -1) {
+		if (errno_p)
+			*errno_p = errno;
+		return MDADM_STATUS_ERROR;
+	}
+	/* It failed to write full string, not an error but not something we wanted */
+	if (ret != len)
+		return MDADM_STATUS_UNDEF;
+
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
  * sysfs_get_container_devnm() - extract container device name.
  * @mdi: md_info describes member array, with GET_VERSION option.
  * @buf: buf to fill, must be MD_NAME_MAX.
