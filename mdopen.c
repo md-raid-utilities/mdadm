@@ -406,7 +406,11 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 				perror("chown");
 			if (chmod(devname, ci->mode))
 				perror("chmod");
-			stat(devname, &stb);
+			if (stat(devname, &stb) < 0) {
+				pr_err("failed to stat %s\n",
+						devname);
+				return -1;
+			}
 			add_dev(devname, &stb, 0, NULL);
 		}
 		if (use_mdp == 1)
