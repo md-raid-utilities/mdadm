@@ -513,6 +513,9 @@ int enough(int level, int raid_disks, int layout, int clean, char *avail)
 	int i;
 	int avail_disks = 0;
 
+	if (raid_disks <= 0)
+		return 0;
+
 	for (i = 0; i < raid_disks; i++)
 		avail_disks += !!avail[i];
 
@@ -521,7 +524,7 @@ int enough(int level, int raid_disks, int layout, int clean, char *avail)
 		/* This is the tricky one - we need to check
 		 * which actual disks are present.
 		 */
-		copies = (layout&255)* ((layout>>8) & 255);
+		copies = (layout & 255) * ((layout >> 8) & 255);
 		first = 0;
 		do {
 			/* there must be one of the 'copies' form 'first' */
@@ -531,16 +534,16 @@ int enough(int level, int raid_disks, int layout, int clean, char *avail)
 			while (n--) {
 				if (avail[this])
 					cnt++;
-				this = (this+1) % raid_disks;
+				this = (this + 1) % raid_disks;
 			}
 			if (cnt == 0)
 				return 0;
-			first = (first+(layout&255)) % raid_disks;
+			first = (first + (layout & 255)) % raid_disks;
 		} while (first != 0);
 		return 1;
 
 	case LEVEL_MULTIPATH:
-		return avail_disks>= 1;
+		return avail_disks >= 1;
 	case LEVEL_LINEAR:
 	case 0:
 		return avail_disks == raid_disks;
@@ -556,12 +559,12 @@ int enough(int level, int raid_disks, int layout, int clean, char *avail)
 		/* FALL THROUGH */
 	case 5:
 		if (clean)
-			return avail_disks >= raid_disks-1;
+			return avail_disks >= raid_disks - 1;
 		else
 			return avail_disks >= raid_disks;
 	case 6:
 		if (clean)
-			return avail_disks >= raid_disks-2;
+			return avail_disks >= raid_disks - 2;
 		else
 			return avail_disks >= raid_disks;
 	default:
