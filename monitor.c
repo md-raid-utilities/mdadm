@@ -399,8 +399,9 @@ static void signal_manager(void)
 static int read_and_act(struct active_array *a)
 {
 	unsigned long long sync_completed;
-	int check_degraded = 0;
-	int check_reshape = 0;
+	bool disks_to_remove = false;
+	bool check_degraded = false;
+	bool check_reshape = false;
 	int deactivate = 0;
 	struct mdinfo *mdi;
 	int ret = 0;
@@ -425,7 +426,7 @@ static int read_and_act(struct active_array *a)
 		mdi->next_state = 0;
 		mdi->curr_state = 0;
 
-		if (!is_fd_valid(mdi->state_fd))
+		if (mdi->man_disk_to_remove)
 			/* We are removing this device, skip it then */
 			continue;
 
@@ -624,21 +625,12 @@ static int read_and_act(struct active_array *a)
 			write_attr("-blocked", mdi->state_fd);
 		}
 
-		if ((mdi->next_state & DS_REMOVE) && mdi->state_fd >= 0) {
-			/* The kernel may not be able to immediately remove the
-			 * disk.  In that case we wait a little while and
-			 * try again.
-			 */
-			if (write_attr("remove", mdi->state_fd) == MDADM_STATUS_SUCCESS) {
-				dprintf_cont(" %d:removed", mdi->disk.raid_disk);
-				close(mdi->state_fd);
-				close(mdi->recovery_fd);
-				close(mdi->bb_fd);
-				close(mdi->ubb_fd);
-				mdi->state_fd = -1;
-			} else
-				ret |= ARRAY_BUSY;
+		if ((mdi->next_state & DS_REMOVE) && !mdi->man_disk_to_remove) {
+			dprintf_cont(" %d:disk_to_remove", mdi->disk.raid_disk);
+			mdi->man_disk_to_remove = true;
+			disks_to_remove = true;
 		}
+
 		if (mdi->next_state & DS_INSYNC) {
 			write_attr("+in_sync", mdi->state_fd);
 			dprintf_cont(" %d:+in_sync", mdi->disk.raid_disk);
@@ -651,17 +643,14 @@ static int read_and_act(struct active_array *a)
 
 	a->prev_action = a->curr_action;
 
-	for (mdi = a->info.devs; mdi ; mdi = mdi->next) {
+	for (mdi = a->info.devs; mdi ; mdi = mdi->next)
 		mdi->prev_state = mdi->curr_state;
-		mdi->next_state = 0;
-	}
 
-	if (check_degraded || check_reshape) {
-		/* manager will do the actual check */
-		if (check_degraded)
-			a->check_degraded = 1;
-		if (check_reshape)
-			a->check_reshape = 1;
+	if (check_degraded || check_reshape || disks_to_remove) {
+
+		a->check_member_remove |= disks_to_remove;
+		a->check_degraded |= check_degraded;
+		a->check_reshape |= check_reshape;
 		signal_manager();
 	}
 
@@ -734,13 +723,11 @@ int monitor_loop_cnt;
 
 static int wait_and_act(struct supertype *container, int nowait)
 {
-	fd_set rfds;
-	int maxfd = 0;
-	struct active_array **aap = &container->arrays;
-	struct active_array *a, **ap;
-	int rv;
-	struct mdinfo *mdi;
+	struct active_array *a, **ap, **aap = &container->arrays;
 	static unsigned int dirty_arrays = ~0; /* start at some non-zero value */
+	struct mdinfo *mdi;
+	int rv, maxfd = 0;
+	fd_set rfds;
 
 	FD_ZERO(&rfds);
 
@@ -764,7 +751,18 @@ static int wait_and_act(struct supertype *container, int nowait)
 		add_fd(&rfds, &maxfd, a->info.state_fd);
 		add_fd(&rfds, &maxfd, a->action_fd);
 		add_fd(&rfds, &maxfd, a->sync_completed_fd);
+
 		for (mdi = a->info.devs ; mdi ; mdi = mdi->next) {
+			if (mdi->man_disk_to_remove) {
+				mdi->mon_descriptors_not_used = true;
+
+				/* Managemon could be blocked on suspend in kernel.
+				 * Monitor must respond if any badblock is recorded in this time.
+				 */
+				container->retry_soon = 1;
+				continue;
+			}
+
 			add_fd(&rfds, &maxfd, mdi->state_fd);
 			add_fd(&rfds, &maxfd, mdi->bb_fd);
 			add_fd(&rfds, &maxfd, mdi->ubb_fd);
