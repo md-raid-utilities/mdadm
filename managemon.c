@@ -438,6 +438,29 @@ static int disk_init_and_add(struct mdinfo *disk, struct mdinfo *clone,
 	return 0;
 }
 
+/**
+ * managemon_disk_remove()- remove disk from the MD array.
+ * @disk: device to be removed.
+ *
+ * It tries to remove the disk from the MD array and if it is successful then it closes all opened
+ * descriptors. Removing action requires suspend, it might take a while.
+ * Invalidating mdi->state_fd will prevent from using this device further (see duplicate_aa()).
+ *
+ * Returns MDADM_STATUS_SUCCESS if disk has been removed, error otherwise.
+ */
+static mdadm_status_t managemon_disk_remove(struct mdinfo *disk)
+{
+	if (write_attr("remove", disk->state_fd) <= 0)
+		return MDADM_STATUS_ERROR;
+
+	close_fd(&disk->state_fd);
+	close_fd(&disk->recovery_fd);
+	close_fd(&disk->bb_fd);
+	close_fd(&disk->ubb_fd);
+
+	return MDADM_STATUS_SUCCESS;
+}
+
 static void manage_member(struct mdstat_ent *mdstat,
 			  struct active_array *a)
 {
@@ -523,6 +546,43 @@ static void manage_member(struct mdstat_ent *mdstat,
 			a->info.safe_mode_delay = new_delay;
 	}
 
+	if (a->check_member_remove) {
+		bool any_removed = false;
+		bool all_removed = true;
+		struct mdinfo *disk;
+
+		for (disk = a->info.devs; disk ; disk = disk->next) {
+			if (!disk->man_disk_to_remove)
+				continue;
+
+			if (managemon_disk_remove(disk)) {
+				all_removed = false;
+				continue;
+			}
+
+			any_removed = true;
+		}
+
+		if (all_removed)
+			a->check_member_remove = false;
+
+		if (any_removed) {
+			struct active_array *newa = duplicate_aa(a);
+
+			if (!all_removed) {
+				/*
+				 * We have faulty device and next we may activate spares, so block
+				 * it until all faulty devices are removed.
+				 * FIXME, should we wait for removals in all active arrays?
+				 */
+				replace_array(container, a, newa);
+				return;
+			}
+
+			a = newa;
+		}
+	}
+
 	/* We don't check the array while any update is pending, as it
 	 * might container a change (such as a spare assignment) which
 	 * could affect our decisions.
@@ -544,8 +604,6 @@ static void manage_member(struct mdstat_ent *mdstat,
 			return;
 
 		newa = duplicate_aa(a);
-		if (!newa)
-			goto out;
 		/* prevent the kernel from activating the disk(s) before we
 		 * finish adding them
 		 */
@@ -575,7 +633,7 @@ static void manage_member(struct mdstat_ent *mdstat,
 				  "sync_action", "recover") == 0)
 			newa->prev_action = recover;
 		dprintf("recovery started on %s\n", a->info.sys_name);
- out:
+
 		while (newdev) {
 			d = newdev->next;
 			free(newdev);
@@ -609,11 +667,9 @@ static void manage_member(struct mdstat_ent *mdstat,
 			if (d2)
 				/* already have this one */
 				continue;
-			if (!newa) {
+			if (!newa)
 				newa = duplicate_aa(a);
-				if (!newa)
-					break;
-			}
+
 			newd = xmalloc(sizeof(*newd));
 			disk_init_and_add(newd, d, newa);
 		}
