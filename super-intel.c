@@ -194,6 +194,8 @@ ASSERT_SIZE(imsm_map, 52)
 struct imsm_vol {
 	__u32 curr_migr_unit_lo;
 	__u32 checkpoint_id;	/* id to access curr_migr_unit */
+#define MIGR_STATE_NORMAL 0
+#define MIGR_STATE_MIGRATING 1
 	__u8  migr_state;	/* Normal or Migrating */
 #define MIGR_INIT 0
 #define MIGR_REBUILD 1
@@ -4297,7 +4299,7 @@ static void migrate(struct imsm_dev *dev, struct intel_super *super,
 	struct imsm_map *dest;
 	struct imsm_map *src = get_imsm_map(dev, MAP_0);
 
-	dev->vol.migr_state = 1;
+	dev->vol.migr_state = MIGR_STATE_MIGRATING;
 	set_migr_type(dev, migr_type);
 	set_vol_curr_migr_unit(dev, 0);
 	dest = get_imsm_map(dev, MAP_1);
@@ -4331,7 +4333,7 @@ static void end_migration(struct imsm_dev *dev, struct intel_super *super,
 		return;
 
 	struct imsm_map *map = get_imsm_map(dev, MAP_0);
-	struct imsm_map *prev = get_imsm_map(dev, dev->vol.migr_state == 0 ?
+	struct imsm_map *prev = get_imsm_map(dev, dev->vol.migr_state == MIGR_STATE_NORMAL ?
 						    MAP_0 : MAP_1);
 	int i, j;
 
@@ -4363,7 +4365,7 @@ static void end_migration(struct imsm_dev *dev, struct intel_super *super,
 		map_state = imsm_check_degraded(super, dev, failed, MAP_0);
 	}
 
-	dev->vol.migr_state = 0;
+	dev->vol.migr_state = MIGR_STATE_NORMAL;
 	set_migr_type(dev, 0);
 	set_vol_curr_migr_unit(dev, 0);
 	map->map_state = map_state;
@@ -4443,7 +4445,7 @@ int check_mpb_migr_compatibility(struct intel_super *super)
 	for (i = 0; i < super->anchor->num_raid_devs; i++) {
 		struct imsm_dev *dev_iter = __get_imsm_dev(super->anchor, i);
 
-		if (dev_iter->vol.migr_state == 1 &&
+		if (dev_iter->vol.migr_state == MIGR_STATE_MIGRATING &&
 		    dev_iter->vol.migr_type == MIGR_GEN_MIGR) {
 			/* This device is migrating */
 			map0 = get_imsm_map(dev_iter, MAP_0);
@@ -5648,7 +5650,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	set_imsm_dev_size(dev, array_blocks);
 	dev->status = (DEV_READ_COALESCING | DEV_WRITE_COALESCING);
 	vol = &dev->vol;
-	vol->migr_state = 0;
+	vol->migr_state = MIGR_STATE_NORMAL;
 	set_migr_type(dev, MIGR_INIT);
 	vol->dirty = !info->state;
 	set_vol_curr_migr_unit(dev, 0);
@@ -8625,7 +8627,7 @@ static void imsm_progress_container_reshape(struct intel_super *super)
 		copy_map_size = sizeof_imsm_map(map);
 		prev_num_members = map->num_members;
 		map->num_members = prev_disks;
-		dev->vol.migr_state = 1;
+		dev->vol.migr_state = MIGR_STATE_MIGRATING;
 		set_vol_curr_migr_unit(dev, 0);
 		set_migr_type(dev, MIGR_GEN_MIGR);
 		for (i = prev_num_members;
@@ -9857,7 +9859,7 @@ static int apply_reshape_container_disks_update(struct imsm_update_reshape *u,
 			dprintf("imsm: modifying subdev: %i\n",
 				id->index);
 			devices_to_reshape--;
-			newdev->vol.migr_state = 1;
+			newdev->vol.migr_state = MIGR_STATE_MIGRATING;
 			set_vol_curr_migr_unit(newdev, 0);
 			set_migr_type(newdev, MIGR_GEN_MIGR);
 			newmap->num_members = u->new_raid_disks;
