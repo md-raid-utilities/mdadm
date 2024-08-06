@@ -4324,6 +4324,12 @@ static void migrate(struct imsm_dev *dev, struct intel_super *super,
 static void end_migration(struct imsm_dev *dev, struct intel_super *super,
 			  __u8 map_state)
 {
+	/* To avoid compilation error, saying dev can't be NULL when
+	 * migr_state is assigned.
+	 */
+	if (dev == NULL)
+		return;
+
 	struct imsm_map *map = get_imsm_map(dev, MAP_0);
 	struct imsm_map *prev = get_imsm_map(dev, dev->vol.migr_state == 0 ?
 						    MAP_0 : MAP_1);
