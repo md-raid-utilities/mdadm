@@ -123,13 +123,15 @@ static void mdstat_ent_list_detach_element(struct mdstat_ent **list_head, struct
 				ent->next = el->next;
 				break;
 			}
+
+			ent = ent->next;
 		}
 
-		ent = ent->next;
 	}
 
+	/* Guard if not found or list is empty - not allowed */
 	assert(ent);
-	ent->next = NULL;
+	el->next = NULL;
 }
 
 void free_mdstat(struct mdstat_ent *ms)
