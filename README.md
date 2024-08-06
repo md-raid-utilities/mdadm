@@ -87,6 +87,61 @@ If there are differences between github and kernel.org, please contact kernel.or
 We do not support kernel versions below **v3.10**. Please be aware that maintainers may remove
 workarounds and fixes for legacy issues.
 
+# Dependencies
+
+The following packages are required for compilation:
+
+| RHEL | SLES | Debian/Ubuntu |
+| :---: | :---: | :---: |
+| `pkgconf` | `pkg-config` | `pkg-config` |
+| `gcc` | `gcc` | `gcc` |
+| `make` | `make` | `make` |
+| `libudev-devel` | `libudev-devel` | `libudev-dev` |
+
+# Compiling mdadm
+
+Run `make` command to compile mdadm.
+
+Specifying more jobs e.g. `make -j4` can decrease compilation time significantly.
+
+Various values can be specified for the `CXFLAGS` variable to customize the build process:
+- Run `make CXFLAGS=-ggdb` to include gdb debugging information.
+- Run `make CXFLAGS=-DDEBUG` to enable additional debug information through dprintf statements
+and call traces.
+- Run `make CXFLAGS=-DNO_LIBUDEV` to compile without `libudev`.
+
+To build with more than one option specified in `CXFLAGS`, separate each option with a space, e.g.
+`make CXFLAGS="-ggdb -DDEBUG"`.
+
+Additionally, the `EXTRAVERSION` variable can be set to build with user-friendly version label,
+useful when customizing mdadm builds or labeling some instance in between major releases,
+e.g. `make EXTRAVERSION="custom-label"`.
+
+# Installing mdadm
+
+Before installing mdadm, it is advised to uninstall vendor-provided packages (mdadm.deb, mdadm.rpm
+etc.) in order to avoid configuration issues.
+
+Run `make install` command to install mdadm. This command invokes the following targets:
+- `install-bin`
+- `install-man`
+- `install-udev`
+
+After installing mdadm, consider rebuilding initramfs to ensure the changes take effect.
+
+List of installation targets:
+- Run `make install-bin` to install the mdadm and mdmon binary files.
+- Run `make install-systemd` to install the systemd services.
+- Run `make install-udev` to install the udev rules.
+- Run `make install-man` to install the manual pages (`mdadm.8`, `md.4`, `mdadm.conf.5`,
+`mdmon.8`).
+
+The following targets are deprecated and should not be used:
+- `install-static`
+- `install-tcc`
+- `install-uclibc`
+- `install-klibc`
+
 # License
 
 It is released under the terms of the **GNU General Public License version 2** as published
