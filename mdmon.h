@@ -48,8 +48,14 @@ struct active_array {
 	enum array_state prev_state, curr_state, next_state;
 	enum sync_action prev_action, curr_action, next_action;
 
-	int check_degraded; /* flag set by mon, read by manage */
-	int check_reshape; /* flag set by mon, read by manage */
+	bool check_degraded : 1; /* flag set by mon, read by manage */
+	bool check_reshape : 1; /* flag set by mon, read by manage */
+
+	/**
+	 * Signalize managemon there is a mdi to be removed.
+	 * Monitor must acknowledge faulty state first.
+	 */
+	bool check_member_remove : 1;
 };
 
 /*
@@ -108,4 +114,9 @@ static inline int is_resync_complete(struct mdinfo *array)
 		break;
 	}
 	return array->resync_start >= sync_size;
+}
+
+static inline int write_attr(char *attr, int fd)
+{
+	return write(fd, attr, strlen(attr));
 }

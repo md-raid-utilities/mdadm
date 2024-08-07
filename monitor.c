@@ -35,11 +35,6 @@ enum bb_action {
 	COMPARE_BB,
 };
 
-static int write_attr(char *attr, int fd)
-{
-	return write(fd, attr, strlen(attr));
-}
-
 static void add_fd(fd_set *fds, int *maxfd, int fd)
 {
 	struct stat st;
@@ -405,8 +400,9 @@ static void signal_manager(void)
 static int read_and_act(struct active_array *a, fd_set *fds)
 {
 	unsigned long long sync_completed;
-	int check_degraded = 0;
-	int check_reshape = 0;
+	bool disks_to_remove = false;
+	bool check_degraded = false;
+	bool check_reshape = false;
 	int deactivate = 0;
 	struct mdinfo *mdi;
 	int ret = 0;
@@ -430,11 +426,12 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 	for (mdi = a->info.devs; mdi ; mdi = mdi->next) {
 		mdi->next_state = 0;
 		mdi->curr_state = 0;
-		if (mdi->state_fd >= 0) {
-			read_resync_start(mdi->recovery_fd,
-					  &mdi->recovery_start);
+
+		if (!mdi->man_disk_to_remove) {
+			read_resync_start(mdi->recovery_fd, &mdi->recovery_start);
 			mdi->curr_state = read_dev_state(mdi->state_fd);
 		}
+
 		/*
 		 * If array is blocked and metadata handler is able to handle
 		 * BB, check if you can acknowledge them to md driver. If
@@ -621,24 +618,11 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 			write_attr("-blocked", mdi->state_fd);
 		}
 
-		if ((mdi->next_state & DS_REMOVE) && mdi->state_fd >= 0) {
-			int remove_result;
-
-			/* The kernel may not be able to immediately remove the
-			 * disk.  In that case we wait a little while and
-			 * try again.
-			 */
-			remove_result = write_attr("remove", mdi->state_fd);
-			if (remove_result > 0) {
-				dprintf_cont(" %d:removed", mdi->disk.raid_disk);
-				close(mdi->state_fd);
-				close(mdi->recovery_fd);
-				close(mdi->bb_fd);
-				close(mdi->ubb_fd);
-				mdi->state_fd = -1;
-			} else
-				ret |= ARRAY_BUSY;
+		if ((mdi->next_state & DS_REMOVE) && !mdi->man_disk_to_remove) {
+			mdi->man_disk_to_remove = true;
+			disks_to_remove = true;
 		}
+
 		if (mdi->next_state & DS_INSYNC) {
 			write_attr("+in_sync", mdi->state_fd);
 			dprintf_cont(" %d:+in_sync", mdi->disk.raid_disk);
@@ -651,17 +635,14 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 
 	a->prev_action = a->curr_action;
 
-	for (mdi = a->info.devs; mdi ; mdi = mdi->next) {
+	for (mdi = a->info.devs; mdi ; mdi = mdi->next)
 		mdi->prev_state = mdi->curr_state;
-		mdi->next_state = 0;
-	}
 
-	if (check_degraded || check_reshape) {
-		/* manager will do the actual check */
-		if (check_degraded)
-			a->check_degraded = 1;
-		if (check_reshape)
-			a->check_reshape = 1;
+	if (check_degraded || check_reshape || disks_to_remove) {
+
+		a->check_member_remove |= disks_to_remove;
+		a->check_degraded |= check_degraded;
+		a->check_reshape |= check_reshape;
 		signal_manager();
 	}
 

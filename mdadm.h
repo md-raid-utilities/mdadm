@@ -410,6 +410,9 @@ struct mdinfo {
 	#define	DS_UNBLOCK	2048
 	int prev_state, curr_state, next_state;
 
+	/* If set by monitor, managemon needs to remove faulty device */
+	bool man_disk_to_remove : 1;
+
 	/* info read from sysfs */
 	enum {
 		ARRAY_CLEAR,
