@@ -1253,7 +1253,7 @@ struct supertype *super_by_fd(int fd, char **subarrayp)
 			*subarray++ = '\0';
 			subarray = xstrdup(subarray);
 		}
-		strcpy(container, dev);
+		snprintf(container, sizeof(container), "%s", dev);
 		sysfs_free(sra);
 		sra = sysfs_read(-1, container, GET_VERSION);
 		if (sra && sra->text_version[0])
@@ -1430,7 +1430,8 @@ static int get_gpt_last_partition_end(int fd, unsigned long long *endofpart)
 	/* skip protective MBR */
 	if (!get_dev_sector_size(fd, NULL, &sector_size))
 		return 0;
-	lseek(fd, sector_size, SEEK_SET);
+	if (lseek(fd, sector_size, SEEK_SET) == -1L)
+		return 0;
 	/* read GPT header */
 	if (read(fd, &gpt, 512) != 512)
 		return 0;
@@ -1451,7 +1452,8 @@ static int get_gpt_last_partition_end(int fd, unsigned long long *endofpart)
 	part = (struct GPT_part_entry *)buf;
 
 	/* set offset to third block (GPT entries) */
-	lseek(fd, sector_size*2, SEEK_SET);
+	if (lseek(fd, sector_size*2, SEEK_SET) == -1L)
+		return 0;
 	for (part_nr = 0; part_nr < all_partitions; part_nr++) {
 		/* read partition entry */
 		if (read(fd, buf, entry_size) != (ssize_t)entry_size)
@@ -1486,7 +1488,8 @@ static int get_last_partition_end(int fd, unsigned long long *endofpart)
 
 	BUILD_BUG_ON(sizeof(boot_sect) != 512);
 	/* read MBR */
-	lseek(fd, 0, 0);
+	if (lseek(fd, 0, 0) == -1L)
+		goto abort;
 	if (read(fd, &boot_sect, 512) != 512)
 		goto abort;
 
@@ -1715,7 +1718,7 @@ int open_subarray(char *dev, char *subarray, struct supertype *st, int quiet)
 			       dev);
 		goto close_fd;
 	}
-	strcpy(st->devnm, _devnm);
+	snprintf(st->devnm, sizeof(st->devnm), "%s", _devnm);
 
 	mdi = sysfs_read(fd, st->devnm, GET_VERSION|GET_LEVEL);
 	if (!mdi) {
@@ -2293,14 +2296,16 @@ void manage_fork_fds(int close_all)
 {
 	DIR *dir;
 	struct dirent *dirent;
+	int fd = open("/dev/null", O_RDWR);
 
-	close(0);
-	open("/dev/null", O_RDWR);
-
+	if (is_fd_valid(fd)) {
+		dup2(fd, 0);
 #ifndef DEBUG
 	dup2(0, 1);
 	dup2(0, 2);
+	close_fd(&fd);
 #endif
+	}
 
 	if (close_all == 0)
 		return;
@@ -2319,8 +2324,10 @@ void manage_fork_fds(int close_all)
 
 		fd = strtol(dirent->d_name, NULL, 10);
 		if (fd > 2)
-			close(fd);
+			close_fd(&fd);
 	}
+	closedir(dir);
+	return;
 }
 
 /* In a systemd/udev world, it is best to get systemd to
@@ -2367,13 +2374,15 @@ void reopen_mddev(int mdfd)
 	/* Re-open without any O_EXCL, but keep
 	 * the same fd
 	 */
-	char *devnm;
-	int fd;
-	devnm = fd2devnm(mdfd);
-	close(mdfd);
-	fd = open_dev(devnm);
-	if (fd >= 0 && fd != mdfd)
-		dup2(fd, mdfd);
+	char *devnm = fd2devnm(mdfd);
+	int fd = open_dev(devnm);
+
+	if (!is_fd_valid(fd))
+		return;
+
+	dup2(fd, mdfd);
+
+	close_fd(&fd);
 }
 
 static struct cmap_hooks *cmap_hooks = NULL;
