@@ -105,12 +105,75 @@ static void free_sys_dev(struct sys_dev **list)
 	}
 }
 
+/**
+ * vmd_find_pci_bus() - look for PCI bus created by VMD.
+ * @vmd_path: path to vmd driver.
+ * @buf: return buffer, must be PATH_MAX.
+ *
+ * Each VMD device represents one domain and each VMD device adds separate PCI bus.
+ * IMSM must know VMD domains, therefore it needs to determine and follow buses.
+ *
+ */
+mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf)
+{
+	char tmp[PATH_MAX];
+	struct dirent *ent;
+	DIR *vmd_dir;
+	char *rp_ret;
+
+	snprintf(tmp, PATH_MAX, "%s/domain/device", vmd_path);
+
+	rp_ret = realpath(tmp, buf);
+
+	if (rp_ret)
+		return MDADM_STATUS_SUCCESS;
+
+	if (errno != ENOENT)
+		return MDADM_STATUS_ERROR;
+
+	/*
+	 * If it is done early, there is a chance that kernel is still enumerating VMD device but
+	 * kernel did enough to start enumerating child devices, {vmd_path}/domain/device link may
+	 * not exist yet. We have to look into @vmd_path directory and find it ourselves.
+	 */
+
+	vmd_dir = opendir(vmd_path);
+
+	if (!vmd_dir)
+		return MDADM_STATUS_ERROR;
+
+	for (ent = readdir(vmd_dir); ent; ent = readdir(vmd_dir)) {
+		static const char pci[] = "pci";
+
+		/**
+		 * Pci bus must have form pciXXXXX:XX, where X is a digit i.e pci10000:00.
+		 * We do not check digits here, it is sysfs so it should be safe to check
+		 * length and ':' position only.
+		 */
+		if (strncmp(ent->d_name, pci, strlen(pci)) != 0)
+			continue;
+
+		if (ent->d_name[8] != ':' || ent->d_name[11] != 0)
+			continue;
+		break;
+	}
+
+	if (!ent) {
+		closedir(vmd_dir);
+		return MDADM_STATUS_ERROR;
+	}
+
+	snprintf(buf, PATH_MAX, "%s/%s", vmd_path, ent->d_name);
+	closedir(vmd_dir);
+	return MDADM_STATUS_SUCCESS;
+}
+
 struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 {
 	/* search sysfs for devices driven by 'driver' */
 	char path[PATH_MAX];
 	char link[PATH_MAX];
-	char *c, *p;
+	char *c;
 	DIR *driver_dir;
 	struct dirent *de;
 	struct sys_dev *head = NULL;
@@ -142,8 +205,9 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		return NULL;
 	}
 	for (de = readdir(driver_dir); de; de = readdir(driver_dir)) {
-		int n;
 		int skip = 0;
+		char *p;
+		int n;
 
 		/* is 'de' a device? check that the 'subsystem' link exists and
 		 * that its target matches 'bus'
@@ -195,18 +259,20 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		if (devpath_to_ll(path, "class", &class) != 0)
 			continue;
 
-		/*
-		 * Each VMD device (domain) adds separate PCI bus, it is better
-		 * to store path as a path to that bus (easier further
-		 * determination which NVMe dev is connected to this particular
-		 * VMD domain).
-		 */
 		if (type == SYS_DEV_VMD) {
-			sprintf(path, "/sys/bus/%s/drivers/%s/%s/domain/device",
-				bus, driver, de->d_name);
+			char vmd_path[PATH_MAX];
+
+			sprintf(vmd_path, "/sys/bus/%s/drivers/%s/%s", bus, driver, de->d_name);
+
+			if (vmd_find_pci_bus(vmd_path, path)) {
+				pr_err("Cannot determine VMD bus for %s\n", vmd_path);
+				continue;
+			}
 		}
+
 		p = realpath(path, NULL);
-		if (p == NULL) {
+
+		if (!p) {
 			pr_err("Unable to get real path for '%s'\n", path);
 			continue;
 		}
