@@ -23,3 +23,4 @@ void dl_add(void*, void*);
 void dl_del(void*);
 void dl_free(void*);
 void dl_init(void*);
+void dl_free_all(void *head);

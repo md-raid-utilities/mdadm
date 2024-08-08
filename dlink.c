@@ -26,6 +26,21 @@ void dl_free(void *v)
     free(vv-1);
 }
 
+void dl_free_all(void *head)
+{
+	/* The list head is linked with the list tail so in order to free
+	 * all the elements properly there is a need to keep starting point.
+	 */
+	void *d = dl_next(head), *next;
+
+	while (d != head) {
+		next = dl_next(d);
+		dl_free(d);
+		d = next;
+	}
+	dl_free(head);
+}
+
 void dl_init(void *v)
 {
     dl_next(v) = v;
