@@ -577,6 +577,9 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 
 #define SYS_EFI_VAR_PATH "/sys/firmware/efi/vars"
 #define SYS_EFIVARS_PATH "/sys/firmware/efi/efivars"
+#define ACPI_TABLES_PATH "/sys/firmware/acpi/tables/"
+#define ACPI_UEFI_TABLE_BASE_NAME "UEFI"
+#define ACPI_UEFI_DATA_OFFSET 52
 #define SCU_PROP "RstScuV"
 #define AHCI_PROP "RstSataV"
 #define AHCI_SSATA_PROP "RstsSatV"
@@ -584,10 +587,73 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 #define VROC_VMD_PROP "RstUefiV"
 #define RST_VMD_PROP "RstVmdV"
 
-#define VENDOR_GUID \
+#define PCI_CLASS_RAID_CNTRL 0x010400
+
+/* GUID length in Bytes */
+#define GUID_LENGTH 16
+
+/* GUID entry in 'UEFI' for Sata controller. */
+#define RST_SATA_V_GUID \
+	EFI_GUID(0xe4dd92e0, 0xac7d, 0x11df, 0x94, 0xe2, 0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66)
+
+/* GUID entry in 'UEFI' for sSata controller. */
+#define RST_SSATA_V_GUID \
+	EFI_GUID(0xb002be42, 0x901d, 0x4018, 0xb4, 0x1e, 0xd7, 0x04, 0xab, 0x3a, 0x0f, 0x15)
+
+/* GUID entry in 'UEFI' for tSata controller. */
+#define RST_TSATA_V_GUID \
+	EFI_GUID(0x101ce8f1, 0xb873, 0x4362, 0xa9, 0x76, 0xb5, 0x54, 0x31, 0x74, 0x52, 0x7e)
+
+/* GUID entry in 'UEFI' for Intel(R) VROC VMD. */
+#define RST_UEFI_V_GUID \
+	EFI_GUID(0x4bf2da96, 0xde6e, 0x4d8a, 0xa8, 0x8b, 0xb3, 0xd, 0x33, 0xf6, 0xf, 0x3e)
+
+/**
+ * GUID entry in 'UEFI' for Intel(R) RST VMD.
+ * Currently is the same like in 'UEFI' for Sata controller.
+ */
+#define RST_VMD_V_GUID RST_SATA_V_GUID
+
+/* GUID of intel RST vendor EFI var. */
+#define INTEL_RST_VENDOR_GUID \
 	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, 0x1a, 0x04, 0xc6)
 
-#define PCI_CLASS_RAID_CNTRL 0x010400
+/*
+ * Unified Extensible Firmware Interface (UEFI) Specification Release 2.10
+ * UEFI ACPI DATA TABLE, Table O.1
+ */
+typedef struct uefi_acpi_table {
+	char signature[4];
+	__u32 length;
+	__u8 revision;
+	__u8 checksum;
+	char oemid[6];
+	/* controller name */
+	char oem_table_id[8];
+	__u32 oem_revision;
+	__u32 creator_id;
+	__u32 creator_revision;
+	/* controller GUID */
+	struct efi_guid identifier;
+	/* OROM data offeset */
+	__u16 dataOffset;
+} uefi_acpi_table_t;
+
+typedef struct uefi_acpi_table_with_orom {
+	struct uefi_acpi_table table;
+	struct imsm_orom orom;
+} uefi_acpi_table_with_orom_t;
+
+/* imsm_orom_id - Identifier used to match imsm efi var or acpi table
+ * @name: name of the UEFI property, it is part of efivar name or ACPI table oem_table_id
+ * @guid: acpi table guid identifier
+ *
+ * vendor guid (second part of evifar name) is not added here because it is cost.
+ */
+typedef struct imsm_orom_id {
+	char *name;
+	struct efi_guid guid;
+} imsm_orom_id_t;
 
 static int read_efi_var(void *buffer, ssize_t buf_size,
 			const char *variable_name, struct efi_guid guid)
@@ -669,14 +735,238 @@ static int read_efi_variable(void *buffer, ssize_t buf_size,
 	return 0;
 }
 
+/**
+ * is_efi_guid_equal() - check if EFI guids are equal.
+ * @guid: EFI guid.
+ * @guid1: EFI guid to compare.
+ *
+ * Return: %true if guid are equal, %false otherwise.
+ */
+static inline bool is_efi_guid_equal(struct efi_guid guid, struct efi_guid guid1)
+{
+	if (memcmp(guid.b, guid1.b, GUID_LENGTH) == 0)
+		return true;
+	return false;
+}
+
+/**
+ * acpi_any_imsm_orom_id_matching() - match ACPI table with any of given imsm_orom_id.
+ * @imsm_orom_ids: array of IMSM OROM Identifiers.
+ * @imsm_orom_ids_number: number of IMSM OROM Identifiers.
+ * @table: struct with read ACPI UEFI table.
+ *
+ * Check if read UEFI table contains requested OROM id.
+ * EFI GUID and controller name are compared with expected.
+ *
+ * Return: %true if length is proper table, %false otherwise.
+ */
+bool acpi_any_imsm_orom_id_matching(imsm_orom_id_t *imsm_orom_ids, int imsm_orom_ids_number,
+				    struct uefi_acpi_table table)
+{
+	int index;
+
+	for (index = 0; index < imsm_orom_ids_number; index++)
+		if (strncmp(table.oem_table_id, imsm_orom_ids[index].name,
+			    strlen(imsm_orom_ids[index].name)) == 0 &&
+		    is_efi_guid_equal(table.identifier,
+				      imsm_orom_ids[index].guid) == true)
+			return true;
+	return false;
+}
+
+/**
+ * read_uefi_acpi_orom_data() - read OROM data from UEFI ACPI table.
+ * @fd: file descriptor.
+ * @uefi_table: struct to fill out.
+ *
+ * Read OROM from ACPI UEFI table under given file descriptor.
+ * Table must have the appropriate OROM data, which should be confirmed before call this function.
+ * In case of success, &orom in structure in &uefi_table will be filled..
+ *
+ * Return: %MDADM_STATUS_SUCCESS on success, %MDADM_STATUS_ERROR otherwise.
+ */
+mdadm_status_t
+read_uefi_acpi_orom_data(int fd, uefi_acpi_table_with_orom_t *uefi_table)
+{
+	assert(is_fd_valid(fd));
+
+	if (lseek(fd, uefi_table->table.dataOffset, 0) == -1L)
+		return MDADM_STATUS_ERROR;
+
+	if (read(fd, &uefi_table->orom, sizeof(uefi_table->orom)) == -1)
+		return MDADM_STATUS_ERROR;
+
+	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * verify_uefi_acpi_table_length() - verify if ACPI UEFI table have correct length with focus at
+ * OROM.
+ * @table: struct with UEFI table.
+ *
+ * Verify if ACPI UEFI table have correct length with focus at OROM. Make sure that the file is
+ * correct and contains the appropriate length data based on the length of the OROM.
+ *
+ * Return: %true if length is correct, %false otherwise.
+ */
+bool verify_uefi_acpi_table_length(struct uefi_acpi_table table)
+{
+	if (table.length < ACPI_UEFI_DATA_OFFSET)
+		return false;
+
+	if (table.length - table.dataOffset != sizeof(struct imsm_orom))
+		return false;
+	return true;
+}
+
+/**
+ * find_orom_in_acpi_uefi_tables() - find OROM in UEFI ACPI tables based on requested OROM ids.
+ * @imsm_orom_ids: array of IMSM OROM Identifiers.
+ * @imsm_orom_ids_number: number of IMSM OROM Identifiers.
+ * @orom: OROM struct buffer to fill out.
+ *
+ * Find OROM in UEFI ACPI tables provided by Intel, based on requested controllers.
+ * The first one to be matched, will be used.
+ * If found, the buffer with the OROM structure will be filled.
+ *
+ * Return: %MDADM_STATUS_SUCCESS on success, %MDADM_STATUS_ERROR otherwise.
+ */
+mdadm_status_t
+find_orom_in_acpi_uefi_tables(imsm_orom_id_t *imsm_orom_ids, int imsm_orom_ids_number,
+			      struct imsm_orom *orom)
+{
+	mdadm_status_t status = MDADM_STATUS_ERROR;
+	uefi_acpi_table_with_orom_t uefi_table;
+	char path[PATH_MAX];
+	struct dirent *ent;
+	int fd = -1;
+	DIR *dir;
+
+	dir = opendir(ACPI_TABLES_PATH);
+	if (!dir)
+		return MDADM_STATUS_ERROR;
+
+	for (ent = readdir(dir); ent; ent = readdir(dir)) {
+		close_fd(&fd);
+
+		/* Check if file is a UEFI table */
+		if (strncmp(ent->d_name, ACPI_UEFI_TABLE_BASE_NAME,
+			    strlen(ACPI_UEFI_TABLE_BASE_NAME)) != 0)
+			continue;
+
+		snprintf(path, PATH_MAX, "%s/%s", ACPI_TABLES_PATH, ent->d_name);
+
+		fd = open(path, O_RDONLY);
+		if (!is_fd_valid(fd)) {
+			pr_err("Fail to open ACPI UEFI table file. File: %s, Error: %s\n",
+			       ent->d_name, strerror(errno));
+			continue;
+		}
+
+		if (read(fd, &uefi_table.table, sizeof(struct uefi_acpi_table)) == -1) {
+			pr_err("Fail to read IMSM OROM from ACPI UEFI table file. File: %s\n",
+			       ent->d_name);
+			continue;
+		}
+
+		if (!acpi_any_imsm_orom_id_matching(imsm_orom_ids, imsm_orom_ids_number,
+						    uefi_table.table))
+			continue;
+
+		if (!verify_uefi_acpi_table_length(uefi_table.table))
+			continue;
+
+		if (read_uefi_acpi_orom_data(fd, &uefi_table)) {
+			pr_err("Fail to read IMSM OROM from ACPI UEFI table file. File: %s\n",
+			       ent->d_name);
+			continue;
+		}
+
+		memcpy(orom, &uefi_table.orom, sizeof(uefi_table.orom));
+		status = MDADM_STATUS_SUCCESS;
+		break;
+	}
+
+	close_fd(&fd);
+	closedir(dir);
+	return status;
+}
+
+/**
+ * find_orom_in_efi_variables() - find first IMSM OROM in EFI vars that matches any imsm_orom_id.
+ * @imsm_orom_ids: array of IMSM OROM Identifiers.
+ * @imsm_orom_ids_number: number of IMSM OROM Identifiers.
+ * @orom: OROM struct buffer to fill out.
+ *
+ * Find IMSM OROM that matches on of imsm_orom_id in EFI variables. The first match is used.
+ * If found, the buffer with the OROM structure is filled.
+ *
+ * Return: %MDADM_STATUS_SUCCESS on success, %MDADM_STATUS_ERROR otherwise.
+ */
+mdadm_status_t
+find_orom_in_efi_variables(imsm_orom_id_t *imsm_orom_ids, int imsm_orom_ids_number,
+			   struct imsm_orom *orom)
+{
+	int index;
+
+	for (index = 0; index < imsm_orom_ids_number; index++)
+		if (!read_efi_variable(orom, sizeof(struct imsm_orom), imsm_orom_ids[index].name,
+				       INTEL_RST_VENDOR_GUID))
+			return MDADM_STATUS_SUCCESS;
+	return MDADM_STATUS_ERROR;
+}
+
+/**
+ * find_imsm_efi_orom() - find OROM for requested controller.
+ * @orom: buffer for OROM.
+ * @controller_type: requested controller type.
+ *
+ * Based on controller type, function first search in EFI vars then in ACPI UEFI tables.
+ * For each controller there is defined an array of OROM ids from which we can read OROM,
+ * the first one to be matched, will be used.
+ * In case of success, the structure &orom will be filed out.
+ *
+ * Return: %MDADM_STATUS_SUCCESS on success.
+ */
+static mdadm_status_t
+find_imsm_efi_orom(struct imsm_orom *orom, enum sys_dev_type controller_type)
+{
+	static imsm_orom_id_t sata_imsm_orrom_ids[] = {
+		{AHCI_PROP, RST_SATA_V_GUID},
+		{AHCI_SSATA_PROP, RST_SSATA_V_GUID},
+		{AHCI_TSATA_PROP, RST_TSATA_V_GUID},
+	};
+	static imsm_orom_id_t vmd_imsm_orom_ids[] = {
+		{VROC_VMD_PROP, RST_UEFI_V_GUID},
+		{RST_VMD_PROP, RST_VMD_V_GUID},
+	};
+	static imsm_orom_id_t *imsm_orom_ids;
+	int imsm_orom_ids_number;
+
+	switch (controller_type) {
+	case SYS_DEV_SATA:
+		imsm_orom_ids = sata_imsm_orrom_ids;
+		imsm_orom_ids_number = ARRAY_SIZE(sata_imsm_orrom_ids);
+		break;
+	case SYS_DEV_VMD:
+	case SYS_DEV_SATA_VMD:
+		imsm_orom_ids = vmd_imsm_orom_ids;
+		imsm_orom_ids_number = ARRAY_SIZE(vmd_imsm_orom_ids);
+		break;
+	default:
+		return MDADM_STATUS_UNDEF;
+	}
+
+	if (!find_orom_in_efi_variables(imsm_orom_ids, imsm_orom_ids_number, orom))
+		return MDADM_STATUS_SUCCESS;
+
+	return find_orom_in_acpi_uefi_tables(imsm_orom_ids, imsm_orom_ids_number, orom);
+}
+
 const struct imsm_orom *find_imsm_efi(struct sys_dev *hba)
 {
 	struct imsm_orom orom;
 	struct orom_entry *ret;
-	static const char * const sata_efivars[] = {AHCI_PROP, AHCI_SSATA_PROP,
-						    AHCI_TSATA_PROP};
-	static const char * const vmd_efivars[] = {VROC_VMD_PROP, RST_VMD_PROP};
-	unsigned long i;
 
 	if (check_env("IMSM_TEST_AHCI_EFI") || check_env("IMSM_TEST_SCU_EFI"))
 		return imsm_platform_test(hba);
@@ -687,36 +977,20 @@ const struct imsm_orom *find_imsm_efi(struct sys_dev *hba)
 
 	switch (hba->type) {
 	case SYS_DEV_SAS:
-		if (!read_efi_variable(&orom, sizeof(orom), SCU_PROP,
-				       VENDOR_GUID))
+		if (!read_efi_variable(&orom, sizeof(orom), SCU_PROP, INTEL_RST_VENDOR_GUID))
 			break;
-
 		return NULL;
 	case SYS_DEV_SATA:
 		if (hba->class != PCI_CLASS_RAID_CNTRL)
 			return NULL;
 
-		for (i = 0; i < ARRAY_SIZE(sata_efivars); i++) {
-			if (!read_efi_variable(&orom, sizeof(orom),
-						sata_efivars[i], VENDOR_GUID))
-				break;
-
-		}
-		if (i == ARRAY_SIZE(sata_efivars))
+		if (find_imsm_efi_orom(&orom, hba->type))
 			return NULL;
-
 		break;
 	case SYS_DEV_VMD:
 	case SYS_DEV_SATA_VMD:
-		for (i = 0; i < ARRAY_SIZE(vmd_efivars); i++) {
-			if (!read_efi_variable(&orom, sizeof(orom),
-						vmd_efivars[i], VENDOR_GUID))
-				break;
-		}
-
-		if (i == ARRAY_SIZE(vmd_efivars))
+		if (find_imsm_efi_orom(&orom, hba->type))
 			return NULL;
-
 		break;
 	default:
 		return NULL;
