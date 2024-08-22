@@ -749,7 +749,8 @@ const struct imsm_orom *find_imsm_nvme(struct sys_dev *hba)
 			.vpa = IMSM_OROM_VOLUMES_PER_ARRAY,
 			.vphba = IMSM_OROM_TOTAL_DISKS_NVME / 2 * IMSM_OROM_VOLUMES_PER_ARRAY,
 			.attr = IMSM_OROM_ATTR_2TB | IMSM_OROM_ATTR_2TB_DISK,
-			.driver_features = IMSM_OROM_CAPABILITIES_EnterpriseSystem
+			.driver_features = IMSM_OROM_CAPABILITIES_EnterpriseSystem |
+					   IMSM_OROM_CAPABILITIES_TPV
 		};
 		nvme_orom = add_orom(&nvme_orom_compat);
 	}
