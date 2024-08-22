@@ -5976,12 +5976,12 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 			     unsigned long long data_offset)
 {
 	struct intel_super *super = st->sb;
-	struct dl *dd;
-	unsigned long long size;
 	unsigned int member_sector_size;
+	unsigned long long size;
+	struct stat stb;
+	struct dl *dd;
 	__u32 id;
 	int rv;
-	struct stat stb;
 
 	/* If we are on an RAID enabled platform check that the disk is
 	 * attached to the raid controller.
@@ -5991,114 +5991,86 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	rv = find_intel_hba_capability(fd, super, devname);
 	/* no orom/efi or non-intel hba of the disk */
 	if (rv != 0) {
-		dprintf("capability: %p fd: %d ret: %d\n",
-			super->orom, fd, rv);
-		return 1;
+		dprintf("capability: %p fd: %d ret: %d\n", super->orom, fd, rv);
+		return MDADM_STATUS_ERROR;
 	}
 
 	if (super->current_vol >= 0)
 		return add_to_super_imsm_volume(st, dk, fd, devname);
 
 	if (fstat(fd, &stb) != 0)
-		return 1;
+		return MDADM_STATUS_ERROR;
+
 	dd = xcalloc(sizeof(*dd), 1);
+
+	if (devname)
+		dd->devname = xstrdup(devname);
+
+	if (sysfs_disk_to_scsi_id(fd, &id) == 0)
+		dd->disk.scsi_id = __cpu_to_le32(id);
+
 	dd->major = major(stb.st_rdev);
 	dd->minor = minor(stb.st_rdev);
-	dd->devname = devname ? xstrdup(devname) : NULL;
-	dd->fd = fd;
-	dd->e = NULL;
 	dd->action = DISK_ADD;
+	dd->fd = fd;
+
 	rv = imsm_read_serial(fd, devname, dd->serial, MAX_RAID_SERIAL_LEN);
 	if (rv) {
 		pr_err("failed to retrieve scsi serial, aborting\n");
-		__free_imsm_disk(dd, 0);
-		abort();
+		goto error;
 	}
 
 	if (super->hba && ((super->hba->type == SYS_DEV_NVME) ||
 	   (super->hba->type == SYS_DEV_VMD))) {
-		int i;
-		char cntrl_path[PATH_MAX];
-		char *cntrl_name;
 		char pci_dev_path[PATH_MAX];
+		char cntrl_path[PATH_MAX];
 
 		if (!diskfd_to_devpath(fd, 2, pci_dev_path) ||
 		    !diskfd_to_devpath(fd, 1, cntrl_path)) {
 			pr_err("failed to get dev paths, aborting\n");
-			__free_imsm_disk(dd, 0);
-			return 1;
+			goto error;
 		}
 
-		cntrl_name = basename(cntrl_path);
 		if (is_multipath_nvme(fd))
 			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n",
-			       cntrl_name);
+			       basename(cntrl_path));
 
-		if (devpath_to_vendor(pci_dev_path) == 0x8086) {
-			/*
-			 * If Intel's NVMe drive has serial ended with
-			 * "-A","-B","-1" or "-2" it means that this is "x8"
-			 * device (double drive on single PCIe card).
-			 * User should be warned about potential data loss.
-			 */
-			for (i = MAX_RAID_SERIAL_LEN-1; i > 0; i--) {
-				/* Skip empty character at the end */
-				if (dd->serial[i] == 0)
-					continue;
-
-				if (((dd->serial[i] == 'A') ||
-				   (dd->serial[i] == 'B') ||
-				   (dd->serial[i] == '1') ||
-				   (dd->serial[i] == '2')) &&
-				   (dd->serial[i-1] == '-'))
-					pr_err("\tThe action you are about to take may put your data at risk.\n"
-						"\tPlease note that x8 devices may consist of two separate x4 devices "
-						"located on a single PCIe port.\n"
-						"\tRAID 0 is the only supported configuration for this type of x8 device.\n");
-				break;
-			}
-		} else if (super->hba->type == SYS_DEV_VMD && super->orom &&
+		if (super->hba->type == SYS_DEV_VMD && super->orom &&
 		    !imsm_orom_has_tpv_support(super->orom)) {
 			pr_err("\tPlatform configuration does not support non-Intel NVMe drives.\n"
 			       "\tPlease refer to Intel(R) RSTe/VROC user guide.\n");
-			__free_imsm_disk(dd, 0);
-			return 1;
+			goto error;
 		}
 	}
 
-	get_dev_size(fd, NULL, &size);
-	if (!get_dev_sector_size(fd, NULL, &member_sector_size)) {
-		__free_imsm_disk(dd, 0);
-		return 1;
-	}
+	if (!get_dev_size(fd, NULL, &size) || !get_dev_sector_size(fd, NULL, &member_sector_size))
+		goto error;
 
-	if (super->sector_size == 0) {
+	if (super->sector_size == 0)
 		/* this a first device, so sector_size is not set yet */
 		super->sector_size = member_sector_size;
-	}
 
 	/* clear migr_rec when adding disk to container */
-	memset(super->migr_rec_buf, 0, MIGR_REC_BUF_SECTORS*MAX_SECTOR_SIZE);
-	if (lseek64(fd, size - MIGR_REC_SECTOR_POSITION*member_sector_size,
-	    SEEK_SET) >= 0) {
-		if ((unsigned int)write(fd, super->migr_rec_buf,
-		    MIGR_REC_BUF_SECTORS*member_sector_size) !=
-		    MIGR_REC_BUF_SECTORS*member_sector_size)
+	memset(super->migr_rec_buf, 0, MIGR_REC_BUF_SECTORS * MAX_SECTOR_SIZE);
+
+	if (lseek64(fd, (size - MIGR_REC_SECTOR_POSITION * member_sector_size), SEEK_SET) >= 0) {
+		unsigned int nbytes = MIGR_REC_BUF_SECTORS * member_sector_size;
+
+		if ((unsigned int)write(fd, super->migr_rec_buf, nbytes) != nbytes)
 			perror("Write migr_rec failed");
 	}
 
 	size /= 512;
 	serialcpy(dd->disk.serial, dd->serial);
 	set_total_blocks(&dd->disk, size);
+
 	if (__le32_to_cpu(dd->disk.total_blocks_hi) > 0) {
 		struct imsm_super *mpb = super->anchor;
+
 		mpb->attributes |= MPB_ATTRIB_2TB_DISK;
 	}
+
 	mark_spare(dd);
-	if (sysfs_disk_to_scsi_id(fd, &id) == 0)
-		dd->disk.scsi_id = __cpu_to_le32(id);
-	else
-		dd->disk.scsi_id = __cpu_to_le32(0);
 
 	if (st->update_tail) {
 		dd->next = super->disk_mgmt_list;
@@ -6113,7 +6085,11 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		write_super_imsm_spare(super, dd);
 	}
 
-	return 0;
+	return MDADM_STATUS_SUCCESS;
+
+error:
+	__free_imsm_disk(dd, 0);
+	return MDADM_STATUS_ERROR;
 }
 
 static int remove_from_super_imsm(struct supertype *st, mdu_disk_info_t *dk)
