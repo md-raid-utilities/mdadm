@@ -150,6 +150,8 @@ int read_dev_state(int fd)
 			rv |= DS_SPARE;
 		if (sysfs_attr_match(cp, "blocked"))
 			rv |= DS_BLOCKED;
+		if (sysfs_attr_match(cp, "external_bbl"))
+			rv |= DS_EXTERNAL_BB;
 		cp = strchr(cp, ',');
 		if (cp)
 			cp++;
@@ -306,9 +308,6 @@ static int check_for_cleared_bb(struct active_array *a, struct mdinfo *mdi)
 	struct md_bb *bb;
 	int i;
 
-	if (!ss->get_bad_blocks)
-		return -1;
-
 	/*
 	 * Get a list of bad blocks for an array, then read list of
 	 * acknowledged bad blocks from kernel and compare it against metadata
@@ -397,7 +396,7 @@ static void signal_manager(void)
 
 #define ARRAY_DIRTY 1
 #define ARRAY_BUSY 2
-static int read_and_act(struct active_array *a, fd_set *fds)
+static int read_and_act(struct active_array *a)
 {
 	unsigned long long sync_completed;
 	int check_degraded = 0;
@@ -425,23 +424,32 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 	for (mdi = a->info.devs; mdi ; mdi = mdi->next) {
 		mdi->next_state = 0;
 		mdi->curr_state = 0;
-		if (mdi->state_fd >= 0) {
-			read_resync_start(mdi->recovery_fd,
-					  &mdi->recovery_start);
-			mdi->curr_state = read_dev_state(mdi->state_fd);
-		}
-		/*
-		 * If array is blocked and metadata handler is able to handle
-		 * BB, check if you can acknowledge them to md driver. If
-		 * successful, clear faulty state and unblock the array.
-		 */
-		if ((mdi->curr_state & DS_BLOCKED) &&
-		    a->container->ss->record_bad_block &&
-		    (process_dev_ubb(a, mdi) > 0)) {
+
+		if (!is_fd_valid(mdi->state_fd))
+			/* We are removing this device, skip it then */
+			continue;
+
+		read_resync_start(mdi->recovery_fd, &mdi->recovery_start);
+		mdi->curr_state = read_dev_state(mdi->state_fd);
+
+		if (!(mdi->curr_state & DS_EXTERNAL_BB))
+			/*
+			 * It assumes that superswitch badblock functions are set if disk
+			 * has external badblocks support configured.
+			 */
+			continue;
+
+		if ((mdi->curr_state & DS_BLOCKED) && process_dev_ubb(a, mdi) > 0)
+			/*
+			 * Blocked has two meanings: we need to acknowledge failure or badblocks
+			 * (if supported). Here, badblocks are handled.
+			 *
+			 * If successful, unblock the array. This is not perfect but
+			 * process_dev_ubb() may disable badblock support in case of failure.
+			 */
 			mdi->next_state |= DS_UNBLOCK;
-		}
-		if (FD_ISSET(mdi->bb_fd, fds))
-			check_for_cleared_bb(a, mdi);
+
+		check_for_cleared_bb(a, mdi);
 	}
 
 	gettimeofday(&tv, NULL);
@@ -855,7 +863,8 @@ static int wait_and_act(struct supertype *container, int nowait)
 			signal_manager();
 		}
 		if (a->container && !a->to_remove) {
-			int ret = read_and_act(a, &rfds);
+			int ret = read_and_act(a);
+
 			rv |= 1;
 			dirty_arrays += !!(ret & ARRAY_DIRTY);
 			/* when terminating stop manipulating the array after it
