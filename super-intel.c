@@ -12631,8 +12631,6 @@ static int imsm_manage_reshape(
 			dprintf("wait_for_reshape_imsm returned error!\n");
 			goto abort;
 		}
-		if (sigterm)
-			goto abort;
 
 		if (save_checkpoint_imsm(st, sra, UNIT_SRC_NORMAL) == 1) {
 			/* ignore error == 2, this can mean end of reshape here
@@ -12640,6 +12638,9 @@ static int imsm_manage_reshape(
 			dprintf("imsm: Cannot write checkpoint to migration record (UNIT_SRC_NORMAL)\n");
 			goto abort;
 		}
+
+		if (sigterm)
+			goto abort;
 
 	}
 
