@@ -225,6 +225,11 @@ int Monitor(struct mddev_dev *devlist,
 		return 1;
 	}
 
+	if (mkdir(MDMON_DIR, 0700) < 0 && errno != EEXIST) {
+		pr_err("Failed to create directory " MDMON_DIR ": %s\n", strerror(errno));
+		return 1;
+	}
+
 	if (share){
 		if (check_one_sharer(c->scan) == 2)
 			return 1;
@@ -432,12 +437,12 @@ static int make_daemon(char *pidfile)
 }
 
 /*
- * check_one_sharer() - Checks for other mdmon processes running.
+ * check_one_sharer() - Checks for other mdmonitor processes running.
  *
  * Return:
  * 0 - no other processes running,
  * 1 - warning,
- * 2 - error, or when scan mode is enabled, and one mdmon process already exists
+ * 2 - error, or when scan mode is enabled, and one mdmonitor process already exists
  */
 static int check_one_sharer(int scan)
 {
@@ -512,11 +517,6 @@ static int write_autorebuild_pid(void)
 {
 	FILE *fp;
 	int fd;
-
-	if (mkdir(MDMON_DIR, 0700) < 0 && errno != EEXIST) {
-		pr_err("%s: %s\n", strerror(errno), MDMON_DIR);
-		return 1;
-	}
 
 	if (!is_directory(MDMON_DIR)) {
 		pr_err("%s is not a regular directory.\n", MDMON_DIR);
