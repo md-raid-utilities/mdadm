@@ -12,10 +12,12 @@ Documentation=man:mdadm(8)
 
 [Service]
 # For Maintainers:
-# We need to provide consistent mdmonitor configuration man page to the users. We don't want to get
-# asked continuously how it can be configured.
-# /etc/sysconfig/mdadm or /etc/sysconfig/mdmonitor or whatever else, should be abandoned.
-# Following parameters should be customized via mdadm.conf only:
+# We need to ensure that the mdmonitor configuration aligns with the guidelines provided
+# in the man page for users.
+# /etc/sysconfig/mdadm, /etc/sysconfig/mdmonitor, or any other similar configuration file should
+# not be supported because non upstream components are not described in man pages.
+
+# Parameters designed to be customized by user, should be settable via mdadm.conf:
 # - MONITORDELAY (do not set --delay in service)
 # - MAILADDR (do not set --mail in service)
 # - MAILFROM (not settable from cmdline)
@@ -25,4 +27,5 @@ Documentation=man:mdadm(8)
 # - --syslog (configure syslog logging)
 # - --fork (Type=forking must be added, not recommended and not needed with systemd)
 # - --pid-file (allowed only when --fork selected)
+
 ExecStart=BINDIR/mdadm --monitor --scan
