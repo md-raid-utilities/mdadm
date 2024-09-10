@@ -1878,11 +1878,15 @@ script.
 .SH For Monitor mode:
 .TP
 .BR \-m ", " \-\-mail
-Give a mail address to send alerts to.
+Give an mail address to send alerts to. Can be configured in
+.B mdadm.conf
+as MAILADDR.
 
 .TP
 .BR \-p ", " \-\-program ", " \-\-alert
-Give a program to be run whenever an event is detected.
+Give a program to be run whenever an event is detected. Can be configured in
+.B mdadm.conf
+as PROGRAM.
 
 .TP
 .BR \-y ", " \-\-syslog
@@ -1891,13 +1895,12 @@ facility of 'daemon' and varying priorities.
 
 .TP
 .BR \-d ", " \-\-delay
-Give a delay in seconds.
+Give a delay in seconds. The default is 60 seconds.
 .I mdadm
-polls the md arrays and then waits this many seconds before polling
-again.  The default is 60 seconds.  Since 2.6.16, there is no need to
-reduce this as the kernel alerts
-.I mdadm
-immediately when there is any change.
+polls the md arrays and then waits this many seconds before polling again if no event happened.
+Can be configured in
+.B mdadm.conf
+as MONITORDELAY.
 
 .TP
 .BR \-r ", " \-\-increment
@@ -2595,30 +2598,29 @@ is given, then a
 .B program
 or an
 .B e-mail
-address must be specified on the
-command line or in the config file. If neither are available, then
+address must be specified on the command line or in the config file. If neither are available, then
 .I mdadm
-will not monitor anything.
-For devices given directly in command line, without
+will not monitor anything. For devices given directly in command line, without
 .B program
 or
 .B email
 specified, each event is reported to
 .BR stdout.
 
-Note: For systems where
-.If mdadm monitor
-is configured via systemd,
-.B mdmonitor(mdmonitor.service)
-should be configured. The service is designed to be primary solution for array monitoring,
-it is configured to work in system wide mode.
-It is automatically started and stopped according to current state and types of MD arrays in system.
-The service may require additional configuration, like
-.B e-mail
-or
-.B delay.
-That should be done in
-.B mdadm.conf.
+Note: On systems where mdadm monitoring is managed through systemd, the mdmonitor.service
+should be present. This service is designed to be the primary solution for array monitoring.
+It is configured to operate in system-wide mode. It is initiated by udev when start criteria are
+met, e.g.
+.B mdadm.conf
+exists and necessary configuration parameters are set.
+It is kept alive as long as a redundant RAID array is active; it stops otherwise. User should
+customize MAILADDR in
+.B mdadm.conf
+to receive mail notifications. MONITORDELAY, MAILFROM and PROGRAM are optional. See
+.BR mdadm.conf (5)
+for detailed description of these options.
+Use systemctl status mdmonitor.service to verify status or determine if additional configuration
+is needed.
 
 The different events are:
 
