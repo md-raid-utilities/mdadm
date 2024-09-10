@@ -937,17 +937,11 @@ Partial parity for a write operation is the XOR of stripe data chunks not
 modified by the write. PPL is stored in the metadata region of RAID member drives,
 no additional journal drive is needed.
 After crashes, if one of the not modified data disks of
-the stripe is missing, this updated parity can be used to recover its
-data.
+the stripe is missing, this updated parity can be used to recover its data.
 
-This mechanism is documented more fully in the file
-Documentation/md/raid5-ppl.rst
+See Documentation/driver-api/md/raid5-ppl.rst for implementation details.
 
 .SS WRITE-BEHIND
-
-From Linux 2.6.14,
-.I md
-supports WRITE-BEHIND on RAID1 arrays.
 
 This allows certain devices in the array to be flagged as
 .IR write-mostly .
