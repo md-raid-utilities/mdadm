@@ -26,7 +26,9 @@
 #include "md_u.h"
 #include "md_p.h"
 #include "udev.h"
+
 #include <ctype.h>
+#include <limits.h>
 
 int Manage_ro(char *devname, int fd, int readonly)
 {
@@ -1078,6 +1080,49 @@ unlock:
 	return -1;
 }
 
+/**
+ * manage_set_md_member_device_state() - set new state for member device.
+ *@array_name: normalized name of the array.
+ *@member_device_name: normalized name of the member device to remove.
+ *@state: state to set, must be one of the allowed kernel states.
+ *@force: force flag, works with MEMBER_DEVICE_REMOVE.
+ *@verbose: verbose flag.
+ *
+ * The function writes requested state to md/dev-<member_device_name>/state file.
+ * @member_device_name and @array_name  must be kernel device name.
+ */
+mdadm_status_t manage_set_md_member_device_state(char *array_name, char *member_device_name,
+						 member_device_state_t state, int force,
+						 int verbose)
+{
+	char md_device_dir_name[NAME_MAX];
+	char *state_string = map_num_s(member_device_states, state);
+	int md_disk_state_fd;
+	int ret;
+
+	snprintf(md_device_dir_name, NAME_MAX, "dev-%s", member_device_name);
+
+	md_disk_state_fd = sysfs_open(array_name, md_device_dir_name, "state");
+	if (!is_fd_valid(md_disk_state_fd))
+		/* Cannot find device in the array */
+		return MDADM_STATUS_NOT_FOUND;
+
+	if (state == MEMBER_DEVICE_REMOVE)
+		/* Backward compatibility, keep retries for remove. */
+		ret = sys_hot_remove_disk(md_disk_state_fd, true);
+	else
+		ret = sysfs_write_descriptor(md_disk_state_fd, state_string,
+					     strlen(state_string) + 1, NULL);
+
+	 close(md_disk_state_fd);
+
+	if (ret)
+		return MDADM_STATUS_ERROR;
+
+	return MDADM_STATUS_SUCCESS;
+}
+
+
 int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 		  int sysfd, unsigned long rdev, int force, int verbose, char *devname)
 {
@@ -1373,8 +1418,6 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
  * 'f' - set the device faulty SET_DISK_FAULTY
  *       device can be 'detached' in which case any device that
  *       is inaccessible will be marked faulty.
- * 'I' - remove device by using incremental fail
- *       which is executed when device is removed surprisingly.
  * 'R' - mark this device as wanting replacement.
  * 'W' - this device is added if necessary and activated as
  *       a replacement for a previous 'R' device.
@@ -1532,9 +1575,8 @@ int Manage_subdevs(char *devname, int fd,
 			/* Assume this is a kernel-internal name like 'sda1' */
 			int found = 0;
 			char dname[55];
-			if (dv->disposition != 'r' && dv->disposition != 'f' &&
-			    dv->disposition != 'I') {
-				pr_err("%s only meaningful with -r, -f or -I, not -%c\n",
+			if (dv->disposition != 'r' && dv->disposition != 'f') {
+				pr_err("%s only meaningful with -r, -f, not -%c\n",
 					dv->devname, dv->disposition);
 				goto abort;
 			}
@@ -1684,7 +1726,6 @@ int Manage_subdevs(char *devname, int fd,
 				close_fd(&sysfd);
 				goto abort;
 			}
-		case 'I': /* incremental fail */
 			if ((sysfd >= 0 && write(sysfd, "faulty", 6) != 6) ||
 			    (sysfd < 0 && ioctl(fd, SET_DISK_FAULTY,
 						rdev))) {

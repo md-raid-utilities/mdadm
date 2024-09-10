@@ -165,6 +165,13 @@ mapping_t sysfs_array_states[] = {
 	{ "broken", ARRAY_BROKEN },
 	{ NULL, ARRAY_UNKNOWN_STATE }
 };
+
+mapping_t member_device_states[] = {
+	{ "faulty", MEMBER_DEVICE_FAULTY },
+	{ "remove", MEMBER_DEVICE_REMOVE },
+	{ NULL, MEMBER_DEVICE_UNKNOWN }
+};
+
 /**
  * mapping_t update_options - stores supported update options.
  */
