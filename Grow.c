@@ -3694,9 +3694,12 @@ started:
 		set_array_size(st, info, info->text_version);
 
 	if (info->new_level != reshape.level) {
-		if (fd < 0)
-			fd = open(devname, O_RDONLY);
-		impose_level(fd, info->new_level, devname, verbose);
+		fd = open_dev(sra->sys_name);
+		if (fd < 0) {
+			pr_err("Can't open %s\n", sra->sys_name);
+			goto out;
+		}
+		impose_level(fd, info->new_level, sra->sys_name, verbose);
 		close(fd);
 		if (info->new_level == 0)
 			st->update_tail = NULL;
