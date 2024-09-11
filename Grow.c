@@ -4148,8 +4148,8 @@ int progress_reshape(struct mdinfo *info, struct reshape *reshape,
 		 * waiting forever on a dead array
 		 */
 		char action[SYSFS_MAX_BUF_SIZE];
-		if (sysfs_get_str(info, NULL, "sync_action", action, sizeof(action)) <= 0 ||
-		    strncmp(action, "reshape", 7) != 0)
+
+		if (sysfs_get_str(info, NULL, "sync_action", action, sizeof(action)) <= 0)
 			break;
 		/* Some kernels reset 'sync_completed' to zero
 		 * before setting 'sync_action' to 'idle'.
@@ -4157,12 +4157,18 @@ int progress_reshape(struct mdinfo *info, struct reshape *reshape,
 		 */
 		if (completed == 0 && advancing &&
 		    strncmp(action, "idle", 4) == 0 &&
-		    info->reshape_progress > 0)
+		    info->reshape_progress > 0) {
+			info->reshape_progress = need_backup;
 			break;
+		}
 		if (completed == 0 && !advancing &&
 		    strncmp(action, "idle", 4) == 0 &&
 		    info->reshape_progress <
-		    (info->component_size * reshape->after.data_disks))
+		    (info->component_size * reshape->after.data_disks)) {
+			info->reshape_progress = need_backup;
+			break;
+		}
+		if (strncmp(action, "reshape", 7) != 0)
 			break;
 		sysfs_wait(fd, NULL);
 		if (sysfs_fd_get_ll(fd, &completed) < 0)
