@@ -2941,15 +2941,24 @@ static int impose_reshape(struct mdinfo *sra,
 		 * persists from some earlier problem.
 		 */
 		int err = 0;
+
 		if (sysfs_set_num(sra, NULL, "chunk_size", info->new_chunk) < 0)
 			err = errno;
+
 		if (!err && sysfs_set_num(sra, NULL, "layout",
 					  reshape->after.layout) < 0)
 			err = errno;
+
+		/* new_level is introduced in kernel 6.12 */
+		if (!err && get_linux_version() >= 6012000 &&
+				sysfs_set_num(sra, NULL, "new_level", info->new_level) < 0)
+			err = errno;
+
 		if (!err && subarray_set_num(container, sra, "raid_disks",
 					     reshape->after.data_disks +
 					     reshape->parity) < 0)
 			err = errno;
+
 		if (err) {
 			pr_err("Cannot set device shape for %s\n", devname);
 
