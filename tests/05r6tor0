@@ -13,6 +13,10 @@ check raid5
 testdev $md0 3 19456 512
 mdadm -G $md0 -l0
 check wait; sleep 1
+while ps auxf | grep "mdadm -G" | grep -v grep
+do
+        sleep 1
+done
 check raid0
 testdev $md0 3 19456 512
 mdadm -G $md0 -l5 --add $dev3 $dev4
