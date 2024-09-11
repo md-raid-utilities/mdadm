@@ -3034,6 +3034,13 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 			      makedev(disk.major, disk.minor));
 			hot_remove_disk(fd, makedev(disk.major, disk.minor), 1);
 		}
+		/*
+		 * hot_remove_disk lets kernel set MD_RECOVERY_RUNNING
+		 * and it can't set level. It needs to wait sometime
+		 * to let md thread to clear the flag.
+		 */
+		pr_info("wait 5 seconds to give kernel space to finish job\n");
+		sleep_for(5, 0, true);
 	}
 	c = map_num(pers, level);
 	if (c) {
