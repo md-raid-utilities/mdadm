@@ -238,13 +238,14 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 					    "array_state",
 					    "inactive")) < 0 &&
 		       errno == EBUSY) {
+			err = errno;
 			sleep_for(0, MSEC_TO_NSEC(200), true);
 			count--;
 		}
 		if (err) {
 			if (verbose >= 0)
 				pr_err("failed to stop array %s: %s\n",
-				       devname, strerror(errno));
+				       devname, strerror(err));
 			rv = 1;
 			goto out;
 		}
@@ -438,14 +439,15 @@ done:
 	count = 25; err = 0;
 	while (count && fd >= 0 &&
 	       (err = ioctl(fd, STOP_ARRAY, NULL)) < 0 && errno == EBUSY) {
+		err = errno;
 		sleep_for(0, MSEC_TO_NSEC(200), true);
 		count --;
 	}
 	if (fd >= 0 && err) {
 		if (verbose >= 0) {
 			pr_err("failed to stop array %s: %s\n",
-			       devname, strerror(errno));
-			if (errno == EBUSY)
+			       devname, strerror(err));
+			if (err == EBUSY)
 				cont_err("Perhaps a running process, mounted filesystem or active volume group?\n");
 		}
 		rv = 1;
