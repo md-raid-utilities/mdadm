@@ -362,6 +362,10 @@ check() {
 		do
 			sleep 0.5
 		done
+		while ps auxf | grep "mdadm --grow --continue" | grep -v grep
+		do
+			sleep 1
+		done
 		echo $min > /proc/sys/dev/raid/speed_limit_min
 		echo $max > /proc/sys/dev/raid/speed_limit_max
 	;;
