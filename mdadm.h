@@ -325,6 +325,18 @@ struct md_bb {
 	struct md_bb_entry *entries;
 };
 
+/**
+ * Mapping for sysfs md/<disk>/state file values, defined for sysfs writes.
+ * Note that remove can't be read-back from the file.
+ *
+ * This is not complete list.
+ */
+typedef enum member_device_state {
+	MEMBER_DEVICE_FAULTY,
+	MEMBER_DEVICE_REMOVE,
+	MEMBER_DEVICE_UNKNOWN
+} member_device_state_t;
+
 /* general information that might be extracted from a superblock */
 struct mdinfo {
 	mdu_array_info_t	array;
@@ -452,6 +464,7 @@ struct spare_criteria {
 typedef enum mdadm_status {
 	MDADM_STATUS_SUCCESS = 0,
 	MDADM_STATUS_ERROR,
+	MDADM_STATUS_NOT_FOUND,
 	MDADM_STATUS_UNDEF,
 } mdadm_status_t;
 
@@ -803,6 +816,9 @@ enum sysfs_read_flags {
 
 #define SYSFS_MAX_BUF_SIZE 64
 
+extern mdadm_status_t sysfs_write_descriptor(const int fd, const char *value, const ssize_t len,
+					     int *errno_p);
+
 extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
 
 /* If fd >= 0, get the array it is open on,
@@ -890,7 +906,8 @@ extern char *map_num(mapping_t *map, int num);
 extern int map_name(mapping_t *map, char *name);
 extern mapping_t r0layout[], r5layout[], r6layout[],
 	pers[], modes[], faultylayout[];
-extern mapping_t consistency_policies[], sysfs_array_states[], update_options[];
+extern mapping_t consistency_policies[], member_device_states[], sysfs_array_states[],
+		 update_options[];
 
 extern char *map_dev_preferred(int major, int minor, int create,
 			       char *prefer);
@@ -1546,6 +1563,9 @@ extern int Manage_ro(char *devname, int fd, int readonly);
 extern int Manage_run(char *devname, int fd, struct context *c);
 extern int Manage_stop(char *devname, int fd, int quiet,
 		       int will_retry);
+extern mdadm_status_t manage_set_md_member_device_state(char *array_name, char *member_device_name,
+							member_device_state_t state, int force,
+							int verbose);
 extern int Manage_subdevs(char *devname, int fd,
 			  struct mddev_dev *devlist, int verbose, int test,
 			  enum update_opt update, int force);
@@ -1606,7 +1626,7 @@ extern int Incremental(struct mddev_dev *devlist, struct context *c,
 		       struct supertype *st);
 extern void RebuildMap(void);
 extern int IncrementalScan(struct context *c, char *devnm);
-extern int IncrementalRemove(char *devname, char *path, int verbose);
+extern mdadm_status_t Incremental_remove(char *devname, char *path, int verbose);
 extern int CreateBitmap(char *filename, int force, char uuid[16],
 			unsigned long chunksize, unsigned long daemon_sleep,
 			unsigned long write_behind,
