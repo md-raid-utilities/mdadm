@@ -1695,7 +1695,7 @@ static bool is_devnode_path(char *devnode)
 }
 
 /**
- * IncrementalRemove() - Remove the device from all raid arrays.
+ * Incremental_remove() - Remove the device from all raid arrays.
  * @devname: the device we want to remove, it could be kernel device name or devnode.
  * @id_path: optional, /dev/disk/by-path path to save for bare scenarios support.
  * @verbose: verbose flag.
@@ -1703,7 +1703,7 @@ static bool is_devnode_path(char *devnode)
  * First, fail the device (if needed) and then remove the device from native raid array or external
  * container.  If it is external container, the device is removed from each subarray first.
  */
-int IncrementalRemove(char *devname, char *id_path, int verbose)
+int Incremental_remove(char *devname, char *id_path, int verbose)
 {
 	char *devnm = basename(devname);
 	struct mddev_dev devlist = {0};
