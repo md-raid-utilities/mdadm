@@ -1854,13 +1854,22 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 int sys_hot_remove_disk(int statefd, int force)
 {
 	int cnt = force ? 500 : 5;
-	int ret;
+	static const char val[] = "faulty";
 
-	while ((ret = write(statefd, "remove", 6)) == -1 &&
-	       errno == EBUSY &&
-	       cnt-- > 0)
+	while (cnt--) {
+		int err = 0;
+		int ret = sysfs_write_descriptor(statefd, val, strlen(val), &err);
+
+		if (ret == MDADM_STATUS_SUCCESS)
+			return 0;
+
+		if (err != EBUSY)
+			break;
+
 		sleep_for(0, MSEC_TO_NSEC(10), true);
-	return ret == 6 ? 0 : -1;
+	}
+
+	return -1;
 }
 
 int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
