@@ -803,6 +803,9 @@ enum sysfs_read_flags {
 
 #define SYSFS_MAX_BUF_SIZE 64
 
+extern mdadm_status_t sysfs_write_descriptor(const int fd, const char *value,
+					     const ssize_t len, int *errno_p);
+extern mdadm_status_t write_attr(const char *value, const int fd);
 extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
 
 /* If fd >= 0, get the array it is open on,

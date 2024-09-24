@@ -1439,7 +1439,7 @@ int Manage_subdevs(char *devname, int fd,
 
 	for (dv = devlist; dv; dv = dv->next) {
 		dev_t rdev = 0; /* device to add/remove etc */
-		int rv;
+		int rv, err = 0;
 		int mj,mn;
 
 		raid_slot = -1;
@@ -1670,9 +1670,8 @@ int Manage_subdevs(char *devname, int fd,
 				rv = Manage_remove(tst, fd, dv, sysfd,
 						   rdev, verbose, force,
 						   devname);
-			if (sysfd >= 0)
-				close_fd(&sysfd);
-			sysfd = -1;
+			close_fd(&sysfd);
+
 			if (rv < 0)
 				goto abort;
 			if (rv > 0)
@@ -1686,23 +1685,31 @@ int Manage_subdevs(char *devname, int fd,
 				close_fd(&sysfd);
 				goto abort;
 			}
-		case 'I': /* incremental fail */
-			if ((sysfd >= 0 && write(sysfd, "faulty", 6) != 6) ||
-			    (sysfd < 0 && ioctl(fd, SET_DISK_FAULTY,
-						rdev))) {
-				if (errno == EBUSY)
-					busy = 1;
-				pr_err("set device faulty failed for %s:  %s\n",
-					dv->devname, strerror(errno));
-				close_fd(&sysfd);
-				goto abort;
+		case 'I':
+			if (is_fd_valid(sysfd)) {
+				static const char val[] = "faulty";
+
+				rv = sysfs_write_descriptor(sysfd, val, strlen(val), &err);
+			} else {
+				rv = ioctl(fd, SET_DISK_FAULTY, rdev);
+				if (rv)
+					err = errno;
 			}
+
 			close_fd(&sysfd);
-			count++;
-			if (verbose >= 0)
-				pr_err("set %s faulty in %s\n",
-					dv->devname, devname);
-			break;
+
+			if (rv == MDADM_STATUS_SUCCESS) {
+				count++;
+
+				pr_vrb("set %s faulty in %s\n", dv->devname, devname);
+				break;
+			}
+
+			if (err == EBUSY)
+				busy = 1;
+
+			pr_err("set device faulty failed for %s: %s\n", dv->devname, strerror(err));
+			goto abort;
 		case 'R': /* Mark as replaceable */
 			if (subarray) {
 				pr_err("Cannot replace disks in a \'member\' array, perform this operation on the parent container\n");

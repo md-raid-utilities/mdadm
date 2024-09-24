@@ -512,16 +512,9 @@ static void manage_member(struct mdstat_ent *mdstat,
 	if (a->container == NULL)
 		return;
 
-	if (sigterm && a->info.safe_mode_delay != 1 &&
-	    a->safe_mode_delay_fd >= 0) {
-		long int new_delay = 1;
-		char delay[10];
-		ssize_t len;
-
-		len = snprintf(delay, sizeof(delay), "0.%03ld\n", new_delay);
-		if (write(a->safe_mode_delay_fd, delay, len) == len)
-			a->info.safe_mode_delay = new_delay;
-	}
+	if (sigterm && a->info.safe_mode_delay != 1 && a->safe_mode_delay_fd >= 0)
+		if (write_attr("0.001", a->safe_mode_delay_fd) == MDADM_STATUS_SUCCESS)
+			a->info.safe_mode_delay = 1;
 
 	/* We don't check the array while any update is pending, as it
 	 * might container a change (such as a spare assignment) which

@@ -35,11 +35,6 @@ enum bb_action {
 	COMPARE_BB,
 };
 
-static int write_attr(char *attr, int fd)
-{
-	return write(fd, attr, strlen(attr));
-}
-
 static void add_fd(fd_set *fds, int *maxfd, int fd)
 {
 	struct stat st;
@@ -173,7 +168,7 @@ int process_ubb(struct active_array *a, struct mdinfo *mdi, const unsigned long
 	 * via sysfs file
 	 */
 	if ((ss->record_bad_block(a, mdi->disk.raid_disk, sector, length)) &&
-	    (write(mdi->bb_fd, buf, buf_len) == buf_len))
+	    (sysfs_write_descriptor(mdi->bb_fd, buf, buf_len, NULL) == MDADM_STATUS_SUCCESS))
 		return 1;
 
 	/*
@@ -622,14 +617,11 @@ static int read_and_act(struct active_array *a, fd_set *fds)
 		}
 
 		if ((mdi->next_state & DS_REMOVE) && mdi->state_fd >= 0) {
-			int remove_result;
-
 			/* The kernel may not be able to immediately remove the
 			 * disk.  In that case we wait a little while and
 			 * try again.
 			 */
-			remove_result = write_attr("remove", mdi->state_fd);
-			if (remove_result > 0) {
+			if (write_attr("remove", mdi->state_fd) == MDADM_STATUS_SUCCESS) {
 				dprintf_cont(" %d:removed", mdi->disk.raid_disk);
 				close(mdi->state_fd);
 				close(mdi->recovery_fd);
