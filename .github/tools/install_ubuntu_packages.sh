@@ -7,6 +7,6 @@ echo "Detected VERSION_CODENAME: $VERSION_CODENAME"
 sudo add-apt-repository -y "deb [arch=amd64] http://archive.ubuntu.com/ubuntu $VERSION_CODENAME \
         main universe"
 # Install gcc
-sudo apt-get -y update && sudo apt-get -y install gcc-$1
+sudo apt-get -y install gcc-$1 --no-upgrade --no-install-recommends --no-install-suggests
 # Install dependencies
-sudo apt-get -y install make gcc libudev-dev devscripts
+sudo apt-get -y install make gcc libudev-dev devscripts --no-upgrade --no-install-recommends --no-install-suggests
