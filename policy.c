@@ -23,6 +23,8 @@
  */
 
 #include "mdadm.h"
+#include "xmalloc.h"
+
 #include <dirent.h>
 #include <fnmatch.h>
 #include <ctype.h>

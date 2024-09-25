@@ -23,6 +23,8 @@
  */
 
 #include "mdadm.h"
+#include "xmalloc.h"
+
 #include <stdint.h>
 
 /* To restripe, we read from old geometry to a buffer, and

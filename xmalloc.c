@@ -21,64 +21,57 @@
  *    Email: <neilb@suse.de>
  */
 
-#include	"mdadm.h"
-/*#include	<sys/socket.h>
-#include	<sys/utsname.h>
-#include	<sys/wait.h>
-#include	<sys/un.h>
-#include	<ctype.h>
-#include	<dirent.h>
-#include	<signal.h>
-*/
+#include "xmalloc.h"
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static void *exit_memory_alloc_failure(void)
+{
+	fprintf(stderr, "Memory allocation failure - aborting\n");
+
+	/* TODO: replace with MDADM_STATUS_MEM_FAIL */
+	exit(1);
+}
 
 void *xmalloc(size_t len)
 {
 	void *rv = malloc(len);
-	char *msg;
-	int n;
+
 	if (rv)
 		return rv;
-	msg = ": memory allocation failure - aborting\n";
-	n = write(2, Name, strlen(Name));
-	n += write(2, msg, strlen(msg));
-	exit(4+!!n);
+
+	return exit_memory_alloc_failure();
 }
 
 void *xrealloc(void *ptr, size_t len)
 {
 	void *rv = realloc(ptr, len);
-	char *msg;
-	int n;
+
 	if (rv)
 		return rv;
-	msg =  ": memory allocation failure - aborting\n";
-	n = write(2, Name, strlen(Name));
-	n += write(2, msg, strlen(msg));
-	exit(4+!!n);
+
+	return exit_memory_alloc_failure();
 }
 
 void *xcalloc(size_t num, size_t size)
 {
 	void *rv = calloc(num, size);
-	char *msg;
-	int n;
+
 	if (rv)
 		return rv;
-	msg =  ": memory allocation failure - aborting\n";
-	n = write(2, Name, strlen(Name));
-	n += write(2, msg, strlen(msg));
-	exit(4+!!n);
+
+	return exit_memory_alloc_failure();
 }
 
 char *xstrdup(const char *str)
 {
 	char *rv = strdup(str);
-	char *msg;
-	int n;
+
 	if (rv)
 		return rv;
-	msg =  ": memory allocation failure - aborting\n";
-	n = write(2, Name, strlen(Name));
-	n += write(2, msg, strlen(msg));
-	exit(4+!!n);
+
+	return exit_memory_alloc_failure();
 }

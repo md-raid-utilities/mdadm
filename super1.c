@@ -24,6 +24,8 @@
 
 #include <stddef.h>
 #include "mdadm.h"
+#include "xmalloc.h"
+
 /*
  * The version-1 superblock :
  * All numeric fields are little-endian.

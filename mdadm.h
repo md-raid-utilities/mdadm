@@ -1937,11 +1937,6 @@ static inline int xasprintf(char **strp, const char *fmt, ...) {
 
 #define pr_vrb(fmt, arg...) ((void)(verbose && pr_err(fmt, ##arg)))
 
-void *xmalloc(size_t len);
-void *xrealloc(void *ptr, size_t len);
-void *xcalloc(size_t num, size_t size);
-char *xstrdup(const char *str);
-
 #define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_LINEAR		(-1)
 #define	LEVEL_FAULTY		(-5)

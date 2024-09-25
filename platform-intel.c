@@ -19,6 +19,8 @@
 #include "mdadm.h"
 #include "platform-intel.h"
 #include "probe_roms.h"
+#include "xmalloc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -23,6 +23,8 @@
 #include "dlink.h"
 #include "sha1.h"
 #include "platform-intel.h"
+#include "xmalloc.h"
+
 #include <values.h>
 #include <scsi/sg.h>
 #include <ctype.h>

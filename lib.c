@@ -24,6 +24,8 @@
 
 #include	"mdadm.h"
 #include	"dlink.h"
+#include	"xmalloc.h"
+
 #include	<ctype.h>
 #include	<limits.h>
 
