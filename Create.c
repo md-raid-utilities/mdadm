@@ -23,9 +23,11 @@
  */
 
 #include	"mdadm.h"
-#include	"udev.h"
 #include	"md_u.h"
 #include	"md_p.h"
+#include	"udev.h"
+#include	"xmalloc.h"
+
 #include	<ctype.h>
 #include	<fcntl.h>
 #include	<signal.h>

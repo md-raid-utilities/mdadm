@@ -29,6 +29,8 @@
  */
 
 #include	"mdadm.h"
+#include	"xmalloc.h"
+
 #include	<sys/wait.h>
 #include	<dirent.h>
 #include	<ctype.h>

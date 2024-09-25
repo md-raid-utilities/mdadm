@@ -80,6 +80,8 @@
 
 #include	"mdadm.h"
 #include	"dlink.h"
+#include	"xmalloc.h"
+
 #include	<sys/select.h>
 #include	<ctype.h>
 

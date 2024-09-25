@@ -43,6 +43,8 @@
  * at compile time via MAP_DIR and MAP_FILE.
  */
 #include	"mdadm.h"
+#include	"xmalloc.h"
+
 #include	<sys/file.h>
 #include	<ctype.h>
 

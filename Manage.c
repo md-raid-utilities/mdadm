@@ -26,6 +26,8 @@
 #include "md_u.h"
 #include "md_p.h"
 #include "udev.h"
+#include "xmalloc.h"
+
 #include <ctype.h>
 
 int Manage_ro(char *devname, int fd, int readonly)

@@ -22,14 +22,16 @@
  *    Email: <neilb@suse.de>
  */
 
-#include	"mdadm.h"
 #include	"dlink.h"
+#include	"mdadm.h"
+#include	"md_u.h"
+#include	"md_p.h"
+#include	"xmalloc.h"
 
 #if ! defined(__BIG_ENDIAN) && ! defined(__LITTLE_ENDIAN)
 #error no endian defined
 #endif
-#include	"md_u.h"
-#include	"md_p.h"
+
 int Examine(struct mddev_dev *devlist,
 	    struct context *c,
 	    struct supertype *forcest)
