@@ -11,7 +11,18 @@ DefaultDependencies=no
 Documentation=man:mdadm(8)
 
 [Service]
-Environment=  MDADM_MONITOR_ARGS=--scan
-EnvironmentFile=-/run/sysconfig/mdadm
-ExecStartPre=-/usr/lib/mdadm/mdadm_env.sh
-ExecStart=BINDIR/mdadm --monitor $MDADM_MONITOR_ARGS
+# For Maintainers:
+# We need to provide consistent mdmonitor configuration man page to the users. We don't want to get
+# asked continuously how it can be configured.
+# /etc/sysconfig/mdadm or /etc/sysconfig/mdmonitor or whatever else, should be abandoned.
+# Following parameters should be customized via mdadm.conf only:
+# - MONITORDELAY (do not set --delay in service)
+# - MAILADDR (do not set --mail in service)
+# - MAILFROM (not settable from cmdline)
+# - PROGRAM (do not set --program or --alert in service)
+#
+# Following parameters can be customized in service:
+# - --syslog (configure syslog logging)
+# - --fork (Type=forking must be added, not recommended and not needed with systemd)
+# - --pid-file (allowed only when --fork selected)
+ExecStart=BINDIR/mdadm --monitor --scan
