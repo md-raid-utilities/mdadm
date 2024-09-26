@@ -1875,6 +1875,17 @@ at specified path.   This option is normally only set by an
 .I udev
 script.
 
+.TP
+.BR \-\-force\-set\-array
+Note: valid only for external metadata, tested with IMSM only.
+Incremental assembly by default syncs sysfs with volume info only if enough
+drives are present for array to be started, otherwise only necessary
+entries are filled for volume to appear in
+.B /proc/mdstat.
+This option forces syncing all sysfs entries with metadata info already
+available. This might be helpful for recovering data from failed arrays.
+This option should not be used except emergency cases.
+
 .SH For Monitor mode:
 .TP
 .BR \-m ", " \-\-mail

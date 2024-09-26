@@ -213,6 +213,7 @@ struct option long_options[] = {
     /* For Incremental */
     {"rebuild-map", 0, 0, RebuildMapOpt},
     {"path", 1, 0, IncrementalPath},
+    {"force-set-array", 0, 0, ForceSetArray},
 
     {0, 0, 0, 0}
 };
@@ -603,15 +604,18 @@ char Help_incr[] =
 "and then both fail (if needed) and remove the device from that array.\n"
 "\n"
 "Options that are valid with incremental assembly (-I --incremental) are:\n"
-"  --run         -R : Run arrays as soon as a minimal number of devices are\n"
-"                   : present rather than waiting for all expected.\n"
-"  --quiet       -q : Don't print any information messages, just errors.\n"
-"  --rebuild-map -r : Rebuild the 'map' file that mdadm uses for tracking\n"
-"                   : partial arrays.\n"
-"  --scan        -s : Use with -R to start any arrays that have the minimal\n"
-"                   : required number of devices, but are not yet started.\n"
-"  --fail        -f : First fail (if needed) and then remove device from\n"
-"                   : any array that it is a member of.\n"
+"  --run          -R : Run arrays as soon as a minimal number of devices are\n"
+"                    : present rather than waiting for all expected.\n"
+"  --quiet        -q : Don't print any information messages, just errors.\n"
+"  --rebuild-map  -r : Rebuild the 'map' file that mdadm uses for tracking\n"
+"                    : partial arrays.\n"
+"  --scan         -s : Use with -R to start any arrays that have the minimal\n"
+"                    : required number of devices, but are not yet started.\n"
+"  --fail         -f : First fail (if needed) and then remove device from\n"
+"                    : any array that it is a member of.\n"
+"  --force-set-array : External metadata only! Force sysfs sync using already\n"
+"                      available array info. Use only in case of emergency.\n"
+"                      Note: Tested only with IMSM metadata!\n"
 ;
 
 char Help_config[] =

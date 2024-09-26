@@ -11,12 +11,6 @@ get_rootdev() {
     echo $bd
 }
 
-get_sysdir() {
-    local mddev=$1
-    [ -L $mddev ] && mddev=$(readlink -f $mddev)
-    echo "/sys/class/block/$(basename $mddev)/md"
-}
-
 get_raiddisks() {
     sysdir=$(get_sysdir "$1")
     for i in $(seq 0 $(($(cat $sysdir/raid_disks)-1))); do

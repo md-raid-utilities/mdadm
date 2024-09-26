@@ -1974,7 +1974,7 @@ out:
 	return rv == 2 ? 0 : rv;
 }
 
-int assemble_container_content(struct supertype *st, int mdfd,
+mdadm_status_t assemble_container_content(struct supertype *st, int mdfd,
 			       struct mdinfo *content, struct context *c,
 			       char *chosen_name, int *result)
 {
@@ -1983,29 +1983,55 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	int old_raid_disks;
 	int start_reshape;
 	char *avail;
-	int err;
-	int is_clean, all_disks;
-	bool is_raid456;
+	int err = 0;
+	int is_clean, all_disks, missing_disks;
+	bool is_raid456, need_rebuild;
+	char buf[SYSFS_MAX_BUF_SIZE] = {0};
 
 	if (sysfs_init(content, mdfd, NULL)) {
 		pr_err("Unable to initialize sysfs\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
 	sra = sysfs_read(mdfd, NULL, GET_VERSION|GET_DEVS);
 	if (sra == NULL) {
 		pr_err("Failed to read sysfs parameters\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 
-	/* Fill sysfs properties only if they are not set. Determine it by checking text_version
-	 * and ignoring special character on the first place.
+	if (sysfs_get_str(content, NULL, "array_state", buf, sizeof(buf)) == 0) {
+		pr_err("Failed to read array_state!");
+		sysfs_free(sra);
+		return MDADM_STATUS_ERROR;
+	}
+
+	/* Array is already started, nothing to do here */
+	if (sysfs_strncmp(buf, "clear") != 0 &&
+	    sysfs_strncmp(buf, "inactive") != 0) {
+		sysfs_free(sra);
+		return MDADM_STATUS_SUCCESS;
+	}
+
+	/*
+	 * Fill necessary sysfs properties for array only if not set.
+	 * Determine it by checking text_version and ignoring special character on the first place.
 	 */
 	if (strcmp(sra->text_version + 1, content->text_version + 1) != 0) {
-		if (sysfs_set_array(content) != 0) {
+		if (sysfs_init_array(content) != MDADM_STATUS_SUCCESS) {
+			pr_err("Failed initiating sysfs for the array!\n");
 			sysfs_free(sra);
-			return 1;
+			return MDADM_STATUS_ERROR;
 		}
+	} else if (sysfs_update_raid_disks(content) != MDADM_STATUS_SUCCESS) {
+		/* reason already spewed */
+		sysfs_free(sra);
+		return MDADM_STATUS_ERROR;
+	}
+	/* If Incremental used with "--force-set-array", sync all sysfs info. */
+	if (c->force_set_array && sysfs_set_array(content) != 0) {
+		pr_err("Failed writing sysfs array info!\n");
+		sysfs_free(sra);
+		return MDADM_STATUS_ERROR;
 	}
 
 	/* There are two types of reshape: container wide or sub-array specific
@@ -2014,6 +2040,16 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	start_reshape = (content->reshape_active &&
 			 !((content->reshape_active == CONTAINER_RESHAPE) &&
 			   (content->array.state & (1<<MD_SB_BLOCK_CONTAINER_RESHAPE))));
+
+	/*
+	 * We need to differentiate disks in need of resync and rebuild.
+	 * The problem here is that recovery_start and resync_start are a union,
+	 * thus we need additional factor to verify what action is needed.
+	 */
+	need_rebuild = (content->missing_disks > 0);
+
+	/* If rebuild was not previously started, we can start array degraded */
+	missing_disks = content->rebuild_started ? content->missing_disks : 0;
 
 	/* Block subarray here if it is under reshape now
 	 * Do not allow for any changes in this array
@@ -2032,15 +2068,23 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		if (sysfs_set_str(sra, dev2, "slot", STR_COMMON_NONE) < 0 && errno == EBUSY) {
 			pr_err("Cannot remove old device %s: not updating %s\n", dev2->sys_name, sra->sys_name);
 			sysfs_free(sra);
-			return 1;
+			return MDADM_STATUS_ERROR;
 		}
 		sysfs_set_str(sra, dev2, "state", "remove");
 	}
 	old_raid_disks = content->array.raid_disks - content->delta_disks;
 	avail = xcalloc(content->array.raid_disks, 1);
 	for (dev = content->devs; dev; dev = dev->next) {
-		if (dev->disk.raid_disk >= 0)
-			avail[dev->disk.raid_disk] = 1;
+		if (dev->disk.raid_disk >= 0) {
+			/*
+			 * If rebuild is not needed count all drvies,
+			 * otherwise count healthy drives only.
+			 */
+			if (need_rebuild == false)
+				avail[dev->disk.raid_disk] = 1;
+			else if (dev->recovery_start == MaxSector)
+				avail[dev->disk.raid_disk] = 1;
+		}
 		if (sysfs_add_disk(content, dev, 1) == 0) {
 			if (dev->disk.raid_disk >= old_raid_disks &&
 			    content->reshape_active)
@@ -2102,7 +2146,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 		if (err) {
 			free(avail);
-			return err;
+			return MDADM_STATUS_ERROR;
 		}
 	} else if (c->force) {
 		/* Set the array as 'clean' so that we can proceed with starting
@@ -2123,20 +2167,33 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		set_array_assembly_status(c, result, INCR_NO, &array);
 
 		if (c->verbose >= 0 && is_raid456 && !is_clean)
-			pr_err("Consider --force to start dirty degraded array\n");
+			pr_err("Consider running --assemble --force to start dirty degraded array\n");
 
 		free(avail);
-		return 1;
+		return MDADM_STATUS_ERROR;
 	}
 	free(avail);
 
-	if (c->runstop <= 0 && all_disks < content->array.working_disks) {
+	/*
+	 * If enough() passed, necessary drives were added to achieve data integrity.
+	 * Without "--run" wait until all members are added back, including drives under rebuild.
+	 */
+	if (c->runstop <= 0 && (all_disks < content->array.working_disks + missing_disks)) {
 
 		set_array_assembly_status(c, result, INCR_UNSAFE, &array);
 
 		if (c->verbose >= 0 && c->force)
 			pr_err("Consider --run to start array as degraded.\n");
-		return 1;
+		return MDADM_STATUS_ERROR;
+	}
+
+	/*
+	 * If array passed previous checks, we assume it's up to date. Set sysfs.
+	 * If "force-set-array" was passed, it is already done so skip it.
+	 */
+	if (c->force_set_array == false && sysfs_set_array(content) != MDADM_STATUS_SUCCESS) {
+		pr_err("Failed writing sysfs array info!\n");
+		return MDADM_STATUS_ERROR;
 	}
 
 	if (is_raid456 && content->resync_start != MaxSector && c->force &&
@@ -2145,7 +2202,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		content->resync_start = MaxSector;
 		err = sysfs_set_num(content, NULL, "resync_start", MaxSector);
 		if (err)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		pr_err("%s array state forced to clean. It may cause data corruption.\n",
 		       chosen_name);
@@ -2161,10 +2218,11 @@ int assemble_container_content(struct supertype *st, int mdfd,
 
 	if (start_reshape) {
 		int spare = content->array.raid_disks + array.exp_cnt;
+
 		if (restore_backup(st, content,
 				   array.new_cnt,
 				   spare, &c->backup_file, c->verbose) == 1)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		if (content->reshape_progress == 0) {
 			/* If reshape progress is 0 - we are assembling the
@@ -2183,7 +2241,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		}
 
 		if (err)
-			return 1;
+			return MDADM_STATUS_ERROR;
 
 		if (st->ss->external) {
 			if (!mdmon_running(st->container_devnm))
@@ -2203,8 +2261,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 					    c->readonly ? "readonly" : "active");
 			break;
 		default:
-			err = sysfs_set_str(content, NULL, "array_state",
-					    "readonly");
+			err = sysfs_set_str(content, NULL, "array_state", "readonly");
 			/* start mdmon if needed. */
 			if (!err) {
 				if (!mdmon_running(st->container_devnm))
@@ -2232,6 +2289,10 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		sysfs_rules_apply(chosen_name, content);
 	}
 
-	return err;
+	if (err != 0)
+		return MDADM_STATUS_ERROR;
+
+	return MDADM_STATUS_SUCCESS;
+
 	/* FIXME should have an O_EXCL and wait for read-auto */
 }

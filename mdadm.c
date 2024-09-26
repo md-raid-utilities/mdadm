@@ -712,6 +712,9 @@ int main(int argc, char *argv[])
 		case O(MANAGE,Force): /* add device which is too large */
 			c.force = 1;
 			continue;
+		case O(INCREMENTAL, ForceSetArray): /* Force set sysfs with current content */
+			c.force_set_array = true;
+			continue;
 			/* now for the Assemble options */
 		case O(ASSEMBLE, FreezeReshape):   /* Freeze reshape during
 						    * initrd phase */

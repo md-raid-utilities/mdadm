@@ -382,6 +382,12 @@ struct mdinfo {
 	unsigned long long	ppl_sector;
 	unsigned long		safe_mode_delay; /* ms delay to mark clean */
 	int			new_level, delta_disks, new_layout, new_chunk;
+
+	/* Number of drives that needs rebuilding. */
+	int missing_disks;
+
+	/* Indicates that rebuild has not yet been started and is safe to start degraded array. */
+	bool			rebuild_started;
 	int			errors;
 	unsigned long		cache_size; /* size of raid456 stripe cache*/
 	int			mismatch_cnt;
@@ -390,13 +396,6 @@ struct mdinfo {
 	int container_member; /* for assembling external-metatdata arrays
 			       * This is to be used internally by metadata
 			       * handler only */
-	/**
-	 * flag external handlers can set to indicate that subarrays have:
-	 * - not enough disks to start (-1),
-	 * - enough disks to start (0),
-	 * - all expected disks (1).
-	 */
-	int container_enough;
 	char		sys_name[32];
 	struct mdinfo *devs;
 	struct mdinfo *next;
@@ -453,6 +452,7 @@ typedef enum mdadm_status {
 	MDADM_STATUS_SUCCESS = 0,
 	MDADM_STATUS_ERROR,
 	MDADM_STATUS_UNDEF,
+	MDADM_STATUS_OPERATION_FAILED,
 } mdadm_status_t;
 
 enum mode {
@@ -545,6 +545,7 @@ enum special_options {
 	ClusterConfirm,
 	WriteJournal,
 	ConsistencyPolicy,
+	ForceSetArray
 };
 
 enum update_opt {
@@ -682,6 +683,7 @@ struct context {
 	char	*action;
 	int	nodes;
 	char	*homecluster;
+	bool	force_set_array;
 };
 
 struct shape {
@@ -836,6 +838,8 @@ extern int sysfs_attribute_available(struct mdinfo *sra, struct mdinfo *dev,
 extern int sysfs_get_str(struct mdinfo *sra, struct mdinfo *dev,
 			 char *name, char *val, int size);
 extern int sysfs_set_safemode(struct mdinfo *sra, unsigned long ms);
+extern int sysfs_init_array(struct mdinfo *info);
+int sysfs_update_raid_disks(struct mdinfo *info);
 extern int sysfs_set_array(struct mdinfo *info);
 extern int sysfs_add_disk(struct mdinfo *sra, struct mdinfo *sd, int resume);
 extern int sysfs_disk_to_scsi_id(int fd, __u32 *id);
@@ -1728,7 +1732,7 @@ extern unsigned long long calc_array_size(int level, int raid_disks, int layout,
 				   int chunksize, unsigned long long devsize);
 extern int flush_metadata_updates(struct supertype *st);
 extern void append_metadata_update(struct supertype *st, void *buf, int len);
-extern int assemble_container_content(struct supertype *st, int mdfd,
+extern mdadm_status_t assemble_container_content(struct supertype *st, int mdfd,
 				      struct mdinfo *content,
 				      struct context *c,
 				      char *chosen_name, int *result);
@@ -2088,3 +2092,10 @@ static inline bool str_is_none(char *str)
 		return true;
 	return false;
 }
+
+/*
+ * Works like strncmp but does not check null terminator.
+ * To use when comparing read sysfs values.
+ * def should be an inline
+ */
+#define sysfs_strncmp(buf, def) (strncmp(buf, def, strlen(def)))
