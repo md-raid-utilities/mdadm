@@ -186,7 +186,7 @@ endif
 
 OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o udev.o \
        Manage.o Assemble.o Build.o \
-       Create.o Detail.o Examine.o Grow.o Monitor.o dlink.o Kill.o Query.o \
+       Create.o Detail.o Examine.o Grow.o mdmonitor.o dlink.o Kill.o Query.o \
        Incremental.o Dump.o \
        mdopen.o super0.o super1.o super-ddf.o super-intel.o bitmap.o \
        super-mbr.o super-gpt.o \
