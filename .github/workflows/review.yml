@@ -43,3 +43,26 @@ jobs:
       run: mv .github/tools/.checkpatch.conf .
     - name: Run checkpatch review
       uses: webispy/checkpatch-action@v9
+  upstream_tests:
+     runs-on: self-hosted
+     timeout-minutes: 120
+     name: upstream tests
+     steps:
+     - uses: actions/checkout@v4
+       with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+     - name: 'Prepare machine'
+       run: |
+          vagrant snapshot restore clean_vm_v1
+          echo "FYI vagrant restore command finished with exit code: $?"
+          sleep 2
+          vagrant status
+          vagrant up
+          sleep 2
+     - name: 'Run tests'
+       run: |
+          vagrant ssh -c "cd host/mdadm && .github/tools/run_mdadm_tests.sh"
+     - uses: actions/download-artifact@v4
+       with:
+         name: /var/tmp/*.log
