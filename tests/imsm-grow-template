@@ -89,8 +89,10 @@ if [ $migration_test -ne 0 ]; then
 	if [ -z $new_num_disks ]; then
 		new_num_disks=$num_disks
 	fi
+	sleep 5
 	grow_member $member0 $new_num_disks $vol0_new_num_comps $vol0_new_level $vol0_comp_size $vol0_offset $vol0_new_chunk $vol0_chunk
 	if [[ $vol1_new_chunk -ne 0 ]] ; then
+	sleep 5
 		grow_member $member1 $new_num_disks $vol1_new_num_comps $vol1_new_level $vol1_comp_size $vol1_offset $vol1_new_chunk $vol1_chunk
 	fi
 else

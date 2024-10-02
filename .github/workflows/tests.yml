@@ -1,0 +1,36 @@
+name: review
+on:
+  pull_request:
+    paths:
+      - '*.c'
+      - '*.h'
+jobs:
+  upstream_tests:
+     runs-on: self-hosted
+     timeout-minutes: 120
+     name: upstream tests
+     steps:
+     - uses: actions/checkout@v4
+       with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+     - name: 'Prepare machine'
+       run: |
+          vagrant snapshot restore clean_vm_v1
+          vagrant status
+          vagrant up
+     - name: 'Run tests'
+       run: |
+          vagrant ssh -c "cd host/mdadm && .github/tools/run_mdadm_tests.sh"
+     - uses: actions/download-artifact@v4
+       with:
+         name: /var/tmp/*.log
+  cleanup:
+    runs-on: self-hosted
+    steps:
+      - name: Restore clean VM
+        run: vagrant snapshot restore clean_vm_v1
+      - name: Stop md devices
+        run: sudo mdadm -Ss
+      - name: Clean logs
+        run: rm -rf /var/tmp/*.log
