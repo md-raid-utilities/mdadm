@@ -1855,8 +1855,8 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 
 int sys_hot_remove_disk(int statefd, int force)
 {
+	static const char val[] = "remove";
 	int cnt = force ? 500 : 5;
-	static const char val[] = "faulty";
 
 	while (cnt--) {
 		int err = 0;
