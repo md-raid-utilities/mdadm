@@ -21,15 +21,18 @@
 #include "mdadm.h"
 #include "mdmon.h"
 #include "dlink.h"
+#include "drive_encryption.h"
 #include "sha1.h"
 #include "platform-intel.h"
 #include "xmalloc.h"
 
-#include <values.h>
-#include <scsi/sg.h>
 #include <ctype.h>
 #include <dirent.h>
-#include "drive_encryption.h"
+#include <scsi/scsi.h>
+#include <scsi/sg.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <values.h>
 
 /* MPB == Metadata Parameter Block */
 #define MPB_SIGNATURE "Intel Raid ISM Cfg Sig. "
@@ -4131,7 +4134,43 @@ static int nvme_get_serial(int fd, void *buf, size_t buf_len)
 	return devpath_to_char(path, "serial", buf, buf_len, 0);
 }
 
-extern int scsi_get_serial(int fd, void *buf, size_t buf_len);
+mdadm_status_t scsi_get_serial(int fd, void *buf, size_t buf_len)
+{
+	struct sg_io_hdr io_hdr = {0};
+	unsigned char rsp_buf[255];
+	unsigned char inq_cmd[] = {INQUIRY, 1, 0x80, 0, sizeof(rsp_buf), 0};
+	unsigned char sense[32];
+	unsigned int rsp_len;
+	int rv;
+
+	io_hdr.interface_id = 'S';
+	io_hdr.cmdp = inq_cmd;
+	io_hdr.cmd_len = sizeof(inq_cmd);
+	io_hdr.dxferp = rsp_buf;
+	io_hdr.dxfer_len = sizeof(rsp_buf);
+	io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+	io_hdr.sbp = sense;
+	io_hdr.mx_sb_len = sizeof(sense);
+	io_hdr.timeout = 5000;
+
+	rv = ioctl(fd, SG_IO, &io_hdr);
+
+	if (rv)
+		return MDADM_STATUS_ERROR;
+
+	if ((io_hdr.info & SG_INFO_OK_MASK) != SG_INFO_OK)
+		return MDADM_STATUS_ERROR;
+
+	rsp_len = rsp_buf[3];
+
+	if (!rsp_len || buf_len < rsp_len)
+		return MDADM_STATUS_ERROR;
+
+	memcpy(buf, &rsp_buf[4], rsp_len);
+
+	return MDADM_STATUS_SUCCESS;
+}
+
 
 static int imsm_read_serial(int fd, char *devname,
 			    __u8 *serial, size_t serial_buf_len)
