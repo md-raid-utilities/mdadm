@@ -1446,28 +1446,24 @@ int Manage_subdevs(char *devname, int fd,
 	for (dv = devlist; dv; dv = dv->next) {
 		dev_t rdev = 0; /* device to add/remove etc */
 		int rv, err = 0;
-		int mj,mn;
+		int mj, mn;
 
 		raid_slot = -1;
 		if (dv->disposition == 'c') {
-			rv = parse_cluster_confirm_arg(dv->devname,
-						       &dv->devname,
-						       &raid_slot);
+			rv = parse_cluster_confirm_arg(dv->devname, &dv->devname, &raid_slot);
 			if (rv) {
 				pr_err("Could not get the devname of cluster\n");
 				goto abort;
 			}
 		}
 
-		if (strcmp(dv->devname, "failed") == 0 ||
-		    strcmp(dv->devname, "faulty") == 0) {
+		if (strcmp(dv->devname, "failed") == 0 || strcmp(dv->devname, "faulty") == 0) {
 			if (dv->disposition != 'A' && dv->disposition != 'r') {
 				pr_err("%s only meaningful with -r or --re-add, not -%c\n",
 					dv->devname, dv->disposition);
 				goto abort;
 			}
-			add_faulty(dv, fd, (dv->disposition == 'A'
-					    ? 'F' : 'r'));
+			add_faulty(dv, fd, (dv->disposition == 'A' ? 'F' : 'r'));
 			continue;
 		}
 		if (strcmp(dv->devname, "detached") == 0) {
@@ -1483,6 +1479,7 @@ int Manage_subdevs(char *devname, int fd,
 		if (strcmp(dv->devname, "missing") == 0) {
 			struct mddev_dev *add_devlist;
 			struct mddev_dev **dp;
+
 			if (dv->disposition == 'c') {
 				rv = ioctl(fd, CLUSTERED_DISK_NACK, NULL);
 				break;
@@ -1497,7 +1494,7 @@ int Manage_subdevs(char *devname, int fd,
 				pr_err("no devices to scan for missing members.\n");
 				continue;
 			}
-			for (dp = &add_devlist; *dp; dp = & (*dp)->next)
+			for (dp = &add_devlist; *dp; dp = &(*dp)->next)
 				/* 'M' (for 'missing') is like 'A' without errors */
 				(*dp)->disposition = 'M';
 			*dp = dv->next;
@@ -1505,74 +1502,50 @@ int Manage_subdevs(char *devname, int fd,
 			continue;
 		}
 
-		if (strncmp(dv->devname, "set-", 4) == 0 &&
-		    strlen(dv->devname) == 5) {
+		if (strncmp(dv->devname, "set-", 4) == 0 && strlen(dv->devname) == 5) {
 			int copies;
 
-			if (dv->disposition != 'r' &&
-			    dv->disposition != 'f') {
-				pr_err("'%s' only meaningful with -r or -f\n",
-				       dv->devname);
+			if (dv->disposition != 'r' && dv->disposition != 'f') {
+				pr_err("'%s' only meaningful with -r or -f\n", dv->devname);
 				goto abort;
 			}
+
 			if (array.level != 10) {
-				pr_err("'%s' only meaningful with RAID10 arrays\n",
-				       dv->devname);
+				pr_err("'%s' only meaningful with RAID10 arrays\n", dv->devname);
 				goto abort;
 			}
-			copies = ((array.layout & 0xff) *
-				  ((array.layout >> 8) & 0xff));
-			if (array.raid_disks % copies != 0 ||
-			    dv->devname[4] < 'A' ||
-			    dv->devname[4] >= 'A' + copies ||
-			    copies > 26) {
-				pr_err("'%s' not meaningful with this array\n",
-				       dv->devname);
+
+			copies = ((array.layout & 0xff) * ((array.layout >> 8) & 0xff));
+
+			if (array.raid_disks % copies != 0 || dv->devname[4] < 'A' ||
+			    dv->devname[4] >= 'A' + copies || copies > 26) {
+				pr_err("'%s' not meaningful with this array\n", dv->devname);
 				goto abort;
 			}
 			add_set(dv, fd, dv->devname[4]);
 			continue;
 		}
 
-		if (strchr(dv->devname, '/') == NULL &&
-		    strchr(dv->devname, ':') == NULL &&
+		if (!strchr(dv->devname, '/')  && !strchr(dv->devname, ':') &&
 		    strlen(dv->devname) < 50) {
-			/* Assume this is a kernel-internal name like 'sda1' */
-			int found = 0;
-			char dname[55];
-			if (dv->disposition != 'r' && dv->disposition != 'f' &&
-			    dv->disposition != 'I') {
+			char *array_devnm = fd2devnm(fd);
+
+			/* This is a kernel-internal name like 'sda1' */
+
+			if (!strchr("rfI", dv->disposition)) {
 				pr_err("%s only meaningful with -r, -f or -I, not -%c\n",
 					dv->devname, dv->disposition);
 				goto abort;
 			}
 
-			sprintf(dname, "dev-%s", dv->devname);
-			sysfd = sysfs_open(fd2devnm(fd), dname, "block/dev");
-			if (sysfd >= 0) {
-				char dn[SYSFS_MAX_BUF_SIZE];
-				if (sysfs_fd_get_str(sysfd, dn, sizeof(dn)) > 0 &&
-				    sscanf(dn, "%d:%d", &mj,&mn) == 2) {
-					rdev = makedev(mj,mn);
-					found = 1;
-				}
-				close_fd(&sysfd);
-				sysfd = -1;
-			}
-			if (!found) {
-				sysfd = sysfs_open(fd2devnm(fd), dname, "state");
-				if (sysfd < 0) {
-					pr_err("%s does not appear to be a component of %s\n",
-						dv->devname, devname);
+			sysfd = sysfs_open_memb_attr(array_devnm, dv->devname, "state", O_RDWR);
+			if (!is_fd_valid(sysfd)) {
+				pr_err("%s does not appear to be a component of %s\n", dv->devname,
+					devname);
 					goto abort;
 				}
-			}
-		} else if ((dv->disposition == 'r' ||
-			    dv->disposition == 'f') &&
-			   get_maj_min(dv->devname, &mj, &mn)) {
-			/* for 'fail' and 'remove', the device might
-			 * not exist.
-			 */
+		} else if (strchr("rf", dv->disposition) && get_maj_min(dv->devname, &mj, &mn)) {
+			/* for 'fail' and 'remove', the device might not exist. */
 			rdev = makedev(mj, mn);
 		} else {
 			tfd = dev_open(dv->devname, O_RDONLY);
@@ -1581,6 +1554,7 @@ int Manage_subdevs(char *devname, int fd,
 				close_fd(&tfd);
 			} else {
 				int open_err = errno;
+
 				if (!stat_is_blkdev(dv->devname, &rdev)) {
 					if (dv->disposition == 'M')
 						/* non-fatal. Also improbable */
@@ -1596,16 +1570,15 @@ int Manage_subdevs(char *devname, int fd,
 					if (dv->disposition == 'M')
 						/* non-fatal */
 						continue;
-					pr_err("Cannot open %s: %s\n",
-					       dv->devname, strerror(open_err));
+					pr_err("Cannot open %s: %s\n", dv->devname,
+					       strerror(open_err));
 					goto abort;
 				}
 			}
 		}
-		switch(dv->disposition){
+		switch (dv->disposition) {
 		default:
-			pr_err("internal error - devmode[%s]=%d\n",
-				dv->devname, dv->disposition);
+			pr_err("internal error - devmode[%s]=%d\n", dv->devname, dv->disposition);
 			goto abort;
 		case 'a':
 		case 'S': /* --add-spare */
@@ -1621,12 +1594,11 @@ int Manage_subdevs(char *devname, int fd,
 			}
 
 			/* Let's first try to write re-add to sysfs */
-			if (rdev != 0 &&
-			    (dv->disposition == 'A' || dv->disposition == 'F')) {
+			if (rdev != 0 && (dv->disposition == 'A' || dv->disposition == 'F')) {
 				sysfs_init_dev(&devinfo, rdev);
 				if (sysfs_set_str(&info, &devinfo, "state", "re-add") == 0) {
-					pr_err("re-add %s to %s succeed\n",
-						dv->devname, info.sys_name);
+					pr_err("re-add %s to %s succeed\n", dv->devname,
+					       info.sys_name);
 					break;
 				}
 			}
@@ -1657,8 +1629,7 @@ int Manage_subdevs(char *devname, int fd,
 				else
 					frozen = -1;
 			}
-			rv = Manage_add(fd, tfd, dv, tst, &array,
-					force, verbose, devname, update,
+			rv = Manage_add(fd, tfd, dv, tst, &array, force, verbose, devname, update,
 					rdev, array_size, raid_slot);
 			close_fd(&tfd);
 			if (rv < 0)
@@ -1673,8 +1644,7 @@ int Manage_subdevs(char *devname, int fd,
 				pr_err("Cannot remove disks from a \'member\' array, perform this operation on the parent container\n");
 				rv = -1;
 			} else
-				rv = Manage_remove(tst, fd, dv, sysfd,
-						   rdev, verbose, force,
+				rv = Manage_remove(tst, fd, dv, sysfd, rdev, verbose, force,
 						   devname);
 			close_fd(&sysfd);
 
@@ -1727,9 +1697,7 @@ int Manage_subdevs(char *devname, int fd,
 					else
 						frozen = -1;
 				}
-				rv = Manage_replace(tst, fd, dv,
-						    rdev, verbose,
-						    devname);
+				rv = Manage_replace(tst, fd, dv, rdev, verbose, devname);
 			}
 			if (rv < 0)
 				goto abort;
@@ -1737,12 +1705,10 @@ int Manage_subdevs(char *devname, int fd,
 				count++;
 			break;
 		case 'W': /* --with device that doesn't match */
-			pr_err("No matching --replace device for --with %s\n",
-			       dv->devname);
+			pr_err("No matching --replace device for --with %s\n", dv->devname);
 			goto abort;
 		case 'w': /* --with device which was matched */
-			rv = Manage_with(tst, fd, dv,
-					 rdev, verbose, devname);
+			rv = Manage_with(tst, fd, dv, rdev, verbose, devname);
 			if (rv < 0)
 				goto abort;
 			break;
@@ -1750,7 +1716,7 @@ int Manage_subdevs(char *devname, int fd,
 	}
 	free(tst);
 	if (frozen > 0)
-		sysfs_set_str(&info, NULL, "sync_action","idle");
+		sysfs_set_str(&info, NULL, "sync_action", "idle");
 	if (test && count == 0)
 		return 2;
 	return 0;
@@ -1758,7 +1724,7 @@ int Manage_subdevs(char *devname, int fd,
 abort:
 	free(tst);
 	if (frozen > 0)
-		sysfs_set_str(&info, NULL, "sync_action","idle");
+		sysfs_set_str(&info, NULL, "sync_action", "idle");
 	return !test && busy ? 2 : 1;
 }
 
