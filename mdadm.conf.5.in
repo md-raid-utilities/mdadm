@@ -301,7 +301,7 @@ This can be useful to impose a system-wide default of version-1 superblocks.
 
 .TP
 .B names=yes
-Since Linux 2.6.29 it has been possible to create
+It has been possible to create
 .B md
 devices with a name like
 .B md_home
