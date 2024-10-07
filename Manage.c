@@ -1530,12 +1530,14 @@ int Manage_subdevs(char *devname, int fd,
 			continue;
 		}
 
-		if (strchr(dv->devname, '/') == NULL &&
-		    strchr(dv->devname, ':') == NULL &&
+		if (!strchr(dv->devname, '/')  && !strchr(dv->devname, ':') &&
 		    strlen(dv->devname) < 50) {
-			/* Assume this is a kernel-internal name like 'sda1' */
-			int found = 0;
-			char dname[55];
+			char *array_devnm = fd2devnm(fd);
+			char value[SYSFS_MAX_BUF_SIZE];
+			int block_dev_fd;
+
+			/* This is a kernel-internal name like 'sda1' */
+
 			if (dv->disposition != 'r' && dv->disposition != 'f' &&
 			    dv->disposition != 'I') {
 				pr_err("%s only meaningful with -r, -f or -I, not -%c\n",
@@ -1543,26 +1545,25 @@ int Manage_subdevs(char *devname, int fd,
 				goto abort;
 			}
 
-			sprintf(dname, "dev-%s", dv->devname);
-			sysfd = sysfs_open(fd2devnm(fd), dname, "block/dev");
-			if (sysfd >= 0) {
-				char dn[SYSFS_MAX_BUF_SIZE];
-				if (sysfs_fd_get_str(sysfd, dn, sizeof(dn)) > 0 &&
-				    sscanf(dn, "%d:%d", &mj,&mn) == 2) {
-					rdev = makedev(mj,mn);
-					found = 1;
-				}
-				close_fd(&sysfd);
-				sysfd = -1;
-			}
-			if (!found) {
-				sysfd = sysfs_open(fd2devnm(fd), dname, "state");
-				if (sysfd < 0) {
+			block_dev_fd = sysfs_open_memb_attr(array_devnm, dv->devname, "block/dev",
+							    O_RDONLY);
+			if (is_fd_valid(block_dev_fd) &&
+			    sysfs_fd_get_str(block_dev_fd, value, sizeof(value)) > 0 &&
+			    sscanf(value, "%d:%d", &mj, &mn) == 2) {
+				rdev = makedev(mj, mn);
+			} else {
+				sysfd = sysfs_open_memb_attr(array_devnm, dv->devname, "state",
+							     O_RDWR);
+				if (!is_fd_valid(sysfd)) {
 					pr_err("%s does not appear to be a component of %s\n",
 						dv->devname, devname);
+					close_fd(&block_dev_fd);
 					goto abort;
 				}
 			}
+
+			close_fd(&block_dev_fd);
+
 		} else if ((dv->disposition == 'r' ||
 			    dv->disposition == 'f') &&
 			   get_maj_min(dv->devname, &mj, &mn)) {
