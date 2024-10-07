@@ -185,27 +185,6 @@ a group to another array in that group if the first array had a failed
 or missing drive but no spare.
 
 .TP
-.B auto=
-This option is rarely needed with mdadm-3.0, particularly if use with
-the Linux kernel v2.6.28 or later.
-It tells
-.I mdadm
-whether to use partitionable array or non-partitionable arrays and,
-in the absence of
-.IR udev ,
-how many partition devices to create.  From 2.6.28 all md array
-devices are partitionable, hence this option is not needed.
-
-The value of this option can be "yes" or "md" to indicate that a
-traditional, non-partitionable md array should be created, or "mdp",
-"part" or "partition" to indicate that a partitionable md array (only
-available in linux 2.6 and later) should be used.  This later set can
-also have a number appended to indicate how many partitions to create
-device files for, e.g.
-.BR auto=mdp5 .
-The default is 4.
-
-.TP
 .B bitmap=
 The option specifies a file in which a write-intent bitmap should be
 found.  When assembling the array,
@@ -314,17 +293,6 @@ defaults (root/wheel or root/disk).
 .B mode=
 An octal file mode such as 0660 can be given to override the default
 of 0600.
-.TP
-.B auto=
-This corresponds to the
-.B \-\-auto
-flag to mdadm.  Give
-.BR yes ,
-.BR md ,
-.BR mdp ,
-.B part
-\(em possibly followed by a number of partitions \(em to indicate how
-missing device entries should be created.
 
 .TP
 .B metadata=

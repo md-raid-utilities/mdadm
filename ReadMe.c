@@ -132,7 +132,7 @@ struct option long_options[] = {
 	{"spare-disks", 1, 0, 'x'},
 	{"spare-devices", 1, 0, 'x'},
 	{"size", 1, 0, 'z'},
-	{"auto", 1, 0, Auto},
+	{"auto", 1, 0, Auto}, /* Deprecated, left for backward compatibility */
 	{"assume-clean", 0, 0, AssumeClean },
 	{"write-zeroes", 0, 0, WriteZeroes },
 	{"metadata", 1, 0, 'e'}, /* superblock format */
@@ -578,7 +578,7 @@ char Help_config[] =
 "\n"
 " Other configuration lines include:\n"
 "  mailaddr, mailfrom, program, monitordelay    used for --monitor mode\n"
-"  create, auto                                 used when creating device names in /dev\n"
+"  create,                                      used when creating device names in /dev\n"
 "  homehost, homecluster, policy, part-policy   used to guide policy in various\n"
 "                                               situations\n"
 "\n"
