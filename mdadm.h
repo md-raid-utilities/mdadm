@@ -639,7 +639,6 @@ struct mddev_ident {
 	int raid_disks;
 	int spare_disks;
 	struct supertype *st;
-	int	autof;		/* 1 for normal, 2 for partitioned */
 	char	*spare_group;
 	char	*bitmap_file;
 	int	bitmap_fd;
@@ -674,7 +673,6 @@ struct context {
 	enum	update_opt update;
 	int	scan;
 	int	SparcAdjust;
-	int	autof;
 	int	delay;
 	int	freeze_reshape;
 	char	*backup_file;
@@ -1760,8 +1758,6 @@ extern char *human_size(long long bytes);
 extern char *human_size_brief(long long bytes, int prefix);
 extern void print_r10_layout(int layout);
 
-extern char *find_free_devnm(int use_partitions);
-
 extern void put_md_name(char *name);
 extern char *devid2kname(dev_t devid);
 extern char *devid2devnm(dev_t devid);
@@ -1770,8 +1766,7 @@ extern char *get_md_name(char *devnm);
 
 extern char DefaultConfFile[];
 
-extern int create_mddev(char *dev, char *name, int autof, int trustworthy,
-			char *chosen, int block_udev);
+extern int create_mddev(char *dev, char *name, int trustworthy, char *chosen, int block_udev);
 /* values for 'trustworthy' */
 #define	LOCAL	1
 #define	LOCAL_ANY 10

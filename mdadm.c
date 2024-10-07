@@ -106,16 +106,6 @@ int main(int argc, char *argv[])
 	mdu_array_info_t array;
 	int devs_found = 0;
 	int grow_continue = 0;
-	/* autof indicates whether and how to create device node.
-	 * bottom 3 bits are style.  Rest (when shifted) are number of parts
-	 * 0  - unset
-	 * 1  - don't create (no)
-	 * 2  - if is_standard, then create (yes)
-	 * 3  - create as 'md' - reject is_standard mdp (md)
-	 * 4  - create as 'mdp' - reject is_standard md (mdp)
-	 * 5  - default to md if not is_standard (md in config file)
-	 * 6  - default to mdp if not is_standard (part, or mdp in config file)
-	 */
 	struct context c = {
 		.require_homehost = 1,
 	};
@@ -704,8 +694,8 @@ int main(int argc, char *argv[])
 		case O(INCREMENTAL,'a'):
 		case O(INCREMENTAL,Auto):
 		case O(ASSEMBLE,'a'):
-		case O(ASSEMBLE,Auto): /* auto-creation of device node */
-			c.autof = parse_auto(optarg, "--auto flag", 0);
+		case O(ASSEMBLE, Auto): /* auto-creation of device node - deprecated */
+			pr_info("--auto is deprecated and will be removed in future releases.\n");
 			continue;
 		case O(BUILD,'f'): /* force honouring '-n 1' */
 		case O(BUILD,Force): /* force honouring '-n 1' */
@@ -1318,10 +1308,6 @@ int main(int argc, char *argv[])
 		if (ident_set_devname(&ident, devlist->devname) != MDADM_STATUS_SUCCESS)
 			exit(1);
 
-		if ((int)ident.super_minor == -2 && c.autof) {
-			pr_err("--super-minor=dev is incompatible with --auto\n");
-			exit(2);
-		}
 		if (mode == MANAGE || mode == GROW) {
 			mdfd = open_mddev(ident.devname, 1);
 			if (mdfd < 0)
@@ -1403,8 +1389,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	ident.autof = c.autof;
-
 	if (c.scan && c.verbose < 2)
 		/* --scan implied --brief unless -vv */
 		c.brief = 1;
@@ -1456,8 +1440,6 @@ int main(int argc, char *argv[])
 				if (mdfd >= 0)
 					close(mdfd);
 			} else {
-				if (array_ident->autof == 0)
-					array_ident->autof = c.autof;
 				rv |= Assemble(ss, ident.devname, array_ident, NULL, &c);
 			}
 		} else if (!c.scan)
@@ -1479,10 +1461,7 @@ int main(int argc, char *argv[])
 					rv |= 1;
 					continue;
 				}
-				if (array_ident->autof == 0)
-					array_ident->autof = c.autof;
-				rv |= Assemble(ss, dv->devname, array_ident,
-					       NULL, &c);
+				rv |= Assemble(ss, dv->devname, array_ident, NULL, &c);
 			}
 		} else {
 			if (c.update) {
@@ -1748,11 +1727,10 @@ static int scan_assemble(struct supertype *ss,
 		pr_err("No devices listed in conf file were found.\n");
 		return 1;
 	}
-	for (a = array_list; a; a = a->next) {
+
+	for (a = array_list; a; a = a->next)
 		a->assembled = 0;
-		if (a->autof == 0)
-			a->autof = c->autof;
-	}
+
 	if (map_lock(&map))
 		pr_err("failed to get exclusive lock on mapfile\n");
 	do {
@@ -1784,7 +1762,7 @@ static int scan_assemble(struct supertype *ss,
 		 */
 		int rv2;
 		int acnt;
-		ident->autof = c->autof;
+
 		do {
 			struct mddev_dev *devlist = conf_get_devs();
 			acnt = 0;
