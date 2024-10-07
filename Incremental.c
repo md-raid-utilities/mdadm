@@ -107,8 +107,6 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	char *devname = devlist->devname;
 	int journal_device_missing = 0;
 
-	struct createinfo *ci = conf_get_create_info();
-
 	if (!stat_is_blkdev(devname, &rdev))
 		return rv;
 	dfd = dev_open(devname, O_RDONLY);
@@ -234,16 +232,6 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	if (trustworthy == LOCAL_ANY)
 		trustworthy = LOCAL;
 
-	/* There are three possible sources for 'autof':  command line,
-	 * ARRAY line in mdadm.conf, or CREATE line in mdadm.conf.
-	 * ARRAY takes precedence, then command line, then
-	 * CREATE.
-	 */
-	if (match && match->autof)
-		c->autof = match->autof;
-	if (c->autof == 0)
-		c->autof = ci->autof;
-
 	name_to_use = info.name;
 	if (name_to_use[0] == 0 && is_container(info.array.level)) {
 		name_to_use = info.text_version;
@@ -297,8 +285,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			goto out;
 
 		/* Couldn't find an existing array, maybe make a new one */
-		mdfd = create_mddev(match ? match->devname : NULL,
-				    name_to_use, c->autof, trustworthy, chosen_name, 0);
+		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
+				    chosen_name, 0);
 
 		if (mdfd < 0)
 			goto out_unlock;
@@ -1607,10 +1595,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 			if (match)
 				trustworthy = LOCAL;
 
-			mdfd = create_mddev(match ? match->devname : NULL,
-					    ra->name,
-					    c->autof,
-					    trustworthy,
+			mdfd = create_mddev(match ? match->devname : NULL, ra->name, trustworthy,
 					    chosen_name, 0);
 
 			if (!is_fd_valid(mdfd)) {

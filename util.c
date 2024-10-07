@@ -760,42 +760,6 @@ bad_option:
 	return 0;
 }
 
-int is_standard(char *dev, int *nump)
-{
-	/* tests if dev is a "standard" md dev name.
-	 * i.e if the last component is "/dNN" or "/mdNN",
-	 * where NN is a string of digits
-	 * Returns 1 if a partitionable standard,
-	 *   -1 if non-partitonable,
-	 *   0 if not a standard name.
-	 */
-	char *d = strrchr(dev, '/');
-	int type = 0;
-	int num;
-	if (!d)
-		return 0;
-	if (strncmp(d, "/d",2) == 0)
-		d += 2, type = 1; /* /dev/md/dN{pM} */
-	else if (strncmp(d, "/md_d", 5) == 0)
-		d += 5, type = 1; /* /dev/md_dN{pM} */
-	else if (strncmp(d, "/md", 3) == 0)
-		d += 3, type = -1; /* /dev/mdN */
-	else if (d-dev > 3 && strncmp(d-2, "md/", 3) == 0)
-		d += 1, type = -1; /* /dev/md/N */
-	else
-		return 0;
-	if (!*d)
-		return 0;
-	num = atoi(d);
-	while (isdigit(*d))
-		d++;
-	if (*d)
-		return 0;
-	if (nump) *nump = num;
-
-	return type;
-}
-
 unsigned long calc_csum(void *super, int bytes)
 {
 	unsigned long long newcsum = 0;

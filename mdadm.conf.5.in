@@ -185,10 +185,6 @@ a group to another array in that group if the first array had a failed
 or missing drive but no spare.
 
 .TP
-.B auto=
-Deprecated. This option is not needed.
-
-.TP
 .B bitmap=
 The option specifies a file in which a write-intent bitmap should be
 found.  When assembling the array,
@@ -297,17 +293,6 @@ defaults (root/wheel or root/disk).
 .B mode=
 An octal file mode such as 0660 can be given to override the default
 of 0600.
-.TP
-.B auto=
-This corresponds to the
-.B \-\-auto
-flag to mdadm.  Give
-.BR yes ,
-.BR md ,
-.BR mdp ,
-.B part
-\(em possibly followed by a number of partitions \(em to indicate how
-missing device entries should be created.
 
 .TP
 .B metadata=

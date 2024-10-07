@@ -638,7 +638,7 @@ char Help_config[] =
 "\n"
 " Other configuration lines include:\n"
 "  mailaddr, mailfrom, program, monitordelay    used for --monitor mode\n"
-"  create, auto                                 used when creating device names in /dev\n"
+"  create,                                      used when creating device names in /dev\n"
 "  homehost, homecluster, policy, part-policy   used to guide policy in various\n"
 "                                               situations\n"
 "\n"

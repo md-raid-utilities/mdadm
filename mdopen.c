@@ -29,82 +29,6 @@
 
 #include <ctype.h>
 
-void make_parts(char *dev, int cnt)
-{
-	/* make 'cnt' partition devices for 'dev'
-	 * If dev is a device name we use the
-	 *  major/minor from dev and add 1..cnt
-	 * If it is a symlink, we make similar symlinks.
-	 * If dev ends with a digit, we add "p%d" else "%d"
-	 * If the name exists, we use it's owner/mode,
-	 * else that of dev
-	 */
-	struct stat stb;
-	int major_num;
-	int minor_num;
-	int odig;
-	int i;
-	int nlen = strlen(dev) + 20;
-	char *name;
-	int dig = isdigit(dev[strlen(dev)-1]);
-	char orig[1001];
-	char sym[1024];
-	int err;
-
-	if (cnt == 0)
-		cnt = 4;
-	if (lstat(dev, &stb)!= 0)
-		return;
-
-	if (S_ISBLK(stb.st_mode)) {
-		major_num = major(stb.st_rdev);
-		minor_num = minor(stb.st_rdev);
-		odig = -1;
-	} else if (S_ISLNK(stb.st_mode)) {
-		int len;
-
-		len = readlink(dev, orig, sizeof(orig));
-		if (len < 0 || len >= (int)sizeof(orig))
-			return;
-		orig[len] = 0;
-		odig = isdigit(orig[len-1]);
-		major_num = -1;
-		minor_num = -1;
-	} else
-		return;
-	name = xmalloc(nlen);
-	for (i = 1; i <= cnt ; i++) {
-		struct stat stb2;
-		snprintf(name, nlen, "%s%s%d", dev, dig?"p":"", i);
-		if (stat(name, &stb2) == 0) {
-			if (!S_ISBLK(stb2.st_mode) || !S_ISBLK(stb.st_mode))
-				continue;
-			if (stb2.st_rdev == makedev(major_num, minor_num+i))
-				continue;
-			unlink(name);
-		} else {
-			stb2 = stb;
-		}
-		if (S_ISBLK(stb.st_mode)) {
-			if (mknod(name, S_IFBLK | 0600,
-				  makedev(major_num, minor_num+i)))
-				perror("mknod");
-			if (chown(name, stb2.st_uid, stb2.st_gid))
-				perror("chown");
-			if (chmod(name, stb2.st_mode & 07777))
-				perror("chmod");
-			err = 0;
-		} else {
-			snprintf(sym, sizeof(sym), "%s%s%d", orig, odig?"p":"", i);
-			err = symlink(sym, name);
-		}
-
-		if (err == 0 && stat(name, &stb2) == 0)
-			add_dev(name, &stb2, 0, NULL);
-	}
-	free(name);
-}
-
 int create_named_array(char *devnm)
 {
 	int fd;
@@ -129,6 +53,35 @@ int create_named_array(char *devnm)
 	}
 
 	return 1;
+}
+
+char *find_free_devnm(void)
+{
+	static char devnm[MD_NAME_MAX];
+	int devnum;
+
+	for (devnum = 127; devnum != 128; devnum = devnum ? devnum - 1 : 511) {
+		sprintf(devnm, "md%d", devnum);
+
+		if (mddev_busy(devnm))
+			continue;
+
+		if (!conf_name_is_free(devnm))
+			continue;
+
+		if (!udev_is_available()) {
+			/* make sure it is new to /dev too*/
+			dev_t devid = devnm2devid(devnm);
+
+			if (devid && map_dev(major(devid), minor(devid), 0))
+				continue;
+		}
+
+		break;
+	}
+	if (devnum == 128)
+		return NULL;
+	return devnm;
 }
 
 /*
@@ -165,15 +118,13 @@ int create_named_array(char *devnm)
  * When we create devices, we use uid/gid/umask from config file.
  */
 
-int create_mddev(char *dev, char *name, int autof, int trustworthy,
+int create_mddev(char *dev, char *name, int trustworthy,
 		 char *chosen, int block_udev)
 {
 	int mdfd;
 	struct stat stb;
 	int num = -1;
-	int use_mdp = -1;
 	struct createinfo *ci = conf_get_create_info();
-	int parts;
 	char *cname;
 	char devname[37];
 	char devnm[32];
@@ -184,12 +135,6 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 
 	if (chosen == NULL)
 		chosen = cbuf;
-
-	if (autof == 0)
-		autof = ci->autof;
-
-	parts = autof >> 3;
-	autof &= 7;
 
 	strcpy(chosen, DEV_MD_DIR);
 	cname = chosen + strlen(chosen);
@@ -212,12 +157,9 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 					dev, dev+5);
 				return -1;
 			}
-			if (strcmp(cname, "md") == 0)
-				use_mdp = 0;
-			else
-				use_mdp = 1;
+
 			/* recreate name: /dev/md/0 or /dev/md/d0 */
-			sprintf(cname, "%s%d", use_mdp?"d":"", num);
+			sprintf(cname, "%d", num);
 		} else
 			strcpy(cname, dev);
 
@@ -246,10 +188,6 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 				ep = sp;
 			if (ep == sp || *ep || num < 0)
 				num = -1;
-			else if (cname[0] == 'd')
-				use_mdp = 1;
-			else
-				use_mdp = 0;
 		}
 	}
 
@@ -257,18 +195,11 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 	/* named 'METADATA' cannot use 'mdp'. */
 	if (name && name[0] == 0)
 		name = NULL;
-	if (name && trustworthy == METADATA && use_mdp == 1) {
+	if (name && trustworthy == METADATA) {
 		pr_err("%s is not allowed for a %s container. Consider /dev/md%d.\n", dev, name, num);
 		return -1;
 	}
-	if (name && trustworthy == METADATA)
-		use_mdp = 0;
-	if (use_mdp == -1) {
-		if (autof == 4 || autof == 6)
-			use_mdp = 1;
-		else
-			use_mdp = 0;
-	}
+
 	if (num < 0 && trustworthy == LOCAL && name) {
 		/* if name is numeric, possibly prefixed by
 		 * 'md' or '/dev/md', use that for num
@@ -285,7 +216,7 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 		if (ep == n2 || *ep)
 			num = -1;
 		else {
-			sprintf(devnm, "md%s%d", use_mdp ? "_d":"", num);
+			sprintf(devnm, "md%d", num);
 			if (mddev_busy(devnm))
 				num = -1;
 		}
@@ -357,14 +288,15 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 	if (devnm[0] == 0) {
 		if (num < 0) {
 			/* need to choose a free number. */
-			char *_devnm = find_free_devnm(use_mdp);
-			if (_devnm == NULL) {
+			char *_devnm = find_free_devnm();
+
+			if (!_devnm) {
 				pr_err("No avail md devices - aborting\n");
 				return -1;
 			}
 			strcpy(devnm, _devnm);
 		} else {
-			sprintf(devnm, "%s%d", use_mdp?"md_d":"md", num);
+			sprintf(devnm, "md%d", num);
 			if (mddev_busy(devnm)) {
 				pr_err("%s is already in use.\n",
 				       dev);
@@ -415,8 +347,6 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 			}
 			add_dev(devname, &stb, 0, NULL);
 		}
-		if (use_mdp == 1)
-			make_parts(devname, parts);
 
 		if (strcmp(chosen, devname) != 0) {
 			if (mkdir(DEV_NUM_PREF, 0700) == 0) {
@@ -446,8 +376,6 @@ int create_mddev(char *dev, char *name, int autof, int trustworthy,
 			} else if (symlink(devname, chosen) != 0)
 				pr_err("failed to create %s: %s\n",
 					chosen, strerror(errno));
-			if (use_mdp && strcmp(chosen, devname) != 0)
-				make_parts(chosen, parts);
 		}
 	}
 	mdfd = open_dev_excl(devnm);
@@ -498,37 +426,4 @@ int is_mddev(char *dev)
 	}
 
 	return 0;
-}
-
-char *find_free_devnm(int use_partitions)
-{
-	static char devnm[32];
-	int devnum;
-	for (devnum = 127; devnum != 128;
-	     devnum = devnum ? devnum-1 : (1<<9)-1) {
-
-		if (use_partitions)
-			sprintf(devnm, "md_d%d", devnum);
-		else
-			sprintf(devnm, "md%d", devnum);
-		if (mddev_busy(devnm))
-			continue;
-		if (!conf_name_is_free(devnm))
-			continue;
-		if (!udev_is_available()) {
-			/* make sure it is new to /dev too, at least as a
-			 * non-standard */
-			dev_t devid = devnm2devid(devnm);
-			if (devid) {
-				char *dn = map_dev(major(devid),
-						   minor(devid), 0);
-				if (dn && ! is_standard(dn, NULL))
-					continue;
-			}
-		}
-		break;
-	}
-	if (devnum == 128)
-		return NULL;
-	return devnm;
 }
