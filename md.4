@@ -48,11 +48,9 @@ stored in the device.  This metadata is sometimes called a
 The metadata records information about the structure and state of the array.
 This allows the array to be reliably re-assembled after a shutdown.
 
-From Linux kernel version 2.6.10,
 .B md
 provides support for two different formats of metadata, and
-other formats can be added.  Prior to this release, only one format is
-supported.
+other formats can be added.
 
 The common format \(em known as version 0.90 \(em has
 a superblock that is 4K long and is written into a 64K aligned block that
@@ -126,7 +124,6 @@ have special-purpose uses and is supported.
 
 .SS ARRAYS WITH EXTERNAL METADATA
 
-From release 2.6.28, the
 .I md
 driver supports arrays with externally managed metadata.  That is,
 the metadata is not managed by the kernel but rather by a user-space
@@ -178,8 +175,7 @@ A RAID0 array (which has zero redundancy) is also known as a
 striped array.
 A RAID0 array is configured at creation with a
 .B "Chunk Size"
-which must be a power of two (prior to Linux 2.6.31), and at least 4
-kibibytes.
+which must be at least 4 kibibytes.
 
 The RAID0 driver assigns the first chunk of the array to the first
 device, the second chunk to the second device, and so on until all
@@ -303,8 +299,7 @@ drives.
 
 When configuring a RAID10 array, it is necessary to specify the number
 of replicas of each data block that are required (this will usually
-be\ 2) and whether their layout should be "near", "far" or "offset"
-(with "offset" being available since Linux\ 2.6.18).
+be\ 2) and whether their layout should be "near", "far" or "offset".
 
 .B About the RAID10 Layout Examples:
 .br
@@ -707,9 +702,7 @@ The array can still be used, though possibly with reduced performance.
 If a RAID4, RAID5 or RAID6 array is degraded (missing at least one
 drive, two for RAID6) when it is restarted after an unclean shutdown, it cannot
 recalculate parity, and so it is possible that data might be
-undetectably corrupted.  The 2.4 md driver
-.B does not
-alert the operator to this condition.  The 2.6 md driver will fail to
+undetectably corrupted. The md driver will fail to
 start an array in this condition without manual intervention, though
 this behaviour can be overridden by a kernel parameter.
 
@@ -724,12 +717,9 @@ either by copying a working drive in a RAID1 configuration, or by
 doing calculations with the parity block on RAID4, RAID5 or RAID6, or
 by finding and copying originals for RAID10.
 
-In kernels prior to about 2.6.15, a read error would cause the same
-effect as a write error.  In later kernels, a read-error will instead
-cause md to attempt a recovery by overwriting the bad block. i.e. it
-will find the correct data from elsewhere, write it over the block
-that failed, and then try to read it back again.  If either the write
-or the re-read fail, md will treat the error the same way that a write
+A read-error will cause md to attempt a recovery by overwriting the bad block. i.e. it will find
+the correct data from elsewhere, write it over the block that failed, and then try to read it back
+again. If either the write or the re-read fail, md will treat the error the same way that a write
 error is treated, and will fail the whole device.
 
 While this recovery process is happening, the md driver will monitor
@@ -851,7 +841,6 @@ especially when the device is used for swap.
 
 .SS BITMAP WRITE-INTENT LOGGING
 
-From Linux 2.6.13,
 .I md
 supports a bitmap based write-intent log.  If configured, the bitmap
 is used to record which blocks of the array may be out of sync.
@@ -878,12 +867,11 @@ be stored near the superblocks of an array which has superblocks.
 It is possible to add an intent log to an active array, or remove an
 intent log if one is present.
 
-In 2.6.13, intent bitmaps are only supported with RAID1.  Other levels
-with redundancy are supported from 2.6.15.
+All raid levels with redundancy are supported.
 
 .SS BAD BLOCK LIST
 
-From Linux 3.5 each device in an
+Each device in an
 .I md
 array can store a list of known-bad-blocks.  This list is 4K in size
 and usually positioned at the end of the space between the superblock
@@ -1024,7 +1012,8 @@ array (so the stripes are wider), changing the chunk size (so stripes
 are deeper or shallower), or changing the arrangement of data and
 parity (possibly changing the RAID level, e.g. 1 to 5 or 5 to 6).
 
-As of Linux 2.6.35, md can reshape a RAID4, RAID5, or RAID6 array to
+.I md
+can reshape a RAID4, RAID5, or RAID6 array to
 have a different number of devices (more or fewer) and to have a
 different layout or chunk size.  It can also convert between these
 different RAID levels.  It can also convert between RAID0 and RAID10,
@@ -1063,7 +1052,7 @@ after a system crash.
 .PP
 
 .B mdadm
-versions from 2.4 do this for growing a RAID5 array.
+do this for growing a RAID5 array.
 
 For operations that do not change the size of the array, like simply
 increasing chunk size, or converting RAID5 to RAID6 with one extra
@@ -1225,18 +1214,6 @@ an MD array, and if any full arrays are found, they are started.  This
 kernel parameter disables this behaviour.
 
 .TP
-.B raid=partitionable
-.TP
-.B raid=part
-These are available in 2.6 and later kernels only.  They indicate that
-autodetected MD arrays should be created as partitionable arrays, with
-a different major device number to the original non-partitionable md
-arrays.  The device number is listed as
-.I mdp
-in
-.IR /proc/devices .
-
-.TP
 .B md_mod.start_ro=1
 .TP
 .B /sys/module/md_mod/parameters/start_ro
@@ -1266,14 +1243,6 @@ This tells the md driver to assemble
 from the listed devices.  It is only necessary to start the device
 holding the root filesystem this way.  Other arrays are best started
 once the system is booted.
-
-In 2.6 kernels, the
-.B d
-immediately after the
-.B =
-indicates that a partitionable device (e.g.
-.BR /dev/md/d0 )
-should be created rather than the original non-partitionable device.
 
 .TP
 .BI md= n , l , c , i , dev...
