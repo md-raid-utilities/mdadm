@@ -48,11 +48,12 @@ multiple devices:
 each device is a path to one common physical storage device.
 New installations should not use md/multipath as it is not well
 supported and has no ongoing development.  Use the Device Mapper based
-multipath-tools instead.
+multipath-tools instead. It is deprecated and support will be removed in the future.
 
 .B FAULTY
 is also not true RAID, and it only involves one device.  It
-provides a layer over a true device that can be used to inject faults.
+provides a layer over a true device that can be used to inject faults. It is deprecated
+and support will be removed in the future.
 
 .B CONTAINER
 is different again.  A
@@ -354,7 +355,7 @@ preferred 1.x format).
 'if '{DEFAULT_METADATA}'1.2'  "default" is equivalent to "1.2".
 .IP ddf
 Use the "Industry Standard" DDF (Disk Data Format) format defined by
-SNIA.
+SNIA. DDF is deprecated and there is no active development around it.
 When creating a DDF array a
 .B CONTAINER
 will be created, and normal arrays can be created in that container.
@@ -443,8 +444,7 @@ multipath, RAID0 and RAID1.  It is never allowed for RAID4, RAID5 or RAID6.
 .br
 This number can only be changed using
 .B \-\-grow
-for RAID1, RAID4, RAID5 and RAID6 arrays, and only on kernels which provide
-the necessary support.
+for RAID1, RAID4, RAID5 and RAID6 arrays.
 
 .TP
 .BR \-x ", " \-\-spare\-devices=
@@ -563,8 +563,7 @@ component will be rounded down to a multiple of this size.
 This is a synonym for
 .B \-\-chunk
 but highlights the different meaning for Linear as compared to other
-RAID levels.  The default is 64K if a kernel earlier than 2.6.16 is in
-use, and is 0K (i.e. no rounding) in later kernels.
+RAID levels.  The default is 0K (i.e. no rounding).
 
 .TP
 .BR \-l ", " \-\-level=
@@ -829,7 +828,7 @@ facts the operator knows.
 When an array is resized to a larger size with
 .B "\-\-grow \-\-size="
 the new space is normally resynced in that same way that the whole
-array is resynced at creation.  From Linux version 3.0,
+array is resynced at creation.
 .B \-\-assume\-clean
 can be used with that command to avoid the automatic resync.
 
@@ -837,8 +836,7 @@ can be used with that command to avoid the automatic resync.
 .BR \-\-write-zeroes
 When creating an array, send write zeroes requests to all the block
 devices.  This should zero the data area on all disks such that the
-initial sync is not necessary and, if successfull, will behave
-as if
+initial sync is not necessary and, if successful, will behave as if
 .B \-\-assume\-clean
 was specified.
 .IP
@@ -875,7 +873,6 @@ Setting the offset explicitly over-rides the default.  The value given
 is in Kilobytes unless a suffix of 'K', 'M', 'G' or 'T' is used to explicitly
 indicate Kilobytes, Megabytes, Gigabytes or Terabytes respectively.
 
-Since Linux 3.4,
 .B \-\-data\-offset
 can also be used with
 .B --grow
@@ -1145,7 +1142,6 @@ backup file.
 .BR \-U ", " \-\-update=
 Update the superblock on each device while assembling the array.  The
 argument given to this flag can be one of
-.BR sparc2.2 ,
 .BR summaries ,
 .BR uuid ,
 .BR name ,
@@ -1168,16 +1164,6 @@ or
 .BR super\-minor .
 
 The
-.B sparc2.2
-option will adjust the superblock of an array what was created on a Sparc
-machine running a patched 2.2 Linux kernel.  This kernel got the
-alignment of part of the superblock wrong.  You can use the
-.B "\-\-examine \-\-sparc2.2"
-option to
-.I mdadm
-to see what effect this would have.
-
-The
 .B super\-minor
 option will update the
 .B "preferred minor"
@@ -1190,7 +1176,7 @@ reports a different "Preferred Minor" to
 In some cases this update will be performed automatically
 by the kernel driver.  In particular, the update happens automatically
 at the first write to an array with redundancy (RAID level 1 or
-greater) on a 2.6 (or later) kernel.
+greater).
 
 The
 .B uuid
@@ -1625,18 +1611,6 @@ and
 applies to devices which are components of an array, while
 .B \-\-detail
 applies to a whole array which is currently active.
-.TP
-.B \-\-sparc2.2
-If an array was created on a SPARC machine with a 2.2 Linux kernel
-patched with RAID support, the superblock will have been created
-incorrectly, or at least incompatibly with 2.4 and later kernels.
-Using the
-.B \-\-sparc2.2
-flag with
-.B \-\-examine
-will fix the superblock before displaying it.  If this appears to do
-the right thing, then the array can be successfully assembled using
-.BR "\-\-assemble \-\-update=sparc2.2" .
 
 .TP
 .BR \-X ", " \-\-examine\-bitmap
@@ -2001,33 +1975,6 @@ If
 detects that udev is not configured, it will create the devices in
 .B /dev
 itself.
-
-In Linux kernels prior to version 2.6.28 there were two distinct
-types of md devices that could be created: one that could be
-partitioned using standard partitioning tools and one that could not.
-Since 2.6.28 that distinction is no longer relevant as both types of
-devices can be partitioned.
-.I mdadm
-will normally create the type that originally could not be partitioned
-as it has a well-defined major number (9).
-
-Prior to 2.6.28, it is important that mdadm chooses the correct type
-of array device to use.  This can be controlled with the
-.B \-\-auto
-option.  In particular, a value of "mdp" or "part" or "p" tells mdadm
-to use a partitionable device rather than the default.
-
-In the no-udev case, the value given to
-.B \-\-auto
-can be suffixed by a number.  This tells
-.I mdadm
-to create that number of partition devices rather than the default of 4.
-
-The value given to
-.B \-\-auto
-can also be given in the configuration file as a word starting
-.B auto=
-on the ARRAY line for the relevant array.
 
 .SS Auto-Assembly
 When
@@ -2725,7 +2672,7 @@ and then follow similar steps as above if a matching spare is found.
 The GROW mode is used for changing the size or shape of an active
 array.
 
-During the kernel 2.6 era the following changes were added:
+The following changes are supported:
 .IP \(bu 4
 change the "size" attribute for RAID1, RAID4, RAID5 and RAID6.
 .IP \(bu 4
@@ -2809,14 +2756,12 @@ When the number of devices is increased, any hot spares that are
 present will be activated immediately.
 
 Changing the number of active devices in a RAID5 or RAID6 is much more
-effort.  Every block in the array will need to be read and written
-back to a new location.  From 2.6.17, the Linux Kernel is able to
-increase the number of devices in a RAID5 safely, including restarting
-an interrupted "reshape".  From 2.6.31, the Linux Kernel is able to
-increase or decrease the number of devices in a RAID5 or RAID6.
+effort. Every block in the array will need to be read and written
+back to a new location. Linux Kernel is able to increase or decrease
+the number of devices in a RAID5 and RAID6 safely, including restarting
+an interrupted "reshape".
 
-From 2.6.35, the Linux Kernel is able to convert a RAID0 in to a RAID4
-or RAID5.
+The Linux Kernel is able to convert a RAID0 into a RAID4 or RAID5.
 .I mdadm
 uses this functionality and the ability to add
 devices to a RAID4 to allow devices to be added to a RAID0.  When
@@ -3370,26 +3315,14 @@ Also if the homehost is specified as
 will only use a suffix if a different array of the same name already
 exists or is listed in the config file.
 
-The standard names for non-partitioned arrays (the only sort of md
-array available in 2.4 and earlier) are of the form
+The names for arrays are of the form:
 .IP
 .RB /dev/md NN
 .PP
 where NN is a number.
-The standard names for partitionable arrays (as available from 2.6
-onwards) are of the form:
-.IP
-.RB /dev/md_d NN
+
 .PP
-Partition numbers should be indicated by adding "pMM" to these, thus "/dev/md/d1p2".
-.PP
-From kernel version 2.6.28 the "non-partitioned array" can actually
-be partitioned.  So the "md_d\fBNN\fP"
-names are no longer needed, and
-partitions such as "/dev/md\fBNN\fPp\fBXX\fP"
-are possible.
-.PP
-From kernel version 2.6.29 standard names can be non-numeric following
+Names can be non-numeric following
 the form:
 .IP
 .RB /dev/md_ XXX
