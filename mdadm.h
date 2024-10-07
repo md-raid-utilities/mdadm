@@ -808,13 +808,12 @@ extern mdadm_status_t sysfs_write_descriptor(const int fd, const char *value,
 extern mdadm_status_t write_attr(const char *value, const int fd);
 extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
 
-/* If fd >= 0, get the array it is open on,
- * else use devnm.
- */
 extern int sysfs_open(char *devnm, char *devname, char *attr);
+extern int sysfs_open_memb_attr(char *array_devnm, char *memb_devnm, char *attr, int oflag);
 extern int sysfs_init(struct mdinfo *mdi, int fd, char *devnm);
 extern void sysfs_init_dev(struct mdinfo *mdi, dev_t devid);
 extern void sysfs_free(struct mdinfo *sra);
+
 extern struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options);
 extern int sysfs_attr_match(const char *attr, const char *str);
 extern int sysfs_match_word(const char *word, char **list);
