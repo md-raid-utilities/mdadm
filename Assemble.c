@@ -1573,8 +1573,7 @@ try_again:
 			/* Ignore 'host:' prefix of name */
 			name = strchr(name, ':')+1;
 
-		mdfd = create_mddev(mddev, name, ident->autof, trustworthy,
-				    chosen_name, 0);
+		mdfd = create_mddev(mddev, name, trustworthy, chosen_name, 0);
 	}
 	if (mdfd < 0) {
 		st->ss->free_super(st);

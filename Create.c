@@ -1045,7 +1045,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	/* We need to create the device */
 	map_lock(&map);
-	mdfd = create_mddev(ident->devname, ident->name, c->autof, LOCAL, chosen_name, 1);
+	mdfd = create_mddev(ident->devname, ident->name, LOCAL, chosen_name, 1);
 	if (mdfd < 0) {
 		map_unlock(&map);
 		return 1;
