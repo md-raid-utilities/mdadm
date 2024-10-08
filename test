@@ -102,6 +102,9 @@ do_test() {
 
 	if [ -f "$_script" ]
 	then
+		if [ "${_basename:0:2}" == "$skip_prefix" ]; then
+			return
+		fi
 		if [ -f "${_script}.broken" ]; then
 			_broken=1
 			_broken_msg=$(head -n1 "${_script}.broken" | tr -d '\n')
@@ -162,6 +165,7 @@ do_help() {
 		--loop=N                    Run tests N times (0 to run forever)
 		--skip-broken               Skip tests that are known to be broken
 		--skip-always-broken        Skip tests that are known to always fail
+		--skip=prefix               Skip group of tests starting with <prefix>
 		--dev=loop|lvm|ram|disk     Use loop devices (default), LVM, RAM or disk
 		--disks=                    Provide a bunch of physical devices for test
 		--volgroup=name             LVM volume group for LVM test
@@ -264,6 +268,9 @@ parse_args() {
 			;;
 		--skip-always-broken )
 			skipbroken=always
+			;;
+		--skip=* )
+			skip_prefix="${i##*=}"
 			;;
 		--disable-multipath )
 			unset MULTIPATH
