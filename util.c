@@ -1111,17 +1111,6 @@ int dev_open(char *dev, int flags)
 			fd = open(devname, flags);
 			unlink(devname);
 		}
-		if (fd < 0) {
-			/* Try /tmp as /dev appear to be read-only */
-			snprintf(devname, sizeof(devname),
-				 "/tmp/.tmp.md.%d:%d:%d",
-				 (int)getpid(), major, minor);
-			if (mknod(devname, S_IFBLK|0600,
-				  makedev(major, minor)) == 0) {
-				fd = open(devname, flags);
-				unlink(devname);
-			}
-		}
 	} else
 		fd = open(dev, flags);
 	return fd;
