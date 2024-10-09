@@ -22,6 +22,7 @@
  */
 
 #include "xmalloc.h"
+#include "mdadm_status.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -32,8 +33,7 @@ static void *exit_memory_alloc_failure(void)
 {
 	fprintf(stderr, "Memory allocation failure - aborting\n");
 
-	/* TODO: replace with MDADM_STATUS_MEM_FAIL */
-	exit(1);
+	exit(MDADM_STATUS_MEM_FAIL);
 }
 
 void *xmalloc(size_t len)
