@@ -166,6 +166,7 @@ struct dlm_lksb {
 #include	"md_p.h"
 #include	"bitmap.h"
 #include	"msg.h"
+#include	"mdadm_status.h"
 
 #include <endian.h>
 /* Redhat don't like to #include <asm/byteorder.h>, and
@@ -448,12 +449,6 @@ struct spare_criteria {
 	unsigned int sector_size;
 	struct dev_policy *pols;
 };
-
-typedef enum mdadm_status {
-	MDADM_STATUS_SUCCESS = 0,
-	MDADM_STATUS_ERROR,
-	MDADM_STATUS_UNDEF,
-} mdadm_status_t;
 
 enum mode {
 	ASSEMBLE=1,
