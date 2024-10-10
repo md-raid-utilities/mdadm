@@ -12549,7 +12549,8 @@ static int imsm_manage_reshape(
 		init_migr_record_imsm(st, dev, sra);
 	else {
 		if (__le32_to_cpu(migr_rec->rec_status) != UNIT_SRC_NORMAL) {
-			dprintf("imsm: cannot restart migration when data are present in copy area.\n");
+			pr_err("imsm: Cannot restart migration when data are present in copy area.\n"
+			       "      Reassemble array to try to restore critical sector.\n");
 			goto abort;
 		}
 		/* Save checkpoint to update migration record for current

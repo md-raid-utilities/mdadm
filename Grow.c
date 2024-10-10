@@ -2461,6 +2461,7 @@ static int verify_reshape_position(struct mdinfo *info, int level)
 			} else if (info->reshape_progress > position) {
 				pr_err("Fatal error: array reshape was not properly frozen (expected reshape position is %llu, but reshape progress is %llu.\n",
 				       position, info->reshape_progress);
+				pr_err("Reassemble array to try to restore critical sector.\n");
 				ret_val = -1;
 			} else {
 				dprintf("Reshape position in md and metadata are the same;");
