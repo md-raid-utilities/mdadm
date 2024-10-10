@@ -31,7 +31,19 @@ do
   echo 1000 > /proc/sys/dev/raid/speed_limit_min
   echo 2000 > /proc/sys/dev/raid/speed_limit_max
   check wait
-  while ! echo check > /sys/block/md0/md/sync_action; do sleep 0.1; done
+
+  counter=0
+  max_count=50  # 50 iterations of 0.1s = 5 seconds
+ 
+  while ! echo check > /sys/block/md0/md/sync_action; do
+      sleep 0.1
+      counter=$((counter + 1))
+      if [ "$counter" -ge "$max_count" ]; then
+          echo >&2 "Timeout waiting for check to succeed"
+          exit 1
+      fi
+  done
+
   check wait
   mm=`cat /sys/block/md0/md/mismatch_cnt`
   if [ $mm -gt 0 ]
