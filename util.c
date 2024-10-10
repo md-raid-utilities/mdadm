@@ -2308,6 +2308,7 @@ int continue_via_systemd(char *devnm, char *service_name, char *prefix)
 	int pid, status;
 	char pathbuf[1024];
 
+	dprintf("Start %s service\n", service_name);
 	/* Simply return that service cannot be started */
 	if (check_env("MDADM_NO_SYSTEMCTL"))
 		return 0;
