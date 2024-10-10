@@ -3558,6 +3558,16 @@ started:
 	if (restart)
 		sysfs_set_str(sra, NULL, "array_state", "active");
 
+	/* Do not run in initrd */
+	if (in_initrd()) {
+		free(fdlist);
+		free(offsets);
+		sysfs_free(sra);
+		pr_err("Reshape has to be continued from location %llu when root filesystem has been mounted.\n",
+			sra->reshape_progress);
+		return 1;
+	}
+
 	if (!forked)
 		if (continue_via_systemd(container ?: sra->sys_name,
 					 GROW_SERVICE, NULL)) {
@@ -3753,7 +3763,8 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked)
+	/* Do not run reshape in initrd but let it initialize. */
+	if (!forked && !in_initrd())
 		if (continue_via_systemd(container, GROW_SERVICE, NULL))
 			return 0;
 
@@ -3863,6 +3874,11 @@ int reshape_container(char *container, char *devname,
 				   content, c->force, NULL, INVALID_SECTORS,
 				   c->backup_file, c->verbose, 1, restart);
 		close(fd);
+
+		if (in_initrd()) {
+			sysfs_free(cc);
+			exit(0);
+		}
 
 		restart = 0;
 		if (rv)
