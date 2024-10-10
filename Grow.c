@@ -3068,6 +3068,39 @@ static void catch_term(int sig)
 	sigterm = 1;
 }
 
+/**
+ * handle_forking() - Handle forking, helper function for reshapes.
+ *
+ * @forked: is process forked.
+ * @devname: device name.
+ * @service: wheather a service should be started or just fork.
+ *
+ * Returns: -1 if failed to fork,
+ *           0 if currently child process,
+ *           1 process forked, passed to service or delegated to udev.
+ */
+static int handle_forking(bool forked, char *devname, bool service)
+{
+	/* Nothing to do if already forked. */
+	if (forked)
+		return 0;
+
+	/* Just fork if no service. */
+	if (service) {
+		/* Allow udev to trigger service after switchroot. */
+		if (in_initrd())
+			return 1;
+		if (continue_via_systemd(devname, GROW_SERVICE, NULL))
+			return 1;
+	}
+
+	switch (fork()) {
+	case -1: return -1; /* error */
+	case 0: return 0; /* child */
+	default: return 1; /* parent */
+	}
+}
+
 static int reshape_array(char *container, int fd, char *devname,
 			 struct supertype *st, struct mdinfo *info,
 			 int force, struct mddev_dev *devlist,
@@ -3566,33 +3599,24 @@ started:
 		return 1;
 	}
 
-	if (!forked)
-		if (continue_via_systemd(container ?: sra->sys_name,
-					 GROW_SERVICE, NULL)) {
-			free(fdlist);
-			free(offsets);
-			sysfs_free(sra);
-			return 0;
-		}
-
 	/* Now we just need to kick off the reshape and watch, while
 	 * handling backups of the data...
 	 * This is all done by a forked background process.
 	 */
-	switch(forked ? 0 : fork()) {
-	case -1:
+	switch (handle_forking(forked, container ?: sra->sys_name, true)) {
+	case -1: /* error */
 		pr_err("Cannot run child to monitor reshape: %s\n",
 			strerror(errno));
 		abort_reshape(sra);
 		goto release;
-	default:
+	case 0: /* child */
+		map_fork();
+		break;
+	case 1: /* parent */
 		free(fdlist);
 		free(offsets);
 		sysfs_free(sra);
 		return 0;
-	case 0:
-		map_fork();
-		break;
 	}
 
 	/* Close unused file descriptor in the forked process */
@@ -3761,23 +3785,20 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked && !c->freeze_reshape)
-		if (continue_via_systemd(container, GROW_SERVICE, NULL))
-			return 0;
-
-	switch (forked ? 0 : fork()) {
+	/* Do not start a service if reshape frozen. */
+	switch (handle_forking(forked, container, !c->freeze_reshape)) {
 	case -1: /* error */
 		perror("Cannot fork to complete reshape\n");
 		unfreeze(st);
 		return 1;
-	default: /* parent */
-		if (!c->freeze_reshape)
-			printf("%s: multi-array reshape continues in background\n", Name);
-		return 0;
 	case 0: /* child */
 		manage_fork_fds(0);
 		map_fork();
 		break;
+	default: /* parent */
+		if (!c->freeze_reshape)
+			printf("%s: multi-array reshape continues in background\n", Name);
+		return 0;
 	}
 
 	/* close unused handle in child process
