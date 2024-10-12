@@ -1830,6 +1830,16 @@ can be found it
 under
 .BR "SCRUBBING AND MISMATCHES" .
 
+.TP
+.B \-\-udev\-rules=
+it generates the udev rules to the file that handles hot-plug bare devices.
+Given the POLICYs defined under
+.IR {CONFFILE}\ (or {CONFFILE2})
+
+See
+.BR mdadm.conf (5)
+for more details and usage examples about POLICY.
+
 .SH For Incremental Assembly mode:
 .TP
 .BR \-\-rebuild\-map ", " \-r
