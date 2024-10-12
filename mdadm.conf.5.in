@@ -506,8 +506,12 @@ of the new disk or if both arrays have the same
 .IR spare-group .
 
 To update hot plug configuration it is necessary to execute
-.B mdadm \-\-udev\-rules
-command after changing the config file
+.B mdadm \-\-udev\-rules\=<path_to_file>
+e.g.
+.B /etc/udev/rules.d/65-md-bare.rules
+command after changing the config file. And also run
+.B udevadm control \-\-reload
+otherwise, a reboot is needed.
 
 Keywords used in the
 .I POLICY
@@ -724,14 +728,6 @@ ARRAY /dev/md/home UUID=9187a482:5dde19d9:eea3cc4a:d646ab8b
 .br
            auto=part
 .br
-POLICY domain=domain1 metadata=imsm path=pci-0000:00:1f.2-scsi-*
-.br
-           action=spare
-.br
-POLICY domain=domain1 metadata=imsm path=pci-0000:04:00.0-scsi-[01]*
-.br
-           action=include
-.br
 # One domain comprising of devices attached to specified paths is defined.
 .br
 # Bare device matching first path will be made an imsm spare on hot plug.
@@ -741,6 +737,14 @@ POLICY domain=domain1 metadata=imsm path=pci-0000:04:00.0-scsi-[01]*
 # one of them becomes degraded, then any imsm spare matching any path for
 .br
 # given domain name can be migrated.
+.br
+POLICY domain=domain1 metadata=imsm path=pci-0000:00:1f.2-scsi-*
+.br
+           action=spare
+.br
+POLICY domain=domain1 metadata=imsm path=pci-0000:04:00.0-scsi-[01]*
+.br
+           action=include
 .br
 MAILADDR root@mydomain.tld
 .br
