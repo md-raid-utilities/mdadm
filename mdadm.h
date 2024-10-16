@@ -530,7 +530,6 @@ enum special_options {
 	RebuildMapOpt,
 	InvalidBackup,
 	UdevRules,
-	FreezeReshape,
 	Continue,
 	OffRootOpt,
 	Prefer,
@@ -676,7 +675,6 @@ struct context {
 	int	SparcAdjust;
 	int	autof;
 	int	delay;
-	int	freeze_reshape;
 	char	*backup_file;
 	int	invalid_backup;
 	char	*action;
