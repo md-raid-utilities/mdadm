@@ -1138,7 +1138,6 @@ int open_dev_excl(char *devnm)
 	int flags = O_RDWR;
 	dev_t devid = devnm2devid(devnm);
 	unsigned int delay = 1; // miliseconds
-
 	sprintf(buf, "%d:%d", major(devid), minor(devid));
 	for (i = 0; i < 25; i++) {
 		int fd = dev_open(buf, flags|O_EXCL);
@@ -2344,6 +2343,7 @@ int continue_via_systemd(char *devnm, char *service_name, char *prefix)
 	int pid, status;
 	char pathbuf[1024];
 
+	dprintf("Start %s service\n", service_name);
 	/* Simply return that service cannot be started */
 	if (check_env("MDADM_NO_SYSTEMCTL"))
 		return 0;

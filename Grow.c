@@ -1820,7 +1820,7 @@ static int reshape_array(char *container, int fd, char *devname,
 			 int force, struct mddev_dev *devlist,
 			 unsigned long long data_offset,
 			 char *backup_file, int verbose, int forked,
-			 int restart, int freeze_reshape);
+			 int restart);
 static int reshape_container(char *container, char *devname,
 			     int mdfd,
 			     struct supertype *st,
@@ -2414,7 +2414,7 @@ size_change_error:
 		sync_metadata(st);
 		rv = reshape_array(container, fd, devname, st, &info, c->force,
 				   devlist, s->data_offset, c->backup_file,
-				   c->verbose, 0, 0, 0);
+				   c->verbose, 0, 0);
 		frozen = 0;
 	}
 release:
@@ -2460,6 +2460,7 @@ static int verify_reshape_position(struct mdinfo *info, int level)
 			} else if (info->reshape_progress > position) {
 				pr_err("Fatal error: array reshape was not properly frozen (expected reshape position is %llu, but reshape progress is %llu.\n",
 				       position, info->reshape_progress);
+				pr_err("Reassemble array to try to restore critical sector.\n");
 				ret_val = -1;
 			} else {
 				dprintf("Reshape position in md and metadata are the same;");
@@ -3073,7 +3074,7 @@ static int reshape_array(char *container, int fd, char *devname,
 			 int force, struct mddev_dev *devlist,
 			 unsigned long long data_offset,
 			 char *backup_file, int verbose, int forked,
-			 int restart, int freeze_reshape)
+			 int restart)
 {
 	struct reshape reshape;
 	int spares_needed;
@@ -3557,7 +3558,9 @@ started:
 	}
 	if (restart)
 		sysfs_set_str(sra, NULL, "array_state", "active");
-	if (freeze_reshape) {
+
+	/* Do not run in initrd */
+	if (in_initrd()) {
 		free(fdlist);
 		free(offsets);
 		sysfs_free(sra);
@@ -3761,7 +3764,8 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked && !c->freeze_reshape)
+	/* Do not run reshape in initrd but let it initialize. */
+	if (!forked && !in_initrd())
 		if (continue_via_systemd(container, GROW_SERVICE, NULL))
 			return 0;
 
@@ -3771,8 +3775,7 @@ int reshape_container(char *container, char *devname,
 		unfreeze(st);
 		return 1;
 	default: /* parent */
-		if (!c->freeze_reshape)
-			printf("%s: multi-array reshape continues in background\n", Name);
+		printf("%s: multi-array reshape continues in background\n", Name);
 		return 0;
 	case 0: /* child */
 		manage_fork_fds(0);
@@ -3870,11 +3873,10 @@ int reshape_container(char *container, char *devname,
 
 		rv = reshape_array(container, fd, adev, st,
 				   content, c->force, NULL, INVALID_SECTORS,
-				   c->backup_file, c->verbose, 1, restart,
-				   c->freeze_reshape);
+				   c->backup_file, c->verbose, 1, restart);
 		close(fd);
 
-		if (c->freeze_reshape) {
+		if (in_initrd()) {
 			sysfs_free(cc);
 			exit(0);
 		}
@@ -5293,8 +5295,7 @@ int Grow_continue(int mdfd, struct supertype *st, struct mdinfo *info,
 	} else
 		ret_val = reshape_array(NULL, mdfd, "array", st, info, 1,
 					NULL, INVALID_SECTORS, c->backup_file,
-					0, forked, 1 | info->reshape_active,
-					c->freeze_reshape);
+					0, forked, 1 | info->reshape_active);
 
 	return ret_val;
 }
