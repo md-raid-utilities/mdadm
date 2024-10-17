@@ -12400,6 +12400,7 @@ int wait_for_reshape_imsm(struct mdinfo *sra, int ndata)
 			close(fd);
 			return -1;
 		}
+		// test
 
 		rc = read_completed(fd, &completed);
 		if (rc < 0) {
