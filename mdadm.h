@@ -414,7 +414,14 @@ struct mdinfo {
 	#define DS_BLOCKED	16
 	#define	DS_REMOVE	1024
 	#define	DS_UNBLOCK	2048
+	#define	DS_EXTERNAL_BB	4096
 	int prev_state, curr_state, next_state;
+
+	/* If set by monitor, managemon needs to remove faulty device */
+	bool man_disk_to_remove : 1;
+
+	/* Managemon cannot close descriptors if monitor is using them for select() */
+	bool mon_descriptors_not_used : 1;
 
 	/* info read from sysfs */
 	enum {
