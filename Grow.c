@@ -2952,7 +2952,7 @@ static int impose_reshape(struct mdinfo *sra,
 			err = errno;
 
 		/* new_level is introduced in kernel 6.12 */
-		if (!err && get_linux_version() >= 6012000 &&
+		if (!err && sysfs_attribute_available(sra, NULL, "new_level") &&
 				sysfs_set_num(sra, NULL, "new_level", info->new_level) < 0)
 			err = errno;
 
