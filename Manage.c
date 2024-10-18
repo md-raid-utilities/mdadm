@@ -793,6 +793,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	int j;
 	mdu_disk_info_t disc;
 	struct map_ent *map = NULL;
+	bool add_new_super = false;
 
 	if (!get_dev_size(tfd, dv->devname, &ldsize)) {
 		if (dv->disposition == 'M')
@@ -1011,6 +1012,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 			goto unlock;
 		if (tst->ss->write_init_super(tst))
 			goto unlock;
+		add_new_super = true;
 	} else if (dv->disposition == 'A') {
 		/*  this had better be raid1.
 		 * As we are "--re-add"ing we must find a spare slot
@@ -1078,6 +1080,8 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	map_unlock(&map);
 	return 1;
 unlock:
+	if (add_new_super)
+		Kill(dv->devname, tst, 0, -1, 0);
 	map_unlock(&map);
 	return -1;
 }
