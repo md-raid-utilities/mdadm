@@ -2036,7 +2036,8 @@ int Grow_reshape(char *devname, int fd,
 		sysfs_free(sra);
 		return 1;
 	} else if (frozen < 0) {
-		pr_err("%s is performing resync/recovery and cannot be reshaped\n", devname);
+		pr_err("%s is performing resync/recovery and cannot be %s\n", devname,
+		       (s->level != UnSet && s->level != array.level) ? "taken over" : "reshaped");
 		sysfs_free(sra);
 		return 1;
 	}
