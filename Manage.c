@@ -1577,8 +1577,8 @@ int Manage_subdevs(char *devname, int fd,
 		} else {
 			tfd = dev_open(dv->devname, O_RDONLY);
 			if (tfd >= 0) {
-				fstat_is_blkdev(tfd, dv->devname, &rdev);
-				close_fd(&tfd);
+				if (!fstat_is_blkdev(tfd, dv->devname, &rdev))
+					close_fd(&tfd);
 			} else {
 				int open_err = errno;
 				if (!stat_is_blkdev(dv->devname, &rdev)) {
@@ -1601,6 +1601,7 @@ int Manage_subdevs(char *devname, int fd,
 					goto abort;
 				}
 			}
+			close_fd(&tfd);
 		}
 		switch(dv->disposition){
 		default:
@@ -1756,6 +1757,7 @@ int Manage_subdevs(char *devname, int fd,
 	return 0;
 
 abort:
+	close_fd(&tfd);
 	free(tst);
 	if (frozen > 0)
 		sysfs_set_str(&info, NULL, "sync_action","idle");
