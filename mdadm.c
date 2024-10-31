@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 	struct supertype *ss = NULL;
 	enum flag_mode writemostly = FlagDefault;
 	enum flag_mode failfast = FlagDefault;
-	char *shortopt = short_options;
+	char *shortopt = short_opts;
 	int dosyslog = 0;
 	int rebuild_map = 0;
 	char *remove_path = NULL;
@@ -228,10 +228,10 @@ int main(int argc, char *argv[])
 		 * set the mode if it isn't already
 		 */
 
-		switch(opt) {
+		switch (opt) {
 		case ManageOpt:
 			newmode = MANAGE;
-			shortopt = short_bitmap_options;
+			shortopt = short_bitmap_opts;
 			break;
 		case 'a':
 		case Add:
@@ -247,27 +247,33 @@ int main(int argc, char *argv[])
 		case ClusterConfirm:
 			if (!mode) {
 				newmode = MANAGE;
-				shortopt = short_bitmap_options;
+				shortopt = short_bitmap_opts;
 			}
 			break;
 
-		case 'A': newmode = ASSEMBLE;
-			shortopt = short_bitmap_auto_options;
+		case 'A':
+			newmode = ASSEMBLE;
+			shortopt = short_bitmap_auto_opts;
 			break;
-		case 'B': newmode = BUILD;
-			shortopt = short_bitmap_auto_options;
+		case 'B':
+			newmode = BUILD;
+			shortopt = short_bitmap_auto_opts;
 			break;
-		case 'C': newmode = CREATE;
-			shortopt = short_bitmap_auto_options;
+		case 'C':
+			newmode = CREATE;
+			shortopt = short_bitmap_auto_opts;
 			break;
-		case 'F': newmode = MONITOR;
-			shortopt = short_monitor_options;
+		case 'F':
+			newmode = MONITOR;
+			shortopt = short_monitor_opts;
 			break;
-		case 'G': newmode = GROW;
-			shortopt = short_bitmap_options;
+		case 'G':
+			newmode = GROW;
+			shortopt = short_bitmap_opts;
 			break;
-		case 'I': newmode = INCREMENTAL;
-			shortopt = short_bitmap_auto_options;
+		case 'I':
+			newmode = INCREMENTAL;
+			shortopt = short_bitmap_auto_opts;
 			break;
 		case AutoDetect:
 			newmode = AUTODETECT;

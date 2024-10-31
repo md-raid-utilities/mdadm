@@ -463,10 +463,8 @@ enum mode {
 	mode_count
 };
 
-extern char short_options[];
-extern char short_monitor_options[];
-extern char short_bitmap_options[];
-extern char short_bitmap_auto_options[];
+extern char short_opts[], short_monitor_opts[], short_bitmap_opts[], short_bitmap_auto_opts[];
+
 extern struct option long_options[];
 extern char Version[], Usage[], Help[], OptionHelp[],
 	*mode_help[],
