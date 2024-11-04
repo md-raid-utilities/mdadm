@@ -1728,15 +1728,30 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 
 	mdfd = open_dev_excl(ent->devnm);
 	if (is_fd_valid(mdfd)) {
+		char *array_state_file = "array_state";
+
+		/**
+		 * This is a workaround for the old issue.
+		 * Incremental_remove() triggered from udev rule when disk is removed from OS
+		 * tries to set array in auto-read-only mode. This can interrupt rebuild
+		 * process which is started automatically, e.g. if array is mounted and
+		 * spare disk is available (I/O errors limit might be achieved faster than disk is
+		 * removed by mdadm). Prevent Incremental_remove() from setting array
+		 * into "auto-read-only", by requiring  exclusive open to succeed.
+		 */
 		close_fd(&mdfd);
-		if (sysfs_get_str(&mdi, NULL, "array_state",
-				  buf, sizeof(buf)) > 0) {
-			if (strncmp(buf, "active", 6) == 0 ||
-			    strncmp(buf, "clean", 5) == 0)
-				sysfs_set_str(&mdi, NULL,
-					      "array_state", "read-auto");
+
+		if (sysfs_get_str(&mdi, NULL, array_state_file, buf, sizeof(buf)) > 0) {
+			char *str_read_auto = map_num_s(sysfs_array_states, ARRAY_READ_AUTO);
+			char *str_active = map_num_s(sysfs_array_states, ARRAY_ACTIVE);
+			char *str_clean = map_num_s(sysfs_array_states, ARRAY_CLEAN);
+
+			if (strncmp(buf, str_active, strlen(str_active)) == 0 ||
+			    strncmp(buf, str_clean, strlen(str_clean)) == 0)
+				sysfs_set_str(&mdi, NULL, array_state_file, str_read_auto);
 		}
 	}
+
 	mdfd = open_dev(ent->devnm);
 	if (mdfd < 0) {
 		if (verbose >= 0)
@@ -1746,6 +1761,7 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 
 	if (id_path) {
 		struct map_ent *map = NULL, *me;
+
 		me = map_by_devnm(&map, ent->devnm);
 		if (me)
 			policy_save_path(id_path, me);
