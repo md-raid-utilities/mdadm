@@ -140,17 +140,17 @@ int read_dev_state(int fd)
 
 	cp = buf;
 	while (cp) {
-		if (sysfs_attr_match(cp, "faulty"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_FAULTY)))
 			rv |= DS_FAULTY;
-		if (sysfs_attr_match(cp, "in_sync"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_IN_SYNC)))
 			rv |= DS_INSYNC;
-		if (sysfs_attr_match(cp, "write_mostly"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_WRITE_MOSTLY)))
 			rv |= DS_WRITE_MOSTLY;
-		if (sysfs_attr_match(cp, "spare"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_SPARE)))
 			rv |= DS_SPARE;
-		if (sysfs_attr_match(cp, "blocked"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_BLOCKED)))
 			rv |= DS_BLOCKED;
-		if (sysfs_attr_match(cp, "external_bbl"))
+		if (sysfs_attr_match(cp, map_memb_state(MEMB_STATE_EXTERNAL_BBL)))
 			rv |= DS_EXTERNAL_BB;
 		cp = strchr(cp, ',');
 		if (cp)

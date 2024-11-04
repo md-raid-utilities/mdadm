@@ -1675,9 +1675,7 @@ int Manage_subdevs(char *devname, int fd,
 			}
 		case 'I':
 			if (is_fd_valid(sysfd)) {
-				static const char val[] = "faulty";
-
-				rv = sysfs_write_descriptor(sysfd, val, strlen(val), &err);
+				rv = sysfs_set_memb_state_fd(sysfd, MEMB_STATE_FAULTY, &err);
 			} else {
 				rv = ioctl(fd, SET_DISK_FAULTY, rdev);
 				if (rv)
