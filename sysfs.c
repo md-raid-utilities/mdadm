@@ -75,6 +75,23 @@ void sysfs_free(struct mdinfo *sra)
 		sra = sra2;
 	}
 }
+
+mapping_t sysfs_memb_states[] = {
+	{"external_bbl", MEMB_STATE_EXTERNAL_BBL},
+	{"blocked", MEMB_STATE_BLOCKED},
+	{"spare", MEMB_STATE_SPARE},
+	{"write_mostly", MEMB_STATE_WRITE_MOSTLY},
+	{"in_sync", MEMB_STATE_IN_SYNC},
+	{"faulty", MEMB_STATE_FAULTY},
+	{"remove",  MEMB_STATE_REMOVE},
+	{NULL,  MEMB_STATE_UNKNOWN}
+};
+
+char *map_memb_state(memb_state_t state)
+{
+	return map_num_s(sysfs_memb_states, state);
+}
+
 /**
  * write_attr() - write value to fd, don't check errno.
  * @attr: value to write.
@@ -115,6 +132,21 @@ mdadm_status_t sysfs_write_descriptor(const int fd, const char *value, const ssi
 		return MDADM_STATUS_UNDEF;
 
 	return MDADM_STATUS_SUCCESS;
+}
+
+/**
+ * sysfs_set_memb_state_fd() - write to md/<memb>/state file.
+ * @fd: open file descriptor to the file.
+ * @state: enum value describing value to write
+ * @err: errno value pointer in case of error.
+ *
+ * This is helper to avoid inlining values, they are extracted from map now.
+ */
+mdadm_status_t sysfs_set_memb_state_fd(int fd, memb_state_t state, int *err)
+{
+	const char *val = map_memb_state(state);
+
+	return sysfs_write_descriptor(fd, val, strlen(val), err);
 }
 
 /**

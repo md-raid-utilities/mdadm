@@ -801,9 +801,28 @@ enum sysfs_read_flags {
 
 #define SYSFS_MAX_BUF_SIZE 64
 
+/**
+ * Defines md/<disk>/state possible values.
+ * Note that remove can't be read-back from the file.
+ *
+ * This is not complete list.
+ */
+typedef enum memb_state {
+	MEMB_STATE_EXTERNAL_BBL,
+	MEMB_STATE_BLOCKED,
+	MEMB_STATE_SPARE,
+	MEMB_STATE_WRITE_MOSTLY,
+	MEMB_STATE_IN_SYNC,
+	MEMB_STATE_FAULTY,
+	MEMB_STATE_REMOVE,
+	MEMB_STATE_UNKNOWN
+} memb_state_t;
+char *map_memb_state(memb_state_t state);
+
 extern mdadm_status_t sysfs_write_descriptor(const int fd, const char *value,
 					     const ssize_t len, int *errno_p);
 extern mdadm_status_t write_attr(const char *value, const int fd);
+extern mdadm_status_t sysfs_set_memb_state_fd(int fd, memb_state_t state, int *err);
 extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
 
 extern int sysfs_open(char *devnm, char *devname, char *attr);
