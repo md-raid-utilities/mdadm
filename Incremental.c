@@ -282,7 +282,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		 * clustering resource agents
 		 */
 		if (info.array.state & (1 << MD_SB_CLUSTERED))
-			goto out;
+			goto out_unlock;
 
 		/* Couldn't find an existing array, maybe make a new one */
 		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
