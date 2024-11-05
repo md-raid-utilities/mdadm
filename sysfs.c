@@ -150,6 +150,29 @@ mdadm_status_t sysfs_set_memb_state_fd(int fd, memb_state_t state, int *err)
 }
 
 /**
+ * sysfs_set_memb_state() - write to member disk state file.
+ * @array_devnm: kernel name of the array.
+ * @memb_devnm: kernel name of member device.
+ * @state: value to write.
+ *
+ * Function expects that the device exists, error is unconditionally printed.
+ */
+mdadm_status_t sysfs_set_memb_state(char *array_devnm, char *memb_devnm, memb_state_t state)
+{
+	int state_fd = sysfs_open_memb_attr(array_devnm, memb_devnm, "state", O_RDWR);
+
+	if (!is_fd_valid(state_fd)) {
+		pr_err("Cannot open file descriptor to %s in array %s, aborting.\n",
+		       memb_devnm, array_devnm);
+			return MDADM_STATUS_ERROR;
+	}
+
+	return sysfs_set_memb_state_fd(state_fd, state, NULL);
+
+	close_fd(&state_fd);
+}
+
+/**
  * sysfs_get_container_devnm() - extract container device name.
  * @mdi: md_info describes member array, with GET_VERSION option.
  * @buf: buf to fill, must be MD_NAME_MAX.

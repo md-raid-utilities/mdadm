@@ -823,6 +823,7 @@ extern mdadm_status_t sysfs_write_descriptor(const int fd, const char *value,
 					     const ssize_t len, int *errno_p);
 extern mdadm_status_t write_attr(const char *value, const int fd);
 extern mdadm_status_t sysfs_set_memb_state_fd(int fd, memb_state_t state, int *err);
+extern mdadm_status_t sysfs_set_memb_state(char *array_devnm, char *memb_devnm, memb_state_t state);
 extern void sysfs_get_container_devnm(struct mdinfo *mdi, char *buf);
 
 extern int sysfs_open(char *devnm, char *devname, char *attr);
