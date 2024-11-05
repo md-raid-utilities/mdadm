@@ -78,7 +78,7 @@ mdadm() {
 					$mdadm --zero $args > /dev/null
 			}
 		done
-		$mdadm 2> $targetdir/stderr "$@" --auto=yes
+		$mdadm 2> $targetdir/stderr "$@"
 		;;
 	* )
 		$mdadm 2> $targetdir/stderr "$@"
