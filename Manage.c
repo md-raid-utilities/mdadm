@@ -1381,8 +1381,6 @@ bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const 
  * 'f' - set the device faulty SET_DISK_FAULTY
  *       device can be 'detached' in which case any device that
  *       is inaccessible will be marked faulty.
- * 'I' - remove device by using incremental fail
- *       which is executed when device is removed surprisingly.
  * 'R' - mark this device as wanting replacement.
  * 'W' - this device is added if necessary and activated as
  *       a replacement for a previous 'R' device.
@@ -1544,9 +1542,9 @@ int Manage_subdevs(char *devname, int fd,
 
 			/* This is a kernel-internal name like 'sda1' */
 
-			if (!strchr("rfI", dv->disposition)) {
-				pr_err("%s only meaningful with -r, -f or -I, not -%c\n",
-					dv->devname, dv->disposition);
+			if (!strchr("rf", dv->disposition)) {
+				pr_err("%s only meaningful with -r, -f, not -%c\n", dv->devname,
+				       dv->disposition);
 				goto abort;
 			}
 
@@ -1673,7 +1671,7 @@ int Manage_subdevs(char *devname, int fd,
 				close_fd(&sysfd);
 				goto abort;
 			}
-		case 'I':
+
 			if (is_fd_valid(sysfd)) {
 				rv = sysfs_set_memb_state_fd(sysfd, MEMB_STATE_FAULTY, &err);
 			} else {
