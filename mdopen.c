@@ -192,13 +192,8 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	}
 
 	/* Now determine device number */
-	/* named 'METADATA' cannot use 'mdp'. */
 	if (name && name[0] == 0)
 		name = NULL;
-	if (name && trustworthy == METADATA) {
-		pr_err("%s is not allowed for a %s container. Consider /dev/md%d.\n", dev, name, num);
-		return -1;
-	}
 
 	if (num < 0 && trustworthy == LOCAL && name) {
 		/* if name is numeric, possibly prefixed by
