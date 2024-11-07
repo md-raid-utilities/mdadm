@@ -1,3 +1,38 @@
+# Release [mdadm-4.4](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.4)
+
+Features:
+- Remobe custom bitmap file support from Yu Kuai.
+- Custom device policies implementation from Mariusz Tkaczyk.
+- Self encrypted drives (**SED**) support for IMSM metadata from Blazej Kucman.
+- Support more than 4 disks for **IMSM** RAID10 from Mateusz Kusiak.
+- Read **IMSM** license information from ACPI tables from Blazej Kucman.
+- Support devnode in **--Incremental --remove** from Mariusz Tkaczyk.
+- Printing **IMSM** license type in **--detail-platform** from Blazej Kucman.
+- README.md from Mariusz Tkaczyk and Anna Sztukowska.
+
+Fixes:
+- Tests improvements from Xiao Ni and Kinga Stefaniuk.
+- Mdmon's Checkpointing improvements from Mateusz Kusiak.
+- Pass mdadm environment flags to systemd-env to enable tests from Mateusz Kusiak.
+- Superblock 1.0 uuid printing fixes from Mariusz Tkaczyk.
+- Find VMD bus manually if link is not available from Mariusz Tkaczyk.
+- Unconditional devices count printing in --detail from Anna Sztukowska.
+- Improve SIGTERM handling during reshape, from Mateusz Kusiak.
+- **Monitor.c** renamed to **Mdmonitor.c** from Kinga Stefaniuk.
+- Mdmonitor service documentation update from Mariusz Tkaczyk.
+- Rework around writing to sysfs files from Mariusz Tkaczyk.
+- Drop of HOT_REMOVE_DISK ioctl in Manage in favour of sysfs from Mariusz Tkaczyk.
+- Delegate disk removal to managemon from Mariusz Tkaczyk.
+- Some clean-ups of legacy code and functionalities like **--auto=md** from Mariusz Tkaczyk.
+- Manual clean-up, references to old kernels removed from Mariusz Tkaczyk.
+- Various static code analysis fixes.
+
+In this release we created github repository and allowed participation through
+Github. It allowed us to use Github actions adn create CI. Currently, we have:
+- Compilation tests with various gcc.
+- **mdadm** tests.
+- Checkpatch test.
+
 # Release [mdadm-4.3](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.3)
 
 Features:
