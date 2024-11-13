@@ -51,14 +51,14 @@ Generally, if you are not sure it is better to ask on
 # How to Contribute
 
 Effective immediately [Github](https://github.com/md-raid-utilities/mdadm) is the primary
-location for **mdadm**. Use pull request to contribute.
+location for **mdadm**. Please use pull requests to contribute.
 
 It was originally hosted on [kernel.org](https://kernel.org/). You can access the old repository
 [here](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git).
 
-Patches sent through Mailing list are accepted but Github is preferred. Sent then to ML only
-if you cannot use Github. Please add "mdadm:" to the subject to allow automation to create Github
-Pull Request and run checks.
+While this is the preferred contribution method, mailing list submissions are still welcome and
+will be handled as has always been the case for mdadm. Please add "mdadm:" to the subject to allow
+automation to create Github Pull Request and run checks.
 
 **NOTE:** Maintainers may ask you to send RFC to mailing list if the proposed code requires
 consultation with kernel developers.
