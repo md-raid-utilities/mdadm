@@ -5,6 +5,7 @@ sudo make -j$(nproc)
 sudo make install
 sudo mdadm -Ss
 sudo ./test setup
-ret=$(sudo ./test --skip-broken --no-error --disable-integrity --disable-multipath --disable-linear --keep-going)
+sudo ./test --skip-broken --no-error --disable-integrity --disable-multipath --disable-linear --keep-going
+ret=$?
 sudo ./test cleanup
 exit $ret
