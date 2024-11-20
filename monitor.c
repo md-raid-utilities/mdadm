@@ -406,7 +406,6 @@ static int read_and_act(struct active_array *a)
 	struct mdinfo *mdi;
 	int ret = 0;
 	int count = 0;
-	struct timeval tv;
 	bool write_checkpoint = false;
 
 	a->next_state = bad_word;
@@ -453,10 +452,8 @@ static int read_and_act(struct active_array *a)
 		check_for_cleared_bb(a, mdi);
 	}
 
-	gettimeofday(&tv, NULL);
-	dprintf("(%d): %ld.%06ld state:%s prev:%s action:%s prev: %s start:%llu\n",
+	dprintf("(%d): state:%s prev:%s action:%s prev: %s start:%llu\n",
 		a->info.container_member,
-		tv.tv_sec, tv.tv_usec,
 		array_states[a->curr_state],
 		array_states[a->prev_state],
 		sync_actions[a->curr_action],

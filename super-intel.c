@@ -5092,7 +5092,6 @@ imsm_thunderdome(struct intel_super **super_list, int len)
 	for (i = 0; i < tbl_size; i++) {
 		struct imsm_disk *d;
 		struct intel_disk *idisk;
-		struct imsm_super *mpb = super_table[i]->anchor;
 
 		s = super_table[i];
 		d = &s->disks->disk;
@@ -5108,7 +5107,7 @@ imsm_thunderdome(struct intel_super **super_list, int len)
 
 		if (!s)
 			dprintf("marking family: %#x from %d:%d offline\n",
-				mpb->family_num,
+				super_table[i]->anchor->family_num,
 				super_table[i]->disks->major,
 				super_table[i]->disks->minor);
 		super_table[i] = s;
