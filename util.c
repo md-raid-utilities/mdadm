@@ -1983,7 +1983,7 @@ int start_mdmon(char *devnm)
 
 	if (check_env("MDADM_NO_MDMON"))
 		return 0;
-	if (continue_via_systemd(devnm, MDMON_SERVICE, prefix))
+	if (continue_via_systemd(devnm, MDMON_SERVICE, prefix) == MDADM_STATUS_SUCCESS)
 		return 0;
 
 	/* That failed, try running mdmon directly */
@@ -2300,36 +2300,41 @@ void manage_fork_fds(int close_all)
 /* In a systemd/udev world, it is best to get systemd to
  * run daemon rather than running in the background.
  * Returns:
- *	1- if systemd service has been started
- *	0- otherwise
+ *	MDADM_STATUS_SUCCESS - if systemd service has been started.
+ *	MDADM_STATUS_ERROR - otherwise.
  */
-int continue_via_systemd(char *devnm, char *service_name, char *prefix)
+mdadm_status_t continue_via_systemd(char *devnm, char *service_name, char *prefix)
 {
 	int pid, status;
-	char pathbuf[1024];
+	char pathbuf[PATH_MAX];
 
 	dprintf("Start %s service\n", service_name);
 	/* Simply return that service cannot be started */
 	if (check_env("MDADM_NO_SYSTEMCTL"))
-		return 0;
+		return MDADM_STATUS_SUCCESS;
+
+	/* Fork in attempt to start services */
 	switch (fork()) {
-	case  0:
-		manage_fork_fds(1);
-		snprintf(pathbuf, sizeof(pathbuf),
-			 "%s@%s%s.service", service_name, prefix ?: "", devnm);
-		status = execl("/usr/bin/systemctl", "systemctl", "restart",
-			       pathbuf, NULL);
-		status = execl("/bin/systemctl", "systemctl", "restart",
-			       pathbuf, NULL);
-		exit(1);
-	case -1: /* Just do it ourselves. */
+	case -1: /* Fork failed, just do it ourselves. */
 		break;
-	default: /* parent - good */
+	case  0: /* child */
+		manage_fork_fds(1);
+		snprintf(pathbuf, sizeof(pathbuf), "%s@%s%s.service",
+			 service_name, prefix ? prefix : "", devnm);
+
+		/* Attempt to start service.
+		 * On success execl() will "kill" the fork, and return status of systemctl call.
+		 */
+		execl("/usr/bin/systemctl", "systemctl", "restart", pathbuf, NULL);
+		execl("/bin/systemctl", "systemctl", "restart", pathbuf, NULL);
+		exit(MDADM_STATUS_ERROR);
+	default: /* parent */
+		/* Check if forked process successfully trigered service */
 		pid = wait(&status);
 		if (pid >= 0 && status == 0)
-			return 1;
+			return MDADM_STATUS_SUCCESS;
 	}
-	return 0;
+	return MDADM_STATUS_ERROR;
 }
 
 int in_initrd(void)

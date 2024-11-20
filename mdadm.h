@@ -1668,7 +1668,7 @@ extern int same_dev(char *one, char *two);
 extern int compare_paths (char* path1,char* path2);
 extern void enable_fds(int devices);
 extern void manage_fork_fds(int close_all);
-extern int continue_via_systemd(char *devnm, char *service_name, char *prefix);
+extern mdadm_status_t continue_via_systemd(char *devnm, char *service_name, char *prefix);
 
 extern void ident_init(struct mddev_ident *ident);
 extern mdadm_status_t ident_set_devname(struct mddev_ident *ident, const char *devname);
