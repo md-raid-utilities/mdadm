@@ -6122,7 +6122,8 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n",
 			       basename(cntrl_path));
 
-		if (super->orom && !imsm_orom_has_tpv_support(super->orom)) {
+		if (super->orom && devpath_to_vendor(pci_dev_path) != 0x8086 &&
+		    !imsm_orom_has_tpv_support(super->orom)) {
 			pr_err("\tPlatform configuration does not support non-Intel NVMe drives.\n"
 			       "\tPlease refer to Intel(R) RSTe/VROC user guide.\n");
 			goto error;
