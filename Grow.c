@@ -3013,7 +3013,7 @@ static mdadm_status_t handle_forking(bool forked, char *devname)
 	if (forked)
 		return MDADM_STATUS_FORKED;
 
-	if (devname && continue_via_systemd(devname, GROW_SERVICE, NULL))
+	if (devname && continue_via_systemd(devname, GROW_SERVICE, NULL) == MDADM_STATUS_SUCCESS)
 		return MDADM_STATUS_SUCCESS;
 
 	switch (fork()) {
