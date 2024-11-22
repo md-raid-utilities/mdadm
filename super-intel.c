@@ -7055,7 +7055,8 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 			int fd = -1;
 
 			while (dev && !is_fd_valid(fd)) {
-				char *path = xmalloc(strlen(dev->name) + strlen("/dev/") + 1);
+				char path[PATH_MAX];
+
 				num = snprintf(path, PATH_MAX, "%s%s", "/dev/", dev->name);
 				if (num > 0)
 					fd = open(path, O_RDONLY, 0);
@@ -7063,7 +7064,6 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 					pr_vrb("Cannot open %s: %s\n",
 					       dev->name, strerror(errno));
 				}
-				free(path);
 				dev = dev->next;
 			}
 			found = 0;
