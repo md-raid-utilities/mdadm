@@ -186,7 +186,7 @@ is_raid_foreign() {
 	# to decide if an array is foreign or local. It adds homehost if
 	# one array is local
 	hostname=$(hostname)
-	if [ `expr length "$(hostname)$name"` -lt 31 ]; then
+	if [ `expr length "$(hostname):$name"` -lt 31 ]; then
 		is_foreign="no"
 	else
 		is_foreign="yes"
