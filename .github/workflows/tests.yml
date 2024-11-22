@@ -6,6 +6,8 @@ on:
     paths:
       - '*.c'
       - '*.h'
+      - 'tests/*'
+      - 'test'
 jobs:
   upstream_tests:
      if: ${{ github.repository == 'md-raid-utilities/mdadm' }}
