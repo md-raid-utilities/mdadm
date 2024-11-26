@@ -150,11 +150,14 @@ do_test() {
 			fi
 		fi
 		restore_system_speed_limit
-		[ "$savelogs" == "1" ] &&
-			mv -f $targetdir/log $logdir/$_basename.log
+
+		[ "$savelogs" == "1" ] && mv -f $targetdir/log $logdir/$_basename.log
+
 		[ "$ctrl_c_error" == "1" ] && exit 1
-		[ "$_fail" == "1" -a "$exitonerror" == "1" \
-		  -a "$_broken" == "0" ] && exit 1
+
+		[ "$_fail" == "1" -a "$exitonerror" == "1" -a "$_broken" == "0" ] && exit 1
+
+		[ "$_fail" == "1" ] && do_test_ret=1
 	fi
 }
 
@@ -340,6 +343,8 @@ main() {
 	[ "$savelogs" == "1" ] &&
 		echo "Saving logs to $logdir"
 
+	do_test_ret=0
+
 	while true; do
 		if [ "x$TESTLIST" != "x" ]
 		then
@@ -350,11 +355,10 @@ main() {
 		else
 			for script in $testdir/$prefix $testdir/$prefix*[^~]
 			do
-				case $script in
-				 *.broken) ;;
+				case $script in *.broken) ;;
 				 *)
 				     do_test $script
-				 esac
+				esac
 			done
 		fi
 
@@ -365,7 +369,7 @@ main() {
 	done
 
 	restore_selinux
-	exit 0
+	exit $do_test_ret
 }
 
 parse_args $@
