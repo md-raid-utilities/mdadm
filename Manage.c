@@ -1006,13 +1006,16 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 			disc.state |= 1 << MD_DISK_WRITEMOSTLY;
 		if (dv->failfast == FlagSet)
 			disc.state |= 1 << MD_DISK_FAILFAST;
-		dfd = dev_open(dv->devname, O_RDWR | O_EXCL|O_DIRECT);
-		if (tst->ss->add_to_super(tst, &disc, dfd,
-					  dv->devname, INVALID_SECTORS))
-			goto unlock;
-		if (tst->ss->write_init_super(tst))
-			goto unlock;
-		add_new_super = true;
+		
+		if (dv->disposition == 'c') {
+			dfd = dev_open(dv->devname, O_RDWR | O_EXCL|O_DIRECT);
+			if (tst->ss->add_to_super(tst, &disc, dfd,
+					  	dv->devname, INVALID_SECTORS))
+				goto unlock;
+			if (tst->ss->write_init_super(tst))
+				goto unlock;
+			add_new_super = true;
+		}
 	} else if (dv->disposition == 'A') {
 		/*  this had better be raid1.
 		 * As we are "--re-add"ing we must find a spare slot
