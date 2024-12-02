@@ -1645,22 +1645,6 @@ release:
 	return rv;
 }
 
-static void remove_from_member_array(struct mdstat_ent *memb,
-				    struct mddev_dev *devlist, int verbose)
-{
-	int subfd = open_dev(memb->devnm);
-
-	if (subfd >= 0) {
-		/*
-		 * Ignore the return value because it's necessary
-		 * to handle failure condition here.
-		 */
-		Manage_subdevs(memb->devnm, subfd, devlist, verbose,
-			       0, UOPT_UNDEFINED, 0);
-		close(subfd);
-	}
-}
-
 /**
  * is_devnode_path() - check if the devname passed might be devnode path.
  * @devnode: the path to check.
@@ -1682,24 +1666,80 @@ static bool is_devnode_path(char *devnode)
 }
 
 /**
+ * Incremental_remove_external() - Remove the device from external container.
+ * @device_devnm: block device to remove.
+ * @container_devnm: the parent container
+ * @mdstat: mdstat file content.
+ * @verbose: verbose flag.
+ *
+ * Fail member device in each subarray and remove member device from external container.
+ * The resposibility of removing member disks from external subararys belongs to mdmon.
+ */
+static mdadm_status_t Incremental_remove_external(char *device_devnm, char *container_devnm,
+						  struct mdstat_ent *mdstat, int verbose)
+{
+	mdadm_status_t rv = MDADM_STATUS_SUCCESS;
+	struct mdstat_ent *memb;
+
+	for (memb = mdstat ; memb ; memb = memb->next) {
+		mdadm_status_t ret = MDADM_STATUS_SUCCESS;
+		int state_fd;
+
+		if (!is_container_member(memb, container_devnm))
+			continue;
+
+		/*
+		 * Checking mdstat is pointles because it might be outdated, try open descriptor
+		 * instead. If it fails, we are fine with that, device is already gone.
+		 */
+		state_fd = sysfs_open_memb_attr(memb->devnm, device_devnm, "state", O_RDWR);
+		if (!is_fd_valid(state_fd))
+			continue;
+
+		ret = sysfs_set_memb_state_fd(state_fd, MEMB_STATE_FAULTY, NULL);
+		if (ret && verbose >= 0)
+			pr_err("Cannot fail member device %s in external subarray %s.\n",
+				device_devnm, memb->devnm);
+
+		close_fd(&state_fd);
+
+		/*
+		 * Don't remove member device from container if it failed to remove it
+		 * from any member array.
+		 */
+		rv |= ret;
+	}
+
+	if (rv == MDADM_STATUS_SUCCESS)
+		rv = sysfs_set_memb_state(container_devnm, device_devnm, MEMB_STATE_REMOVE);
+
+	if (rv && verbose >= 0)
+		pr_err("Cannot remove member device %s from container %s.\n", device_devnm,
+		       container_devnm);
+
+	return rv;
+}
+
+/**
  * Incremental_remove() - Remove the device from all raid arrays.
  * @devname: the device we want to remove, it could be kernel device name or devnode.
  * @id_path: optional, /dev/disk/by-path path to save for bare scenarios support.
  * @verbose: verbose flag.
  *
- * First, fail the device (if needed) and then remove the device from native raid array or external
- * container.  If it is external container, the device is removed from each subarray first.
+ * First, fail the device (if needed) and then remove the device. This code is critical for system
+ * funtionality and that is why it is keept as simple as possible. We do not load devices using
+ * sysfs_read() because any unerelated failure may lead us to abort. We also do not call
+ * Manage_Subdevs().
  */
 int Incremental_remove(char *devname, char *id_path, int verbose)
 {
+	mdadm_status_t rv = MDADM_STATUS_SUCCESS;
 	char *devnm = basename(devname);
-	struct mddev_dev devlist = {0};
 	char buf[SYSFS_MAX_BUF_SIZE];
 	struct mdstat_ent *mdstat;
 	struct mdstat_ent *ent;
 	struct mdinfo mdi;
-	int rv = 1;
-	int mdfd;
+	int mdfd = -1;
 
 	if (strcmp(devnm, devname) != 0)
 		if (!is_devnode_path(devname)) {
@@ -1728,15 +1768,30 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 
 	mdfd = open_dev_excl(ent->devnm);
 	if (is_fd_valid(mdfd)) {
+		char *array_state_file = "array_state";
+
+		/**
+		 * This is a workaround for the old issue.
+		 * Incremental_remove() triggered from udev rule when disk is removed from OS
+		 * tries to set array in auto-read-only mode. This can interrupt rebuild
+		 * process which is started automatically, e.g. if array is mounted and
+		 * spare disk is available (I/O errors limit might be achieved faster than disk is
+		 * removed by mdadm). Prevent Incremental_remove() from setting array
+		 * into "auto-read-only", by requiring  exclusive open to succeed.
+		 */
 		close_fd(&mdfd);
-		if (sysfs_get_str(&mdi, NULL, "array_state",
-				  buf, sizeof(buf)) > 0) {
-			if (strncmp(buf, "active", 6) == 0 ||
-			    strncmp(buf, "clean", 5) == 0)
-				sysfs_set_str(&mdi, NULL,
-					      "array_state", "read-auto");
+
+		if (sysfs_get_str(&mdi, NULL, array_state_file, buf, sizeof(buf)) > 0) {
+			char *str_read_auto = map_num_s(sysfs_array_states, ARRAY_READ_AUTO);
+			char *str_active = map_num_s(sysfs_array_states, ARRAY_ACTIVE);
+			char *str_clean = map_num_s(sysfs_array_states, ARRAY_CLEAN);
+
+			if (strncmp(buf, str_active, strlen(str_active)) == 0 ||
+			    strncmp(buf, str_clean, strlen(str_clean)) == 0)
+				sysfs_set_str(&mdi, NULL, array_state_file, str_read_auto);
 		}
 	}
+
 	mdfd = open_dev(ent->devnm);
 	if (mdfd < 0) {
 		if (verbose >= 0)
@@ -1746,38 +1801,31 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 
 	if (id_path) {
 		struct map_ent *map = NULL, *me;
+
 		me = map_by_devnm(&map, ent->devnm);
 		if (me)
 			policy_save_path(id_path, me);
 		map_free(map);
 	}
 
-	devlist.devname = devnm;
-	devlist.disposition = 'I';
-	/* for a container, we must fail each member array */
 	if (is_mdstat_ent_external(ent)) {
-		struct mdstat_ent *memb;
-		for (memb = mdstat ; memb ; memb = memb->next) {
-			if (is_container_member(memb, ent->devnm))
-				remove_from_member_array(memb,
-					&devlist, verbose);
-		}
-	} else {
-		/*
-		 * This 'I' incremental remove is a try-best effort,
-		 * the failure condition can be safely ignored
-		 * because of the following up 'r' remove.
-		 */
-		Manage_subdevs(ent->devnm, mdfd, &devlist,
-			       verbose, 0, UOPT_UNDEFINED, 0);
+		rv = Incremental_remove_external(devnm, ent->devnm, mdstat, verbose);
+		goto out;
 	}
 
-	devlist.disposition = 'r';
-	rv = Manage_subdevs(ent->devnm, mdfd, &devlist,
-			    verbose, 0, UOPT_UNDEFINED, 0);
+	/* Native arrays are handled separatelly to provide more detailed error handling */
+	rv = sysfs_set_memb_state(ent->devnm, devnm, MEMB_STATE_FAULTY);
+	if (rv && verbose >= 0)
+		pr_err("Cannot fail member device %s in array %s.\n", devnm, ent->devnm);
 
-	close_fd(&mdfd);
+	if (rv == MDADM_STATUS_SUCCESS)
+		rv = sysfs_set_memb_state(ent->devnm, devnm, MEMB_STATE_REMOVE);
+
+	if (rv && verbose >= 0)
+		pr_err("Cannot remove member device %s from %s.\n", devnm, ent->devnm);
+
 out:
+	close_fd(&mdfd);
 	free_mdstat(mdstat);
 	return rv;
 }

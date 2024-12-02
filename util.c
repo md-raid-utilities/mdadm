@@ -1808,12 +1808,11 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 
 int sys_hot_remove_disk(int statefd, int force)
 {
-	static const char val[] = "remove";
 	int cnt = force ? 500 : 5;
 
 	while (cnt--) {
 		int err = 0;
-		int ret = sysfs_write_descriptor(statefd, val, strlen(val), &err);
+		int ret = sysfs_set_memb_state_fd(statefd, MEMB_STATE_REMOVE, &err);
 
 		if (ret == MDADM_STATUS_SUCCESS)
 			return 0;
