@@ -1448,6 +1448,18 @@ int Manage_subdevs(char *devname, int fd,
 		int rv, err = 0;
 		int mj, mn;
 
+		if (tst->ss->external && dv->disposition == 'A') {
+			pr_err("Cannot re-add member device %s to %s, it is not supported for external metadata, aborting.\n",
+			       dv->devname, fd2devnm(fd));
+			goto abort;
+		}
+
+		if (array.not_persistent == 1 && dv->disposition == 'A') {
+			pr_err("Cannot re-add member device %s to %s, array is not persistent, aborting.\n",
+			       dv->devname, fd2devnm(fd));
+			goto abort;
+		}
+
 		raid_slot = -1;
 		if (dv->disposition == 'c') {
 			rv = parse_cluster_confirm_arg(dv->devname, &dv->devname, &raid_slot);
