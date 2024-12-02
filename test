@@ -46,10 +46,17 @@ md125=/dev/md125
 mdp0=/dev/md_d0
 mdp1=/dev/md_d1
 
+SKIP=3
+
 die() {
 	echo -e "\n\tERROR: $* \n"
 	save_log fail
 	exit 2
+}
+
+skip() {
+	echo -e "\n\tSKIPPING, REASON: $* \n"
+	exit $SKIP
 }
 
 ctrl_c() {
@@ -142,11 +149,18 @@ do_test() {
 			succeed "succeeded\n"
 			_fail=0
 		else
-			print_time_elapsed $start_sec
-			save_log fail
-			_fail=1
-			if [ "$_broken" == "1" ]; then
-				echo "  (KNOWN BROKEN TEST: $_broken_msg)"
+			exit_code=$?  # Capture the exit code from the script
+			if [ $exit_code -eq $SKIP ]; then
+				warn "skipping"
+				save_log
+				_fail=0
+			else
+				print_time_elapsed $start_sec
+				save_log fail
+				_fail=1
+				if [ "$_broken" == "1" ]; then
+					echo "  (KNOWN BROKEN TEST: $_broken_msg)"
+				fi
 			fi
 		fi
 		restore_system_speed_limit
