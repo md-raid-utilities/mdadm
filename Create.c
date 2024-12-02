@@ -521,7 +521,6 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	int insert_point = subdevs * 2; /* where to insert a missing drive */
 	int total_slots;
 	int rv;
-	int bitmap_fd;
 	int have_container = 0;
 	int container_fd = -1;
 	int need_mdmon = 0;
@@ -534,9 +533,9 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	struct map_ent *map = NULL;
 	unsigned long long newsize;
 	mdu_array_info_t inf;
-
 	int major_num = BITMAP_MAJOR_HI;
-	if (s->bitmap_file && strcmp(s->bitmap_file, "clustered") == 0) {
+
+	if (s->btype == BitmapCluster) {
 		major_num = BITMAP_MAJOR_CLUSTERED;
 		if (c->nodes <= 1) {
 			pr_err("At least 2 nodes are needed for cluster-md\n");
@@ -618,7 +617,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		pr_err("You haven't given enough devices (real or missing) to create this array\n");
 		return 1;
 	}
-	if (s->bitmap_file && s->level <= 0) {
+	if (s->btype != BitmapNone && s->level <= 0) {
 		pr_err("bitmaps not meaningful with level %s\n",
 			map_num(pers, s->level)?:"given");
 		return 1;
@@ -949,9 +948,6 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		}
 	}
 
-	if (s->bitmap_file && str_is_none(s->bitmap_file) == true)
-		s->bitmap_file = NULL;
-
 	if (s->consistency_policy == CONSISTENCY_POLICY_PPL &&
 	    !st->ss->write_init_ppl) {
 		pr_err("%s metadata does not support PPL\n", st->ss->name);
@@ -1186,8 +1182,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	 * to stop another mdadm from finding and using those devices.
 	 */
 
-	if (s->bitmap_file && (strcmp(s->bitmap_file, "internal") == 0 ||
-			       strcmp(s->bitmap_file, "clustered") == 0)) {
+	if (s->btype == BitmapInternal || s->btype == BitmapCluster) {
 		if (!st->ss->add_internal_bitmap) {
 			pr_err("internal bitmaps not supported with %s metadata\n",
 				st->ss->name);
@@ -1199,7 +1194,6 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			pr_err("Given bitmap chunk size not supported.\n");
 			goto abort_locked;
 		}
-		s->bitmap_file = NULL;
 	}
 
 	if (sysfs_init(&info, mdfd, NULL)) {
@@ -1239,28 +1233,6 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	if (rv) {
 		pr_err("failed to set array info for %s: %s\n", chosen_name, strerror(errno));
 		goto abort_locked;
-	}
-
-	if (s->bitmap_file) {
-		int uuid[4];
-
-		st->ss->uuid_from_super(st, uuid);
-		if (CreateBitmap(s->bitmap_file, c->force, (char*)uuid, s->bitmap_chunk,
-				 c->delay, s->write_behind,
-				 bitmapsize,
-				 major_num)) {
-			goto abort_locked;
-		}
-		bitmap_fd = open(s->bitmap_file, O_RDWR);
-		if (bitmap_fd < 0) {
-			pr_err("weird: %s cannot be opened\n",
-				s->bitmap_file);
-			goto abort_locked;
-		}
-		if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-			pr_err("Cannot set bitmap file for %s: %s\n", chosen_name, strerror(errno));
-			goto abort_locked;
-		}
 	}
 
 	if (add_disks(mdfd, &info, s, c, st, &map, devlist, total_slots,

@@ -200,28 +200,32 @@ bitmap_file_open(char *filename, struct supertype **stp, int node_num, int fd)
 		close(fd);
 		return -1;
 	}
-	if ((stb.st_mode & S_IFMT) == S_IFBLK) {
-		/* block device, so we are probably after an internal bitmap */
-		if (!st)
-			st = guess_super(fd);
-		if (!st) {
-			/* just look at device... */
-			lseek(fd, 0, 0);
-		} else if (!st->ss->locate_bitmap) {
-			pr_err("No bitmap possible with %s metadata\n",
-				st->ss->name);
-			close(fd);
-			return -1;
-		} else {
-			if (st->ss->locate_bitmap(st, fd, node_num)) {
-				pr_err("%s doesn't have bitmap\n", filename);
-				close(fd);
-				fd = -1;
-			}
-		}
-		*stp = st;
+
+	if ((stb.st_mode & S_IFMT) != S_IFBLK) {
+		pr_err("bitmap file is not supported %s\n", filename);
+		close(fd);
+		return -1;
 	}
 
+	if (!st)
+		st = guess_super(fd);
+
+	if (!st) {
+		/* just look at device... */
+		lseek(fd, 0, 0);
+	} else if (!st->ss->locate_bitmap) {
+		pr_err("No bitmap possible with %s metadata\n", st->ss->name);
+		close(fd);
+		return -1;
+	}
+
+	if (st->ss->locate_bitmap(st, fd, node_num)) {
+		pr_err("%s doesn't have bitmap\n", filename);
+		close(fd);
+		fd = -1;
+	}
+
+	*stp = st;
 	return fd;
 }
 

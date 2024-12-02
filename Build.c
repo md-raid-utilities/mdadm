@@ -40,8 +40,6 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	dev_t rdev;
 	int subdevs = 0, missing_disks = 0;
 	struct mddev_dev *dv;
-	int bitmap_fd;
-	unsigned long long bitmapsize;
 	int mdfd;
 	char chosen_name[1024];
 	int uuid[4] = {0,0,0,0};
@@ -110,13 +108,6 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		goto abort;
 	}
 
-	if (s->bitmap_file && str_is_none(s->bitmap_file) == true)
-		s->bitmap_file = NULL;
-	if (s->bitmap_file && s->level <= 0) {
-		pr_err("bitmaps not meaningful with level %s\n",
-			map_num(pers, s->level)?:"given");
-		goto abort;
-	}
 	/* now add the devices */
 	for ((i=0), (dv = devlist) ; dv ; i++, dv=dv->next) {
 		mdu_disk_info_t disk;
@@ -150,31 +141,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 			goto abort;
 		}
 	}
-	/* now to start it */
-	if (s->bitmap_file) {
-		bitmap_fd = open(s->bitmap_file, O_RDWR);
-		if (bitmap_fd < 0) {
-			int major = BITMAP_MAJOR_HI;
-			bitmapsize = s->size >> 9; /* FIXME wrong for RAID10 */
-			if (CreateBitmap(s->bitmap_file, 1, NULL,
-					 s->bitmap_chunk, c->delay,
-					 s->write_behind, bitmapsize, major)) {
-				goto abort;
-			}
-			bitmap_fd = open(s->bitmap_file, O_RDWR);
-			if (bitmap_fd < 0) {
-				pr_err("%s cannot be opened.\n", s->bitmap_file);
-				goto abort;
-			}
-		}
-		if (ioctl(mdfd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-			pr_err("Cannot set bitmap file for %s: %s\n", chosen_name,
-			       strerror(errno));
-			close(bitmap_fd);
-			goto abort;
-		}
-	close(bitmap_fd);
-	}
+
 	if (ioctl(mdfd, RUN_ARRAY, &param)) {
 		pr_err("RUN_ARRAY failed: %s\n", strerror(errno));
 		if (s->chunk & (s->chunk - 1)) {
