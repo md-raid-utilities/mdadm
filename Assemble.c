@@ -764,6 +764,7 @@ static int load_devices(struct devs *devices, char *devmap,
 			tst->ss->free_super(tst);
 			free(tst);
 			*stp = st;
+			free(best);
 			return -1;
 		}
 		close(dfd);
@@ -845,7 +846,6 @@ static int load_devices(struct devs *devices, char *devmap,
 				       inargv ? "the list" :
 				       "the\n      DEVICE list in mdadm.conf"
 					);
-				free(best);
 				*stp = st;
 				goto error;
 			}
@@ -868,6 +868,7 @@ error:
 	close(mdfd);
 	free(devices);
 	free(devmap);
+	free(best);
 	return -1;
 
 }
