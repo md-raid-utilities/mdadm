@@ -1535,6 +1535,14 @@ int main(int argc, char *argv[])
 			break;
 		}
 
+		if (!s.bitmap_file) {
+			if (c.runstop != 1 && s.level >= 1 &&
+			    ask("To optimalize recovery speed, it is recommended to enable write-indent bitmap, do you want to enable it now?"))
+				s.bitmap_file = "internal";
+			else
+				s.bitmap_file = "none";
+		}
+
 		rv = Create(ss, &ident, devs_found - 1, devlist->next, &s, &c);
 		break;
 	case MISC:
