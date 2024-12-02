@@ -633,7 +633,6 @@ static int load_devices(struct devs *devices, char *devmap,
 	struct mddev_dev *tmpdev;
 	int devcnt = 0;
 	int nextspare = 0;
-	int bitmap_done = 0;
 	int most_recent = -1;
 	int bestcnt = 0;
 	int *best = *bestp;
@@ -661,7 +660,7 @@ static int load_devices(struct devs *devices, char *devmap,
 			if (c->update == UOPT_UUID && !ident->uuid_set)
 				random_uuid((__u8 *)ident->uuid);
 
-			if (c->update == UOPT_PPL && ident->bitmap_fd >= 0) {
+			if (c->update == UOPT_PPL && ident->btype != BitmapNone) {
 				pr_err("PPL is not compatible with bitmap\n");
 				close(mdfd);
 				free(devices);
@@ -728,16 +727,6 @@ static int load_devices(struct devs *devices, char *devmap,
 			if (tst->ss->store_super(tst, dfd))
 				pr_err("Could not re-write superblock on %s.\n",
 				       devname);
-
-			if (c->update == UOPT_UUID &&
-			    ident->bitmap_fd >= 0 && !bitmap_done) {
-				if (bitmap_update_uuid(ident->bitmap_fd,
-						       content->uuid,
-						       tst->ss->swapuuid) != 0)
-					pr_err("Could not update uuid on external bitmap.\n");
-				else
-					bitmap_done = 1;
-			}
 		} else {
 			dfd = dev_open(devname,
 				       tmpdev->disposition == 'I'
@@ -1056,26 +1045,6 @@ static int start_array(int mdfd,
 		pr_err("failed to set array info for %s: %s\n",
 		       mddev, strerror(errno));
 		return 1;
-	}
-	if (ident->bitmap_fd >= 0) {
-		if (ioctl(mdfd, SET_BITMAP_FILE, ident->bitmap_fd) != 0) {
-			pr_err("SET_BITMAP_FILE failed.\n");
-			return 1;
-		}
-	} else if (ident->bitmap_file) {
-		/* From config file */
-		int bmfd = open(ident->bitmap_file, O_RDWR);
-		if (bmfd < 0) {
-			pr_err("Could not open bitmap file %s\n",
-			       ident->bitmap_file);
-			return 1;
-		}
-		if (ioctl(mdfd, SET_BITMAP_FILE, bmfd) != 0) {
-			pr_err("Failed to set bitmapfile for %s\n", mddev);
-			close(bmfd);
-			return 1;
-		}
-		close(bmfd);
 	}
 
 	/* First, add the raid disks, but add the chosen one last */

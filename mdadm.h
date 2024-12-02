@@ -598,9 +598,16 @@ enum prefix_standard {
 };
 
 enum bitmap_update {
-    NoUpdate,
-    NameUpdate,
-    NodeNumUpdate,
+	NoUpdate,
+	NameUpdate,
+	NodeNumUpdate,
+};
+
+enum bitmap_type {
+	BitmapNone,
+	BitmapInternal,
+	BitmapCluster,
+	BitmapUnknown,
 };
 
 enum flag_mode {
@@ -640,8 +647,7 @@ struct mddev_ident {
 	int spare_disks;
 	struct supertype *st;
 	char	*spare_group;
-	char	*bitmap_file;
-	int	bitmap_fd;
+	enum bitmap_type btype;
 
 	char	*container;	/* /dev/whatever name of container, or
 				 * uuid of container.  You would expect
@@ -693,7 +699,7 @@ struct shape {
 	char	*layout_str;
 	int	chunk;
 	int	bitmap_chunk;
-	char	*bitmap_file;
+	enum bitmap_type btype;
 	int	assume_clean;
 	bool	write_zeroes;
 	int	write_behind;

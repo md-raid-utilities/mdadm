@@ -544,21 +544,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			cont_err("by --incremental.  Please use --assemble\n");
 			goto out;
 		}
-		if (match && match->bitmap_file) {
-			int bmfd = open(match->bitmap_file, O_RDWR);
-			if (bmfd < 0) {
-				pr_err("Could not open bitmap file %s.\n",
-				       match->bitmap_file);
-				goto out;
-			}
-			if (ioctl(mdfd, SET_BITMAP_FILE, bmfd) != 0) {
-				close(bmfd);
-				pr_err("Failed to set bitmapfile for %s.\n",
-				       chosen_name);
-				goto out;
-			}
-			close(bmfd);
-		}
+
 		/* Need to remove from the array any devices which
 		 * 'count_active' discerned were too old or inappropriate
 		 */
@@ -1400,28 +1386,7 @@ restart:
 			if (mddev->devname && me->path &&
 			    devname_matches(mddev->devname, me->path))
 				break;
-		if (mddev && mddev->bitmap_file) {
-			/*
-			 * Note: early kernels will wrongly fail this, so it
-			 * is a hint only
-			 */
-			int added = -1;
-			int bmfd;
 
-			bmfd = open(mddev->bitmap_file, O_RDWR);
-			if (is_fd_valid(bmfd)) {
-				added = ioctl(mdfd, SET_BITMAP_FILE, bmfd);
-				close_fd(&bmfd);
-			}
-			if (c->verbose >= 0) {
-				if (added == 0)
-					pr_err("Added bitmap %s to %s\n",
-					       mddev->bitmap_file, me->path);
-				else if (errno != EEXIST)
-					pr_err("Failed to add bitmap to %s: %s\n",
-					       me->path, strerror(errno));
-			}
-		}
 		/* FIXME check for reshape_active and consider not
 		 * starting array.
 		 */

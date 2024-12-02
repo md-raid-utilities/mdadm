@@ -171,8 +171,7 @@ inline void ident_init(struct mddev_ident *ident)
 	assert(ident);
 
 	ident->assembled = false;
-	ident->bitmap_fd = -1;
-	ident->bitmap_file = NULL;
+	ident->btype = BitmapUnknown;
 	ident->container = NULL;
 	ident->devices = NULL;
 	ident->devname = NULL;
@@ -542,11 +541,19 @@ void arrayline(char *line)
 			/* Ignore name in confile */
 			continue;
 		} else if (strncasecmp(w, "bitmap=", 7) == 0) {
-			if (mis.bitmap_file)
+			if (mis.btype != BitmapUnknown)
 				pr_err("only specify bitmap file once. %s ignored\n",
 					w);
-			else
-				mis.bitmap_file = xstrdup(w + 7);
+			else {
+				char *bname = xstrdup(w + 7);
+
+				if (strcmp(bname, STR_COMMON_NONE) == 0)
+					mis.btype = BitmapNone;
+				else if (strcmp(bname, "internal") == 0)
+					mis.btype = BitmapInternal;
+				else if (strcmp(bname, "clustered") == 0)
+					mis.btype = BitmapCluster;
+			}
 
 		} else if (strncasecmp(w, "devices=", 8 ) == 0) {
 			if (mis.devices)

@@ -285,7 +285,6 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 	 * find all the active devices, and write the bitmap block
 	 * to all devices
 	 */
-	mdu_bitmap_file_t bmf;
 	mdu_array_info_t array;
 	struct supertype *st;
 	char *subarray = NULL;
@@ -294,40 +293,21 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 	struct mdinfo *mdi;
 
 	/*
-	 * We only ever get called if s->bitmap_file is != NULL, so this check
+	 * We only ever get called if bitmap is not none, so this check
 	 * is just here to quiet down static code checkers.
 	 */
-	if (!s->bitmap_file)
+	if (s->btype == BitmapUnknown)
 		return 1;
 
-	if (strcmp(s->bitmap_file, "clustered") == 0)
+	if (s->btype == BitmapCluster)
 		major = BITMAP_MAJOR_CLUSTERED;
 
-	if (ioctl(fd, GET_BITMAP_FILE, &bmf) != 0) {
-		if (errno == ENOMEM)
-			pr_err("Memory allocation failure.\n");
-		else
-			pr_err("bitmaps not supported by this kernel.\n");
-		return 1;
-	}
-	if (bmf.pathname[0]) {
-		if (str_is_none(s->bitmap_file) == true) {
-			if (ioctl(fd, SET_BITMAP_FILE, -1) != 0) {
-				pr_err("failed to remove bitmap %s\n",
-					bmf.pathname);
-				return 1;
-			}
-			return 0;
-		}
-		pr_err("%s already has a bitmap (%s)\n", devname, bmf.pathname);
-		return 1;
-	}
 	if (md_get_array_info(fd, &array) != 0) {
 		pr_err("cannot get array status for %s\n", devname);
 		return 1;
 	}
 	if (array.state & (1 << MD_SB_BITMAP_PRESENT)) {
-		if (str_is_none(s->bitmap_file) == true) {
+		if (s->btype == BitmapNone) {
 			array.state &= ~(1 << MD_SB_BITMAP_PRESENT);
 			if (md_set_array_info(fd, &array) != 0) {
 				if (array.state & (1 << MD_SB_CLUSTERED))
@@ -342,10 +322,11 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		return 1;
 	}
 
-	if (str_is_none(s->bitmap_file) == true) {
+	if (s->btype == BitmapNone) {
 		pr_err("no bitmap found on %s\n", devname);
 		return 1;
 	}
+
 	if (array.level <= 0) {
 		pr_err("Bitmaps not meaningful with level %s\n",
 			map_num(pers, array.level)?:"of this array");
@@ -371,7 +352,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		ncopies = (array.layout & 255) * ((array.layout >> 8) & 255);
 		bitmapsize = bitmapsize * array.raid_disks / ncopies;
 
-		if (strcmp(s->bitmap_file, "clustered") == 0 &&
+		if (s->btype == BitmapCluster &&
 		    !is_near_layout_10(array.layout)) {
 			pr_err("only near layout is supported with clustered raid10\n");
 			return 1;
@@ -402,8 +383,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		free(mdi);
 	}
 
-	if (strcmp(s->bitmap_file, "internal") == 0 ||
-	    strcmp(s->bitmap_file, "clustered") == 0) {
+	if (s->btype == BitmapInternal || s->btype == BitmapCluster) {
 		int rv;
 		int d;
 		int offset_setable = 0;
@@ -432,7 +412,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 			if (!dv)
 				continue;
 			if ((disk.state & (1 << MD_DISK_WRITEMOSTLY)) &&
-			   (strcmp(s->bitmap_file, "clustered") == 0)) {
+			    s->btype == BitmapCluster) {
 				pr_err("%s disks marked write-mostly are not supported with clustered bitmap\n",devname);
 				free(mdi);
 				return 1;
@@ -471,7 +451,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 						  mdi->bitmap_offset);
 			free(mdi);
 		} else {
-			if (strcmp(s->bitmap_file, "clustered") == 0)
+			if (s->btype == BitmapCluster)
 				array.state |= (1 << MD_SB_CLUSTERED);
 			array.state |= (1 << MD_SB_BITMAP_PRESENT);
 			rv = md_set_array_info(fd, &array);
@@ -482,60 +462,6 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 			pr_err("failed to set internal bitmap.\n");
 			return 1;
 		}
-	} else {
-		int uuid[4];
-		int bitmap_fd;
-		int d;
-		int max_devs = st->max_devs;
-
-		/* try to load a superblock */
-		for (d = 0; d < max_devs; d++) {
-			mdu_disk_info_t disk;
-			char *dv;
-			int fd2;
-			disk.number = d;
-			if (md_get_disk_info(fd, &disk) < 0)
-				continue;
-			if ((disk.major==0 && disk.minor == 0) ||
-			    (disk.state & (1 << MD_DISK_REMOVED)))
-				continue;
-			dv = map_dev(disk.major, disk.minor, 1);
-			if (!dv)
-				continue;
-			fd2 = dev_open(dv, O_RDONLY);
-			if (fd2 >= 0) {
-				if (st->ss->load_super(st, fd2, NULL) == 0) {
-					close(fd2);
-					st->ss->uuid_from_super(st, uuid);
-					break;
-				}
-				close(fd2);
-			}
-		}
-		if (d == max_devs) {
-			pr_err("cannot find UUID for array!\n");
-			return 1;
-		}
-		if (CreateBitmap(s->bitmap_file, c->force, (char*)uuid,
-				 s->bitmap_chunk, c->delay, s->write_behind,
-				 bitmapsize, major)) {
-			return 1;
-		}
-		bitmap_fd = open(s->bitmap_file, O_RDWR);
-		if (bitmap_fd < 0) {
-			pr_err("weird: %s cannot be opened\n", s->bitmap_file);
-			return 1;
-		}
-		if (ioctl(fd, SET_BITMAP_FILE, bitmap_fd) < 0) {
-			int err = errno;
-			if (errno == EBUSY)
-				pr_err("Cannot add bitmap while array is resyncing or reshaping etc.\n");
-			pr_err("Cannot set bitmap file for %s: %s\n",
-				devname, strerror(err));
-			close_fd(&bitmap_fd);
-			return 1;
-		}
-		close_fd(&bitmap_fd);
 	}
 
 	return 0;
