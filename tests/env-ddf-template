@@ -3,10 +3,8 @@ sha1_sum() {
 }
 
 get_rootdev() {
-    local dev=$(stat -c %D /)
-    local maj=$(expr $dev : '\(..*\)..')
-    local min=${dev#$maj}
-    local bd=/dev/$(basename $(readlink /sys/dev/block/$((0x$maj)):$((0x$min))))
+    local part=$(grep ' / ' /proc/mounts | awk '{print $1}')
+    local bd=/dev/$(lsblk -no PKNAME $part)
     [ -b $bd ] || exit 1
     echo $bd
 }
