@@ -59,7 +59,7 @@ save_log() {
 	array=($(mdadm -Ds | cut -d' ' -f2))
 	[ "$1" == "fail" ] &&
 		fail "FAILED"
-		echo " - see $logdir/$_basename.log and $logdir/$logfile for details\n"
+		echo " - see $logdir/$_basename.log and $logdir/$logfile for details"
 	if [ $DEVTYPE == 'lvm' ]
 	then
 		# not supported lvm type yet
