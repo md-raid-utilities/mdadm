@@ -445,7 +445,7 @@ no_errors() {
 
 # basic device test
 testdev() {
-	[ -b $1 ] || die "$1 isn't a block device."
+	lsblk -no name $1 || die "$1 isn't a block device."
 	[ "$DEVTYPE" == "disk" ] && return 0
 	udevadm settle
 	dev=$1

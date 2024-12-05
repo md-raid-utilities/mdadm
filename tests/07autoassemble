@@ -45,6 +45,7 @@ mdadm -CR $md2 -l1 -n2 $dev2 $dev3
 mdadm -CR $md0 -l0 -n2 $md1 $md2
 mdadm -Ss
 mdadm -As -c /dev/null
+cat /proc/mdstat # For logs
 if [ $is_foreign == "yes" ]; then
 	# md127 is md1
 	testdev $md127 1 $mdsize1a 64
@@ -55,6 +56,6 @@ if [ $is_foreign == "yes" ]; then
 else
 	testdev $md1 1 $mdsize1a 64
 	testdev $md2 1 $mdsize1a 64
-	testdev $md0 2 $mdsize11a 512
+	testdev $md127 2 $mdsize11a 512
 fi
 mdadm -Ss
