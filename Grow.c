@@ -1746,7 +1746,7 @@ static int reshape_array(char *container, int fd, char *devname,
 			 int force, struct mddev_dev *devlist,
 			 unsigned long long data_offset,
 			 char *backup_file, int verbose, int forked,
-			 int restart, int freeze_reshape);
+			 int restart);
 static int reshape_container(char *container, char *devname,
 			     int mdfd,
 			     struct supertype *st,
@@ -2341,7 +2341,7 @@ size_change_error:
 		sync_metadata(st);
 		rv = reshape_array(container, fd, devname, st, &info, c->force,
 				   devlist, s->data_offset, c->backup_file,
-				   c->verbose, 0, 0, 0);
+				   c->verbose, 0, 0);
 		frozen = 0;
 	}
 release:
@@ -2387,6 +2387,7 @@ static int verify_reshape_position(struct mdinfo *info, int level)
 			} else if (info->reshape_progress > position) {
 				pr_err("Fatal error: array reshape was not properly frozen (expected reshape position is %llu, but reshape progress is %llu.\n",
 				       position, info->reshape_progress);
+				pr_err("Reassemble array to try to restore critical sector.\n");
 				ret_val = -1;
 			} else {
 				dprintf("Reshape position in md and metadata are the same;");
@@ -2995,12 +2996,40 @@ static void catch_term(int sig)
 	sigterm = 1;
 }
 
+
+/**
+ * handle_forking() - Handle reshape forking.
+ *
+ * @forked: if already forked.
+ * @devname: device name.
+ * Returns: -1 if fork() failed,
+ *           0 if child process,
+ *           1 if job delegated to forked process or systemd.
+ *
+ * This function is a helper function for reshapes for fork handling.
+ */
+static mdadm_status_t handle_forking(bool forked, char *devname)
+{
+	if (forked)
+		return MDADM_STATUS_FORKED;
+
+	if (devname && continue_via_systemd(devname, GROW_SERVICE, NULL) == MDADM_STATUS_SUCCESS)
+		return MDADM_STATUS_SUCCESS;
+
+	switch (fork()) {
+	case -1: return MDADM_STATUS_ERROR; /* error */
+	case 0: return MDADM_STATUS_FORKED; /* child */
+	default: return MDADM_STATUS_SUCCESS; /* parent */
+	}
+
+}
+
 static int reshape_array(char *container, int fd, char *devname,
 			 struct supertype *st, struct mdinfo *info,
 			 int force, struct mddev_dev *devlist,
 			 unsigned long long data_offset,
 			 char *backup_file, int verbose, int forked,
-			 int restart, int freeze_reshape)
+			 int restart)
 {
 	struct reshape reshape;
 	int spares_needed;
@@ -3484,42 +3513,36 @@ started:
 	}
 	if (restart)
 		sysfs_set_str(sra, NULL, "array_state", "active");
-	if (freeze_reshape) {
+
+	/* Do not run in initrd */
+	if (in_initrd()) {
 		free(fdlist);
 		free(offsets);
 		sysfs_free(sra);
-		pr_err("Reshape has to be continued from location %llu when root filesystem has been mounted.\n",
+		pr_info("Reshape has to be continued from location %llu when root filesystem has been mounted.\n",
 			sra->reshape_progress);
 		return 1;
 	}
-
-	if (!forked)
-		if (continue_via_systemd(container ?: sra->sys_name,
-					 GROW_SERVICE, NULL)) {
-			free(fdlist);
-			free(offsets);
-			sysfs_free(sra);
-			return 0;
-		}
 
 	/* Now we just need to kick off the reshape and watch, while
 	 * handling backups of the data...
 	 * This is all done by a forked background process.
 	 */
-	switch(forked ? 0 : fork()) {
-	case -1:
+	switch (handle_forking(forked, container ? container : sra->sys_name)) {
+	default: /* Unused, only to satisfy compiler. */
+	case MDADM_STATUS_ERROR: /* error */
 		pr_err("Cannot run child to monitor reshape: %s\n",
 			strerror(errno));
 		abort_reshape(sra);
 		goto release;
-	default:
+	case MDADM_STATUS_FORKED: /* child */
+		map_fork();
+		break;
+	case MDADM_STATUS_SUCCESS: /* parent */
 		free(fdlist);
 		free(offsets);
 		sysfs_free(sra);
 		return 0;
-	case 0:
-		map_fork();
-		break;
 	}
 
 	/* Close unused file descriptor in the forked process */
@@ -3688,23 +3711,19 @@ int reshape_container(char *container, char *devname,
 	 */
 	ping_monitor(container);
 
-	if (!forked && !c->freeze_reshape)
-		if (continue_via_systemd(container, GROW_SERVICE, NULL))
-			return 0;
-
-	switch (forked ? 0 : fork()) {
-	case -1: /* error */
+	switch (handle_forking(forked, container)) {
+	default: /* Unused, only to satisfy compiler. */
+	case MDADM_STATUS_ERROR: /* error */
 		perror("Cannot fork to complete reshape\n");
 		unfreeze(st);
 		return 1;
-	default: /* parent */
-		if (!c->freeze_reshape)
-			printf("%s: multi-array reshape continues in background\n", Name);
-		return 0;
-	case 0: /* child */
+	case MDADM_STATUS_FORKED: /* child */
 		manage_fork_fds(0);
 		map_fork();
 		break;
+	case MDADM_STATUS_SUCCESS: /* parent */
+		printf("%s: multi-array reshape continues in background\n", Name);
+		return 0;
 	}
 
 	/* close unused handle in child process
@@ -3797,11 +3816,11 @@ int reshape_container(char *container, char *devname,
 
 		rv = reshape_array(container, fd, adev, st,
 				   content, c->force, NULL, INVALID_SECTORS,
-				   c->backup_file, c->verbose, 1, restart,
-				   c->freeze_reshape);
+				   c->backup_file, c->verbose, 1, restart);
 		close(fd);
 
-		if (c->freeze_reshape) {
+		/* Do not run reshape in initrd but let it initialize.*/
+		if (in_initrd()) {
 			sysfs_free(cc);
 			exit(0);
 		}
@@ -5220,8 +5239,7 @@ int Grow_continue(int mdfd, struct supertype *st, struct mdinfo *info,
 	} else
 		ret_val = reshape_array(NULL, mdfd, "array", st, info, 1,
 					NULL, INVALID_SECTORS, c->backup_file,
-					0, forked, 1 | info->reshape_active,
-					c->freeze_reshape);
+					0, forked, 1 | info->reshape_active);
 
 	return ret_val;
 }

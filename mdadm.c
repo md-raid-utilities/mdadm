@@ -710,12 +710,6 @@ int main(int argc, char *argv[])
 		case O(MANAGE,Force): /* add device which is too large */
 			c.force = 1;
 			continue;
-			/* now for the Assemble options */
-		case O(ASSEMBLE, FreezeReshape):   /* Freeze reshape during
-						    * initrd phase */
-		case O(INCREMENTAL, FreezeReshape):
-			c.freeze_reshape = 1;
-			continue;
 		case O(CREATE,'u'): /* uuid of array */
 		case O(ASSEMBLE,'u'): /* uuid of array */
 			if (ident.uuid_set) {
