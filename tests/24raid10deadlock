@@ -62,7 +62,7 @@ clean_up_test()
 	mdadm -S $md0
 }
 
-cat /sys/kernel/debug/fail_make_request/times || die "fault injection is not enabled"
+cat /sys/kernel/debug/fail_make_request/times || skip "fault injection is not enabled"
 
 trap 'clean_up_test' EXIT
 

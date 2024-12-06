@@ -59,7 +59,7 @@ save_log() {
 	array=($(mdadm -Ds | cut -d' ' -f2))
 	[ "$1" == "fail" ] &&
 		fail "FAILED"
-		echo " - see $logdir/$_basename.log and $logdir/$logfile for details\n"
+		echo " - see $logdir/$_basename.log and $logdir/$logfile for details"
 	if [ $DEVTYPE == 'lvm' ]
 	then
 		# not supported lvm type yet
@@ -445,7 +445,7 @@ no_errors() {
 
 # basic device test
 testdev() {
-	[ -b $1 ] || die "$1 isn't a block device."
+	lsblk -no name $1 || die "$1 isn't a block device."
 	[ "$DEVTYPE" == "disk" ] && return 0
 	udevadm settle
 	dev=$1

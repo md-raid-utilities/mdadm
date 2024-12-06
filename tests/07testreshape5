@@ -5,6 +5,9 @@
 # shaped md arrays.
 set -x
 dir="."
+
+[ -e $dir/test_stripe ] || skip "test_stripes binary has not been compiled, skipping"
+
 layouts=(la ra ls rs)
 for level in 5 6
 do
