@@ -260,8 +260,11 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 		return rv;
 
 	info = bitmap_fd_read(fd, brief);
-	if (!info)
+	if (!info) {
+		close_fd(&fd);
+		free(info);
 		return rv;
+	}
 	sb = &info->sb;
 	if (sb->magic != BITMAP_MAGIC) {
 		pr_err("This is an md array.  To view a bitmap you need to examine\n");
@@ -336,7 +339,6 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 		printf("    Cluster name : %-64s\n", sb->cluster_name);
 		for (i = 0; i < (int)sb->nodes; i++) {
 			st = NULL;
-			free(info);
 			fd = bitmap_file_open(filename, &st, i, fd);
 			if (fd < 0) {
 				printf("   Unable to open bitmap file on node: %i\n", i);
@@ -347,6 +349,7 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 				printf("   Unable to read bitmap on node: %i\n", i);
 				continue;
 			}
+			free(sb);
 			sb = &info->sb;
 			if (sb->magic != BITMAP_MAGIC)
 				pr_err("invalid bitmap magic 0x%x, the bitmap file appears to be corrupted\n", sb->magic);
