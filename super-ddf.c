@@ -818,7 +818,7 @@ static int load_ddf_header(int fd, unsigned long long lba,
 		return 0;
 
 	if (!be32_eq(hdr->magic, DDF_HEADER_MAGIC)) {
-		pr_err("bad header magic\n");
+		pr_err("load_ddf_header: bad header magic\n");
 		return 0;
 	}
 	if (!be32_eq(calc_crc(hdr, 512), hdr->crc)) {
@@ -877,30 +877,151 @@ static void *load_section(int fd, struct ddf_super *super, void *buf,
 	return buf;
 }
 
-static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
-{
-	unsigned long long dsize;
 
+// Search for DDF_HEADER_MAGIC in the last 32MB of the device
+static int search_for_ddf_headers(int fd, char *devname, unsigned long long *out) {
+	unsigned long long dsize;
+	int result = 0;
+
+	// Get device size
 	get_dev_size(fd, NULL, &dsize);
 
-	if (lseek64(fd, dsize - 512, 0) == -1L) {
-		if (devname)
-			pr_err("Cannot seek to anchor block on %s: %s\n",
-			       devname, strerror(errno));
+	const size_t READ_BLOCK_SIZE = 4096;
+	const unsigned long long SEARCH_REGION_SIZE = 32 * 1024 * 1024;
+
+	// Determine the search range
+	unsigned long long search_start = (dsize > SEARCH_REGION_SIZE) ? (dsize - SEARCH_REGION_SIZE) : 0;
+	unsigned long long search_end = dsize;
+	unsigned long long pos = search_start;
+
+	void* buffer = NULL;
+	be32 *magic_ptr = NULL;
+
+	// Allocate aligned memory for reading
+	if (posix_memalign(&buffer, READ_BLOCK_SIZE, READ_BLOCK_SIZE) != 0) {
+		perror("search_for_ddf_headers posix_memalign");
+		result = 1;
+		goto cleanup;
+	}
+
+	// Iterate through the search range
+	while (pos < search_end) {
+		// Calculate the number of bytes to read in the current block
+		size_t bytes_to_read = (search_end - pos >= READ_BLOCK_SIZE) ? READ_BLOCK_SIZE : (search_end - pos);
+		
+		// Set the file offset for reading
+		if (lseek64(fd, pos, SEEK_SET) < 0) {
+			perror("search_for_ddf_headers lseek64");
+			result = 2;
+			goto cleanup;
+		}
+
+		// Read data from the device
+		int bytes_read = read(fd, buffer, bytes_to_read);
+		if (bytes_read <= 0) {
+			perror("search_for_ddf_headers read");
+			dprintf("search_for_ddf_headers: Failed to read. Position=%llu, Bytes to read=%zu. Skipping.\n", pos, bytes_to_read);
+			pos += READ_BLOCK_SIZE; // Skip to the next block
+			continue;
+		}
+
+		unsigned long long ull_bytes_read = bytes_read;
+
+		// Search for the magic value within the read block
+		for (size_t offset = 0; offset + sizeof(be32) <= ull_bytes_read; offset += sizeof(be32)) {
+			magic_ptr = (be32 *)((char*)buffer + offset);
+
+			if (be32_eq(*magic_ptr, DDF_HEADER_MAGIC)) {
+				*out = pos + offset;
+				result = 0;
+				goto cleanup;
+			}
+		}
+
+		// Move to the next block
+		pos += READ_BLOCK_SIZE;
+	}
+
+cleanup:
+	free(buffer); // Free allocated memory
+	return result; // Return the result
+}
+
+static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
+{
+
+	// Load DDF headers from a device. First, check at dsize - 512, and if not found, search for it.
+	unsigned long long dsize = 0;
+	unsigned long long ddfpos = 0;
+	unsigned long long ddffound = 0;
+	
+
+	get_dev_size(fd, NULL, &dsize);
+	
+	// Check the last 512 bytes for the DDF header.
+	if (lseek64(fd, dsize - 512, SEEK_SET) == -1L) {
+		if (devname) {
+			pr_err("Cannot seek to last 512 bytes on %s: %s\n", devname, strerror(errno));
+		}
 		return 1;
 	}
-	if (read(fd, &super->anchor, 512) != 512) {
-		if (devname)
-			pr_err("Cannot read anchor block on %s: %s\n",
-			       devname, strerror(errno));
-		return 1;
+
+	bool found_anchor = false;
+
+	// Read the last 512 bytes into the anchor block
+	if (read(fd, &super->anchor, 512) == 512) {
+		// Check if the magic value matches
+		if (be32_eq(super->anchor.magic, DDF_HEADER_MAGIC)) {
+			found_anchor = true;
+		}
+	} else {
+		if (devname) {
+			pr_err("Cannot read last 512 bytes on %s: %s\n", devname, strerror(errno));
+		}
 	}
-	if (!be32_eq(super->anchor.magic, DDF_HEADER_MAGIC)) {
-		if (devname)
-			pr_err("no DDF anchor found on %s\n",
-				devname);
+
+	if (!found_anchor) {
+		// If not found, perform a full search for DDF headers
+		ddffound = search_for_ddf_headers(fd, devname, &ddfpos);
+		if (ddffound != 0) {
+			if (devname) {
+				pr_err("DDF headers not found during search on %s\n", devname);
+			}
+			return 2;
+		}
+
+		// Seek to the found position
+		if (lseek64(fd, ddfpos, SEEK_SET) == -1L) {
+			if (devname) {
+				pr_err("Cannot seek to found DDF header position on %s: %s\n", devname, strerror(errno));
+			}
+			return 1;
+		}
+
+		// Read the header from the found position
+		if (read(fd, &super->anchor, 512) != 512) {
+			if (devname) {
+				pr_err("Cannot read DDF header at found position on %s: %s\n", devname, strerror(errno));
+			}
+			return 1;
+		}
+
+		// Verify the magic value again
+		if (!be32_eq(super->anchor.magic, DDF_HEADER_MAGIC)) {
+			if (devname) {
+				pr_err("Invalid DDF header magic value on %s\n", devname);
+			}
+			return 2;
+		}
+		found_anchor = true;
+	}
+	if (!found_anchor) {
+		if (devname) {
+			pr_err("DDF headers not found on %s\n", devname);
+		}
 		return 2;
 	}
+
 	if (!be32_eq(calc_crc(&super->anchor, 512), super->anchor.crc)) {
 		if (devname)
 			pr_err("bad CRC on anchor on %s\n",
@@ -5195,6 +5316,16 @@ static void default_geometry_ddf(struct supertype *st, int *level, int *layout, 
 		*layout = ddf_level_to_layout(*level);
 }
 
+static int update_super_ddf_dummy(struct supertype *st, struct mdinfo *info,
+			 enum update_opt update,
+			 char *devname, int verbose,
+			 int uuid_set, char *homehost) {
+	
+	pr_err("update_super_ddf_dummy: not implemented\n");
+	return 0;
+
+}
+
 struct superswitch super_ddf = {
 	.examine_super	= examine_super_ddf,
 	.brief_examine_super = brief_examine_super_ddf,
@@ -5212,6 +5343,8 @@ struct superswitch super_ddf = {
 	.match_home	= match_home_ddf,
 	.uuid_from_super= uuid_from_super_ddf,
 	.getinfo_super  = getinfo_super_ddf,
+
+	.update_super = update_super_ddf_dummy,
 
 	.avail_size	= avail_size_ddf,
 
