@@ -9,7 +9,7 @@ mdadm -CR $md0 -l1 -n2 -binternal --bitmap-chunk=4 -d1 $dev1 $dev2
 check resync
 check wait
 testdev $md0 1 $mdsize1a 64
-sleep 4
+sleep 6
 
 mdadm $md0 -f $dev2
 sleep 1

@@ -7,7 +7,7 @@ sleep 1
 check resync
 check wait
 testdev $md0 1 $size 1
-sleep 4
+sleep 6
 
 mdadm $md0 -f $dev2
 sleep 1
