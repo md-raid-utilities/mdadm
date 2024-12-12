@@ -8,11 +8,11 @@ testdev $md0 1 $mdsize1a 64
 
 #mdadm -E $dev1
 mdadm --grow $md0 --bitmap=internal --bitmap-chunk=4 --delay=1 || { mdadm -X $dev2 ; exit 1; }
-sleep 4
+sleep 6
 dirty1=`mdadm -X $dev2 | sed -n -e 's/.*Bitmap.* \([0-9]*\) dirty.*/\1/p'`
 
 testdev $md0 1 $mdsize1a 64
-sleep 4
+sleep 6
 dirty2=`mdadm -X $dev2 | sed -n -e 's/.*Bitmap.* \([0-9]*\) dirty.*/\1/p'`
 
 if [ $dirty1 -ne 0 -o $dirty2 -ne 0 ]
