@@ -209,7 +209,7 @@ wait_for_reshape_end() {
 	do
 		sync_action=$(grep -Ec '(resync|recovery|reshape|check|repair) *=' /proc/mdstat)
 		if (( "$sync_action" != 0 )); then
-			sleep 1
+			sleep 2
 			continue
 		elif [[ $(pgrep -f "mdadm --grow --continue" > /dev/null) != "" ]]; then
 			echo "Grow continue did not finish but reshape is done" >&2
@@ -381,7 +381,7 @@ check() {
 		do
 			sync_action=$(grep -Ec '(resync|recovery|reshape|check|repair) *=' /proc/mdstat)
 			if (( "$sync_action" == 0 )); then
-				sleep 1
+				sleep 2
 				iterations=$(( $iterations + 1 ))
 				continue
 			else

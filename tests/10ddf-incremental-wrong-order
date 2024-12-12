@@ -23,7 +23,7 @@ sha_0a=$(sha1_sum $member0)
 sha_1a=$(sha1_sum $member1)
 
 mdadm -Ss
-sleep 1
+sleep 2
 
 # Add all devices except those for $member0
 mdadm -I $dev10
@@ -35,7 +35,7 @@ e2fsck -fy $member1
 sha_1b=$(sha1_sum $member1)
 
 mdadm -Ss
-sleep 1
+sleep 2
 
 # Seq number should be different now
 seq8a=$(mdadm -E $dev8 | sed -n 's/^ *Seq : //p')
@@ -64,7 +64,7 @@ sha_0c=$(sha1_sum $member0)
 sha_1c=$(sha1_sum $member1)
 
 mdadm -Ss
-sleep 1
+sleep 2
 
 seq8c=$(mdadm -E $dev8 | sed -n 's/^ *Seq : //p')
 seq10c=$(mdadm -E $dev10 | sed -n 's/^ *Seq : //p')
@@ -103,7 +103,7 @@ if mdadm -A $container $dev8 $dev9 $dev10 $dev11; then
     sha_0d=$(sha1_sum $member0)
     sha_1d=$(sha1_sum $member1)
     mdadm -Ss
-    sleep 1
+    sleep 2
     seq8d=$(mdadm -E $dev8 | sed -n 's/^ *Seq : //p')
     seq10d=$(mdadm -E $dev10 | sed -n 's/^ *Seq : //p')
     if [ x$sha_0a != x$sha_0d ]; then

@@ -23,9 +23,9 @@ checkgeo() {
  # level raid_disks chunk_size layout
  dev=$1
  shift
- sleep 15
+ sleep 25
  check wait
- sleep 1
+ sleep 2
  for attr in level raid_disks chunk_size layout
  do
    if [ $# -gt 0 ] ; then
