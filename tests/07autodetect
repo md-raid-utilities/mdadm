@@ -18,7 +18,7 @@ sfdisk $mdp1 >&2 << END
 END
 udevadm settle
 mdadm -CR -e 0 $md0 -l1 -n2 ${mdp0}p1 ${mdp1}p1
-sleep 1
+sleep 2
 check resync
 check raid1
 check wait

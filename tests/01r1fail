@@ -8,7 +8,7 @@ check resync
 mdadm $md0 --fail $dev2
 check resync
 mdadm $md0 --fail $dev1
-sleep 1
+sleep 2
 check nosync
 check state U___
 mdadm $md0 --add $dev4 $dev3

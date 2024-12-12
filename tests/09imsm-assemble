@@ -20,7 +20,7 @@ imsm_check_removal() {
             success=1
             break
         fi
-        sleep 1
+        sleep 2
     done
 
     if [ $success -ne 1 ]; then

@@ -38,7 +38,7 @@ do
     if [[ $(echo check > /sys/block/md0/md/sync_action) != 0 ]]; then
         break;
     fi
-    sleep 1
+    sleep 2
   done
 
   if [[ i == max ]]; then

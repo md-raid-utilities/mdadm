@@ -18,12 +18,12 @@ set_up_test || die "set up test failed"
 
 # set up replacement
 echo want_replacement > /sys/block/md0/md/rd0/state
-sleep 1
+sleep 2
 
 # trigger reshape
 echo frozen > /sys/block/md0/md/sync_action
 mdadm --grow -l 6 $md0
-sleep 1
+sleep 2
 
 # reassemeble array
 mdadm -S $md0 || die "can't stop array"

@@ -19,7 +19,7 @@ check all nobitmap
 mdadm --grow $md0 --bitmap=internal
 [ $? -eq '0' ] ||
 	die "$NODE1: change bitmap 'none' to 'internal' failed."
-sleep 1
+sleep 2
 mdadm -X $dev0 $dev1 &> /dev/null
 [ $? -eq '0' ] ||
 	die "$NODE1: create 'internal' bitmap failed."
@@ -37,7 +37,7 @@ mdadm --grow $md0 --bitmap=clustered
 [ $? -eq '0' ] ||
 	die "$NODE1: change bitmap 'none' to 'clustered' failed."
 ssh $NODE2 mdadm -A $md0 $dev0 $dev1
-sleep 1
+sleep 2
 for ip in $NODES
 do
 	ssh $ip "mdadm -X $dev0 $dev1 | grep -q 'Cluster name'" ||

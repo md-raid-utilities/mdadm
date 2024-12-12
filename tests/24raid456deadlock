@@ -36,7 +36,7 @@ clean_up_test()
 	pkill -9 fio
 	kill -9 $pid
 
-	sleep 1
+	sleep 2
 
 	if ps $pid | tail -1 | awk '{print $3}' | grep D; then
 		die "thread that is writing sysfs is stuck in D state, deadlock is triggered"

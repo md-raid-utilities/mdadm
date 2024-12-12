@@ -147,7 +147,7 @@ do
 		systemctl stop mdcheck_continue.timer
 		exit 0;
 	fi
-	sleep 120
+	sleep 220
 done
 
 # We've waited, and there are still checks running.
