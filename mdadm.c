@@ -1619,7 +1619,7 @@ int main(int argc, char *argv[])
 		if (devs_found > 1 && s.raiddisks == 0 && s.level == UnSet) {
 			/* must be '-a'. */
 			if (s.size > 0 || s.chunk ||
-			    s.layout_str || s.btype != BitmapNone) {
+			    s.layout_str || s.btype != BitmapUnknown) {
 				pr_err("--add cannot be used with other geometry changes in --grow mode\n");
 				rv = 1;
 				break;
