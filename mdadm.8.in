@@ -740,27 +740,11 @@ parameter and are stored internally.
 .B none
 - create array with no bitmap or remove any present bitmap (grow mode).
 
-Setting bitmap for file is deprecated and should not be used. The file should not exist unless
-.B \-\-force
-is also given. The same file should be provided when assembling the array. The file name must
-contain at least one slash ('/'). Bitmap files are only known to work on ext2 and ext3. Storing
-bitmap files on other filesystems may result in serious problems.
-
-When creating an array on devices which are 100G or larger,
-.I mdadm
-automatically adds an internal bitmap as it will usually be
-beneficial.  This can be suppressed with
-.B "\-\-bitmap=none"
-or by selecting a different consistency policy with
-.BR \-\-consistency\-policy .
-
 .TP
 .BR \-\-bitmap\-chunk=
 Set the chunk size of the bitmap.  Each bit corresponds to that many
 Kilobytes of storage.
-When using a file-based bitmap, the default is to use the smallest
-size that is at least 4 and requires no more than 2^21 chunks.
-When using an
+
 .B internal
 bitmap, the chunk size defaults to 64Meg, or larger if necessary to
 fit the bitmap into the available space.
@@ -1107,13 +1091,6 @@ are present.  This is only needed with
 .B \-\-scan,
 and can be used if the physical connections to devices are
 not as reliable as you would like.
-
-.TP
-.BR \-b ", " \-\-bitmap=
-Specify the bitmap file that was given when the array was created.  If
-an array has an
-.B internal
-bitmap, there is no need to specify this when assembling the array.
 
 .TP
 .BR \-\-backup\-file=
@@ -1614,9 +1591,8 @@ applies to a whole array which is currently active.
 
 .TP
 .BR \-X ", " \-\-examine\-bitmap
-Report information about a bitmap file.
-The argument is either an external bitmap file or an array component
-in case of an internal bitmap.  Note that running this on an array
+Report information about a bitmap.
+The argument is an array component. Note that running this on an array
 device (e.g.
 .BR /dev/md0 )
 does not report the bitmap for that array.
@@ -1774,10 +1750,7 @@ Only meaningful with
 this will scan the
 .B map
 file for arrays that are being incrementally assembled and will try to
-start any that are not already started.  If any such array is listed
-in
-.B mdadm.conf
-as requiring an external bitmap, that bitmap will be attached first.
+start any that are not already started.
 
 .TP
 .BR \-\-fail ", " \-f
@@ -2151,15 +2124,7 @@ setting.
 .\".B \-\-size
 .\"is given, the apparent size of the smallest drive given is used.
 
-If the array type supports a write-intent bitmap, and if the devices
-in the array exceed 100G is size, an internal write-intent bitmap
-will automatically be added unless some other option is explicitly
-requested with the
-.B \-\-bitmap
-option or a different consistency policy is selected with the
-.B \-\-consistency\-policy
-option. In any case, space for a bitmap will be reserved so that one
-can be added later with
+Space for a bitmap will be reserved so that one can be added later with
 .BR "\-\-grow \-\-bitmap=internal" .
 
 If the metadata type supports it (currently only 1.x and IMSM metadata),
@@ -2735,11 +2700,6 @@ Also, the size of an array cannot be changed while it has an active
 bitmap.  If an array has a bitmap, it must be removed before the size
 can be changed. Once the change is complete a new bitmap can be created.
 
-.PP
-Note:
-.B "--grow --size"
-is not yet supported for external file bitmap.
-
 .SS RAID\-DEVICES CHANGES
 
 A RAID1 array can work with any number of devices from 1 upwards
@@ -2834,10 +2794,7 @@ stored on the device being reshaped.
 .SS BITMAP CHANGES
 
 A write-intent bitmap can be added to, or removed from, an active
-array.  Either internal bitmaps, or bitmaps stored in a separate file,
-can be added.  Note that if you add a bitmap stored in a file which is
-in a filesystem that is on the RAID array being affected, the system
-will deadlock.  The bitmap must be on a separate filesystem.
+array.
 
 .SS CONSISTENCY POLICY CHANGES
 
