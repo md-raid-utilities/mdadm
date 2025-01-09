@@ -1,0 +1,32 @@
+
+# List of maintainers for mdadm
+
+
+Descriptions of section entries:
+
+M:	Mail patches to: FullName <address@domain>
+L:	Mailing list that is relevant to mdadm
+
+
+Alphabetical Order:
+
+M:	Blazej Kucman <blazej.kucman@linux.intel.com>
+L:	linux-raid@vger.kernel.org
+
+M:	Mateusz Kusiak <mateusz.kusiak@intel.com>
+L:	linux-raid@vger.kernel.org
+
+M:	Mariusz Tkaczyk <mtkaczyk@kernel.org>
+L:	linux-raid@vger.kernel.org
+
+M:	Nigel Croxon <ncroxon@redhat.com>
+L:	linux-raid@vger.kernel.org
+
+M:	Song Liu <song@kernel.org>
+L:	linux-raid@vger.kernel.org
+
+M:	Xiao Ni <xni@redhat.com>
+L:	linux-raid@vger.kernel.org
+
+M:	Yu Kuai <yukuai@kernel.org>
+L:	linux-raid@vger.kernel.org
