@@ -881,31 +881,6 @@ different versions of
 are used to add different devices).
 
 .TP
-.BR \-\-continue
-This option is complementary to the
-.B \-\-freeze-reshape
-option for assembly. It is needed when
-.B \-\-grow
-operation is interrupted and it is not restarted automatically due to
-.B \-\-freeze-reshape
-usage during array assembly.  This option is used together with
-.BR \-G
-, (
-.BR \-\-grow
-) command and device for a pending reshape to be continued.
-All parameters required for reshape continuation will be read from array metadata.
-If initial
-.BR \-\-grow
-command had required
-.BR \-\-backup\-file=
-option to be set, continuation option will require to have exactly the same
-backup file given as well.
-.IP
-Any other parameter passed together with
-.BR \-\-continue
-option will be ignored.
-
-.TP
 .BR \-N ", " \-\-name=
 Set a
 .B name
@@ -1301,18 +1276,6 @@ or
 .B layout\-alternate
 and allows the array to be again used on a kernel prior to Linux 5.3.
 This option should be used with great caution.
-
-.TP
-.BR \-\-freeze\-reshape
-This option is intended to be used in start-up scripts during the initrd boot phase.
-When the array under reshape is assembled during the initrd phase, this option
-stops the reshape after the reshape-critical section has been restored. This happens
-before the file system pivot operation and avoids loss of filesystem context.
-Losing file system context would cause reshape to be broken.
-
-Reshape can be continued later using the
-.B \-\-continue
-option for the grow command.
 
 .SH For Manage mode:
 
