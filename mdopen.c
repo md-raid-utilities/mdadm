@@ -39,6 +39,24 @@ int create_named_array(char *devnm)
 
 	fd = open(new_array_file, O_WRONLY);
 	if (fd < 0 && errno == ENOENT) {
+		char buf[PATH_MAX] = {0};
+		char *env_ptr;
+
+		env_ptr = getenv("PATH");
+		/*
+		 * When called by udev worker context, path of modprobe
+		 * might not be in env PATH. Set sbin paths into PATH
+		 * env to avoid potential failure when run modprobe here.
+		 */
+		if (env_ptr)
+			snprintf(buf, PATH_MAX - 1, "%s:%s", env_ptr,
+				 "/sbin:/usr/sbin:/usr/local/sbin");
+		else
+			snprintf(buf, PATH_MAX - 1, "%s",
+				 "/sbin:/usr/sbin:/usr/local/sbin");
+
+		setenv("PATH", buf, 1);
+
 		if (system("modprobe md_mod") == 0)
 			fd = open(new_array_file, O_WRONLY);
 	}
