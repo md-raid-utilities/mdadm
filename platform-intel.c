@@ -607,6 +607,7 @@ const struct imsm_orom *imsm_platform_test(struct sys_dev *hba)
 
 static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 {
+	struct stat st;
 	unsigned long align;
 
 	if (check_env("IMSM_TEST_OROM"))
@@ -614,6 +615,10 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 
 	/* return empty OROM capabilities in EFI test mode */
 	if (check_env("IMSM_TEST_AHCI_EFI") || check_env("IMSM_TEST_SCU_EFI"))
+		return NULL;
+
+	/* Skip legacy option ROM scan when EFI booted */
+	if (stat("/sys/firmware/efi", &st) == 0 && S_ISDIR(st.st_mode))
 		return NULL;
 
 	find_intel_devices();
