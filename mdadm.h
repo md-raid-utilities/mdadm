@@ -162,8 +162,16 @@ struct dlm_lksb {
 #define GROW_SERVICE "mdadm-grow-continue"
 #endif /* GROW_SERVICE */
 
-#include	"md_u.h"
-#include	"md_p.h"
+#include	<linux/raid/md_u.h>
+#include	<linux/raid/md_p.h>
+
+/* These defines are missing in kernel headers */
+/* block container wide reshapes */
+#define MD_SB_BLOCK_CONTAINER_RESHAPE	3
+/* block activation of array, other arrays in container can be activated */
+#define MD_SB_BLOCK_VOLUME		4
+#define MD_DISK_REPLACEMENT	17
+
 #include	"bitmap.h"
 #include	"msg.h"
 #include	"mdadm_status.h"
@@ -188,40 +196,6 @@ struct dlm_lksb {
 			     ((x) & 0x0000ff0000000000ULL) >> 24 | \
 			     ((x) & 0x00000000ff000000ULL) << 8 |  \
 			     ((x) & 0x000000ff00000000ULL) >> 8)
-
-#if !defined(__KLIBC__)
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define	__cpu_to_le16(_x) (unsigned int)(_x)
-#define __cpu_to_le32(_x) (unsigned int)(_x)
-#define __cpu_to_le64(_x) (unsigned long long)(_x)
-#define	__le16_to_cpu(_x) (unsigned int)(_x)
-#define __le32_to_cpu(_x) (unsigned int)(_x)
-#define __le64_to_cpu(_x) (unsigned long long)(_x)
-
-#define	__cpu_to_be16(_x) __mdadm_bswap_16(_x)
-#define __cpu_to_be32(_x) __mdadm_bswap_32(_x)
-#define __cpu_to_be64(_x) __mdadm_bswap_64(_x)
-#define	__be16_to_cpu(_x) __mdadm_bswap_16(_x)
-#define __be32_to_cpu(_x) __mdadm_bswap_32(_x)
-#define __be64_to_cpu(_x) __mdadm_bswap_64(_x)
-#elif BYTE_ORDER == BIG_ENDIAN
-#define	__cpu_to_le16(_x) __mdadm_bswap_16(_x)
-#define __cpu_to_le32(_x) __mdadm_bswap_32(_x)
-#define __cpu_to_le64(_x) __mdadm_bswap_64(_x)
-#define	__le16_to_cpu(_x) __mdadm_bswap_16(_x)
-#define __le32_to_cpu(_x) __mdadm_bswap_32(_x)
-#define __le64_to_cpu(_x) __mdadm_bswap_64(_x)
-
-#define	__cpu_to_be16(_x) (unsigned int)(_x)
-#define __cpu_to_be32(_x) (unsigned int)(_x)
-#define __cpu_to_be64(_x) (unsigned long long)(_x)
-#define	__be16_to_cpu(_x) (unsigned int)(_x)
-#define __be32_to_cpu(_x) (unsigned int)(_x)
-#define __be64_to_cpu(_x) (unsigned long long)(_x)
-#else
-#  error "unknown endianness."
-#endif
-#endif /* __KLIBC__ */
 
 /*
  * Partially stolen from include/linux/unaligned/packed_struct.h

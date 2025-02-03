@@ -26,8 +26,6 @@
  */
 
 #include	"mdadm.h"
-#include	"md_u.h"
-#include	"md_p.h"
 
 int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 {
