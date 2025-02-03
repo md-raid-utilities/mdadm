@@ -23,8 +23,8 @@
  */
 
 #include	"mdadm.h"
-#include	"md_u.h"
-#include	"md_p.h"
+#include	<linux/raid/md_u.h>
+#include	<linux/raid/md_p.h>
 #include	"udev.h"
 #include	"xmalloc.h"
 
