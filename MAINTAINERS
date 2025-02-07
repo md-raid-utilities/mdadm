@@ -30,3 +30,7 @@ L:	linux-raid@vger.kernel.org
 
 M:	Yu Kuai <yukuai@kernel.org>
 L:	linux-raid@vger.kernel.org
+
+M:	Test Testing <test@testing>
+L:	linux-raid@vger.kernel.org
+
