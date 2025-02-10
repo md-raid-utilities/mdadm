@@ -726,6 +726,7 @@ static void manage_new(struct mdstat_ent *mdstat,
 	int i, inst;
 	int failed = 0;
 	char buf[SYSFS_MAX_BUF_SIZE];
+	struct metadata_update *update = NULL;
 
 	/* check if array is ready to be monitored */
 	if (!mdstat->active || !mdstat->level)
@@ -824,9 +825,14 @@ static void manage_new(struct mdstat_ent *mdstat,
 	/* if everything checks out tell the metadata handler we want to
 	 * manage this instance
 	 */
+	container->update_tail = &update;
 	if (!aa_ready(new) || container->ss->open_new(container, new, inst) < 0) {
+		container->update_tail = NULL;
 		goto error;
 	} else {
+		if (update)
+			queue_metadata_update(update);
+		container->update_tail = NULL;
 		replace_array(container, victim, new);
 		if (failed) {
 			new->check_degraded = 1;
