@@ -77,10 +77,7 @@ to the chosen branch, then Pull Request will be automatically updated.
 
 # Maintainers of mdadm repository on kernel.org
 
-If there are differences between github and kernel.org, please contact kernel.org mdadm maintainers:
-
-- Jes Sorensen <jes@trained-monkey.org>;
-- Mariusz Tkaczyk <mariusz.tkaczyk@linux.intel.com>;
+See [Maintainers File](MAINTAINERS.md).
 
 # Minimal supported kernel version
 
