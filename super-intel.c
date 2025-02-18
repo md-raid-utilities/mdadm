@@ -8467,12 +8467,15 @@ static int imsm_count_failed(struct intel_super *super, struct imsm_dev *dev,
 	return failed;
 }
 
+static int imsm_prepare_update(struct supertype *st,
+			       struct metadata_update *update);
 static int imsm_open_new(struct supertype *c, struct active_array *a,
 			 int inst)
 {
 	struct intel_super *super = c->sb;
 	struct imsm_super *mpb = super->anchor;
-	struct imsm_update_prealloc_bb_mem u;
+	struct imsm_update_prealloc_bb_mem *u;
+	struct metadata_update mu;
 
 	if (inst >= mpb->num_raid_devs) {
 		pr_err("subarry index %d, out of range\n", inst);
@@ -8482,8 +8485,13 @@ static int imsm_open_new(struct supertype *c, struct active_array *a,
 	dprintf("imsm: open_new %d\n", inst);
 	a->info.container_member = inst;
 
-	u.type = update_prealloc_badblocks_mem;
-	imsm_update_metadata_locally(c, &u, sizeof(u));
+	u = xmalloc(sizeof(*u));
+	u->type = update_prealloc_badblocks_mem;
+	mu.len = sizeof(*u);
+	mu.buf = (char *)u;
+	imsm_prepare_update(c, &mu);
+	if (c->update_tail)
+		append_metadata_update(c, u, sizeof(*u));
 
 	return 0;
 }
