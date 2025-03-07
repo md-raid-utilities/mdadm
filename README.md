@@ -138,9 +138,6 @@ List of installation targets:
 
 The following targets are deprecated and should not be used:
 - `install-static`
-- `install-tcc`
-- `install-uclibc`
-- `install-klibc`
 
 # License
 
