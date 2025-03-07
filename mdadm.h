@@ -43,6 +43,7 @@ extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
 #include	<sys/time.h>
 #include	<getopt.h>
 #include	<fcntl.h>
+#include	<ftw.h>
 #include	<stdio.h>
 #include	<errno.h>
 #include	<string.h>
@@ -189,7 +190,6 @@ struct dlm_lksb {
 			     ((x) & 0x00000000ff000000ULL) << 8 |  \
 			     ((x) & 0x000000ff00000000ULL) >> 8)
 
-#if !defined(__KLIBC__)
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	__cpu_to_le16(_x) (unsigned int)(_x)
 #define __cpu_to_le32(_x) (unsigned int)(_x)
@@ -221,7 +221,6 @@ struct dlm_lksb {
 #else
 #  error "unknown endianness."
 #endif
-#endif /* __KLIBC__ */
 
 /*
  * Partially stolen from include/linux/unaligned/packed_struct.h
@@ -1528,40 +1527,6 @@ extern void sysfsline(char *line);
 
 #if __GNUC__ < 3
 struct stat64;
-#endif
-
-#define HAVE_NFTW  we assume
-#define HAVE_FTW
-
-#ifdef __UCLIBC__
-# include <features.h>
-# ifndef __UCLIBC_HAS_LFS__
-#  define lseek64 lseek
-# endif
-# ifndef  __UCLIBC_HAS_FTW__
-#  undef HAVE_FTW
-#  undef HAVE_NFTW
-# endif
-#endif
-
-#ifdef __dietlibc__
-# undef HAVE_NFTW
-#endif
-
-#if defined(__KLIBC__)
-# undef HAVE_NFTW
-# undef HAVE_FTW
-#endif
-
-#ifndef HAVE_NFTW
-# define FTW_PHYS 1
-# ifndef HAVE_FTW
-  struct FTW {};
-# endif
-#endif
-
-#ifdef HAVE_FTW
-# include <ftw.h>
 #endif
 
 extern int add_dev(const char *name, const struct stat *stb, int flag, struct FTW *s);
