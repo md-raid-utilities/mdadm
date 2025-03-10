@@ -31,16 +31,6 @@
 # define "CXFLAGS" to give extra flags to CC.
 # e.g.  make CXFLAGS=-O to optimise
 CXFLAGS ?=-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE
-TCC = tcc
-UCLIBC_GCC = $(shell for nm in i386-uclibc-linux-gcc i386-uclibc-gcc; do which $$nm > /dev/null && { echo $$nm ; exit; } ; done; echo false No uclibc found )
-#DIET_GCC = diet gcc
-# sorry, but diet-libc doesn't know about posix_memalign,
-# so we cannot use it any more.
-DIET_GCC = gcc -DHAVE_STDINT_H
-
-KLIBC=/home/src/klibc/klibc-0.77
-
-KLIBC_GCC = gcc -nostdinc -iwithprefix include -I$(KLIBC)/klibc/include -I$(KLIBC)/linux/include -I$(KLIBC)/klibc/arch/i386/include -I$(KLIBC)/klibc/include/bits32
 
 ifdef COVERITY
 COVERITY_FLAGS=-include coverity-gcc-hack.h
@@ -225,8 +215,6 @@ everything: all swap_super test_stripe raid6check \
 	mdadm.Os mdadm.O2 man
 everything-test: all swap_super test_stripe \
 	mdadm.Os mdadm.O2 man
-# mdadm.uclibc doesn't work on x86-64
-# mdadm.tcc doesn't work..
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(COVERITY_FLAGS) -o $@ -c $<
@@ -236,13 +224,6 @@ mdadm : $(OBJS) | check_rundir
 
 mdadm.static : $(OBJS) $(STATICOBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -static -o mdadm.static $(OBJS) $(STATICOBJS) $(LDLIBS)
-
-mdadm.tcc : $(SRCS) $(INCL)
-	$(TCC) -o mdadm.tcc $(SRCS)
-
-mdadm.klibc : $(SRCS) $(INCL)
-	rm -f $(OBJS)
-	$(CC) -nostdinc -iwithprefix include -I$(KLIBC)/klibc/include -I$(KLIBC)/linux/include -I$(KLIBC)/klibc/arch/i386/include -I$(KLIBC)/klibc/include/bits32 $(CFLAGS) $(SRCS)
 
 mdadm.Os : $(SRCS) $(INCL)
 	$(CC) -o mdadm.Os $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -DHAVE_STDINT_H -Os $(SRCS) $(LDLIBS)
@@ -298,15 +279,6 @@ install : install-bin install-man install-udev
 install-static : mdadm.static install-man
 	$(INSTALL) -D $(STRIP) -m 755 mdadm.static $(DESTDIR)$(BINDIR)/mdadm
 
-install-tcc : mdadm.tcc install-man
-	$(INSTALL) -D $(STRIP) -m 755 mdadm.tcc $(DESTDIR)$(BINDIR)/mdadm
-
-install-uclibc : mdadm.uclibc install-man
-	$(INSTALL) -D $(STRIP) -m 755 mdadm.uclibc $(DESTDIR)$(BINDIR)/mdadm
-
-install-klibc : mdadm.klibc install-man
-	$(INSTALL) -D $(STRIP) -m 755 mdadm.klibc $(DESTDIR)$(BINDIR)/mdadm
-
 install-man: mdadm.8 md.4 mdadm.conf.5 mdmon.8
 	$(INSTALL) -D -m 644 mdadm.8 $(DESTDIR)$(MAN8DIR)/mdadm.8
 	$(INSTALL) -D -m 644 mdmon.8 $(DESTDIR)$(MAN8DIR)/mdmon.8
@@ -354,9 +326,9 @@ test: mdadm mdmon test_stripe swap_super raid6check
 
 clean :
 	rm -f mdadm mdmon $(OBJS) $(MON_OBJS) $(STATICOBJS) core *.man \
-	mdadm.tcc mdadm.uclibc mdadm.static *.orig *.porig *.rej *.alt \
-	.merge_file_* mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
-	mdadm.uclibc.static test_stripe raid6check raid6check.o mdmon mdadm.8
+	mdadm.static *.orig *.porig *.rej *.alt merge_file_* \
+	mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
+	test_stripe raid6check raid6check.o mdmon mdadm.8
 	rm -rf cov-int
 
 dist : clean
