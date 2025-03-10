@@ -20,8 +20,6 @@
 
 #include	"mdadm.h"
 #include	"udev.h"
-#include	"md_p.h"
-#include	"md_u.h"
 #include	"xmalloc.h"
 
 #include	<sys/wait.h>

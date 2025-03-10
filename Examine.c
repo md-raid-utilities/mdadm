@@ -24,8 +24,6 @@
 
 #include	"dlink.h"
 #include	"mdadm.h"
-#include	"md_u.h"
-#include	"md_p.h"
 #include	"xmalloc.h"
 
 #if ! defined(__BIG_ENDIAN) && ! defined(__LITTLE_ENDIAN)
