@@ -163,8 +163,20 @@ struct dlm_lksb {
 #define GROW_SERVICE "mdadm-grow-continue"
 #endif /* GROW_SERVICE */
 
-#include	"md_u.h"
-#include	"md_p.h"
+#include	<linux/raid/md_u.h>
+#include	<linux/raid/md_p.h>
+
+/* These defines might be missing in raid headers*/
+#ifndef MD_SB_BLOCK_CONTAINER_RESHAPE
+#define MD_SB_BLOCK_CONTAINER_RESHAPE	3
+#endif
+#ifndef MD_SB_BLOCK_VOLUME
+#define MD_SB_BLOCK_VOLUME		4
+#endif
+#ifndef MD_DISK_REPLACEMENT
+#define MD_DISK_REPLACEMENT		17
+#endif
+
 #include	"bitmap.h"
 #include	"msg.h"
 #include	"mdadm_status.h"
