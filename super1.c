@@ -1971,6 +1971,9 @@ static int write_init_super1(struct supertype *st)
 	long bm_offset;
 	bool raid0_need_layout = false;
 
+	/* Clear extra flags */
+	sb->feature_map &= ~__cpu_to_le32(MD_FEATURE_BAD_BLOCKS | MD_FEATURE_REPLACEMENT);
+
 	/* Since linux kernel v5.4, raid0 always has a layout */
 	if (has_raid0_layout(sb) && get_linux_version() >= 5004000)
 		raid0_need_layout = true;
