@@ -26,6 +26,10 @@ savelogs=0
 exitonerror=1
 ctrl_c_error=0
 skipbroken=0
+skipbigcase=0
+skipfile="skiptests"
+skipcheckfile=$testdir/$skipfile
+checkscript=""
 loop=1
 prefix='[0-9][0-9]'
 
@@ -192,6 +196,7 @@ do_help() {
 		--loop=N                    Run tests N times (0 to run forever)
 		--skip-broken               Skip tests that are known to be broken
 		--skip-always-broken        Skip tests that are known to always fail
+		--skip-bigcase              Skip tests that need time than 200 seconds
 		--dev=loop|lvm|ram|disk     Use loop devices (default), LVM, RAM or disk
 		--disks=                    Provide a bunch of physical devices for test
 		--volgroup=name             LVM volume group for LVM test
@@ -295,6 +300,9 @@ parse_args() {
 		--skip-always-broken )
 			skipbroken=always
 			;;
+		--skip-bigcase )
+			skipbigcase=all
+			;;
 		--disable-multipath )
 			unset MULTIPATH
 			;;
@@ -369,9 +377,17 @@ main() {
 		else
 			for script in $testdir/$prefix $testdir/$prefix*[^~]
 			do
-				case $script in *.broken) ;;
-				 *)
-				     do_test $script
+				checkscript="${script##*/}"
+				case $script in
+				*.broken)
+					;;
+				*)
+					if grep -q "$checkscript" "$skipcheckfile"; then
+						if [ "$skipbigcase" == "all" ]; then
+							continue
+						fi
+					fi
+					do_test $script
 				esac
 			done
 		fi

@@ -3,8 +3,7 @@ sha1_sum() {
 }
 
 get_rootdev() {
-    local part=$(grep ' / ' /proc/mounts | awk '{print $1}')
-    local bd=/dev/$(lsblk -no PKNAME $part)
+    local bd=$(grep ' / ' /proc/mounts | awk '{print $1}')
     [ -b $bd ] || exit 1
     echo $bd
 }

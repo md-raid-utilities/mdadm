@@ -2310,7 +2310,7 @@ mdadm_status_t continue_via_systemd(char *devnm, char *service_name, char *prefi
 	dprintf("Start %s service\n", service_name);
 	/* Simply return that service cannot be started */
 	if (check_env("MDADM_NO_SYSTEMCTL"))
-		return MDADM_STATUS_SUCCESS;
+		return MDADM_STATUS_ERROR;
 
 	/* Fork in attempt to start services */
 	switch (fork()) {
