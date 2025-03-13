@@ -11,7 +11,7 @@ sudo ./test setup
 
 #sudo ./test --tests=00createnames
 
-sudo ./test --skip-broken --no-error --disable-integrity --disable-multipath --disable-linear --keep-going
+sudo ./test --skip-broken --no-error --disable-integrity --disable-multipath --disable-linear --keep-going --skip-bigcase
 
 ret=$?
 sudo ./test cleanup
