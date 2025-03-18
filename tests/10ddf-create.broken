@@ -1,5 +1,0 @@
-Fails due to segmentation fault at assemble.
-
-Too much effort to diagnose this now, marking as broken to make CI clear.
-	++ /usr/sbin/mdadm -A /dev/md/ddf0 /dev/loop8 /dev/loop9 /dev/loop10 /dev/loop11 /dev/loop12
-	./test: line 76: 101955 Segmentation fault      (core dumped) $mdadm "$@" 2> $targetdir/stderr
