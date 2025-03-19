@@ -208,11 +208,6 @@ static mdadm_status_t ident_check_name(const char *name, const char *prop_name, 
 		return MDADM_STATUS_ERROR;
 	}
 
-	if (!is_name_posix_compatible(name)) {
-		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
 	return MDADM_STATUS_SUCCESS;
 }
 
@@ -512,7 +507,8 @@ void arrayline(char *line)
 
 	for (w = dl_next(line); w != line; w = dl_next(w)) {
 		if (w[0] == '/' || strchr(w, '=') == NULL) {
-			_ident_set_devname(&mis, w, false);
+			if (is_name_posix_compatible(basename(w)))
+				_ident_set_devname(&mis, w, false);
 		} else if (strncasecmp(w, "uuid=", 5) == 0) {
 			if (mis.uuid_set)
 				pr_err("only specify uuid once, %s ignored.\n",
