@@ -472,20 +472,20 @@ bool is_alphanum(const char c)
 }
 
 /**
- * is_name_posix_compatible() - Check if name is POSIX compatible.
+ * is_name_valid() - Check if name contains disallowed characters.
  * @name: name to check.
  *
- *  POSIX portable file name character set contains ASCII letters,
- *  digits, '_', '.', and '-'. Also forbid leading '-'.
+ *  Allows name to contain only ASCII letters, digits, '_', '.', ':' and '-'.
+ *  Also forbid leading '-'.
  *  The length of the name cannot exceed NAME_MAX - 1 (ensure NULL ending).
  *
  * Return: %true on success, %false otherwise.
  */
-bool is_name_posix_compatible(const char * const name)
+bool is_name_valid(const char * const name)
 {
 	assert(name);
 
-	char allowed_symbols[] = "-_.";
+	char allowed_symbols[] = "-_.:";
 	const char *n = name;
 
 	if (!is_string_lq(name, NAME_MAX))
