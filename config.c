@@ -193,7 +193,7 @@ inline void ident_init(struct mddev_ident *ident)
  * @prop_name: the name of the property it is validated against, used for logging.
  * @cmdline: context dependent actions.
  *
- * @name must follow name's criteria, be POSIX compatible and does not have leading dot.
+ * @name must follow name's criteria, contain no forbidden characters and not have leading dot.
  */
 static mdadm_status_t ident_check_name(const char *name, const char *prop_name, const bool cmdline)
 {
@@ -208,8 +208,8 @@ static mdadm_status_t ident_check_name(const char *name, const char *prop_name, 
 		return MDADM_STATUS_ERROR;
 	}
 
-	if (!is_name_posix_compatible(name)) {
-		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
+	if (!is_name_valid(name)) {
+		ident_log(prop_name, name, "Contains forbidden characters", cmdline);
 		return MDADM_STATUS_ERROR;
 	}
 
