@@ -732,6 +732,12 @@ int main(int argc, char *argv[])
 				exit(2);
 			}
 
+			if (mode != ASSEMBLE &&
+					!is_name_posix_compatible(basename(optarg))) {
+				pr_err("%s Not POSIX compatible\n", basename(optarg));
+				exit(2);
+			}
+
 			if (ident_set_name(&ident, optarg) != MDADM_STATUS_SUCCESS)
 				exit(2);
 
@@ -1284,11 +1290,18 @@ int main(int argc, char *argv[])
 	    mode == GROW || (mode == ASSEMBLE && ! c.scan)) {
 		struct stat stb;
 		int ret;
+		char *bname = basename(devlist->devname);
 
 		if (devs_found < 1) {
 			pr_err("an md device must be given in this mode\n");
 			exit(2);
 		}
+
+		if (mode != ASSEMBLE && !is_name_posix_compatible(bname)) {
+			pr_err("%s Not POSIX compatible\n", bname);
+			exit(2);
+		}
+
 		if (ident_set_devname(&ident, devlist->devname) != MDADM_STATUS_SUCCESS)
 			exit(1);
 
