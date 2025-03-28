@@ -30,6 +30,7 @@
 
 #include	"mdadm.h"
 #include	"xmalloc.h"
+#include	"udev.h"
 
 #include	<sys/wait.h>
 #include	<dirent.h>
@@ -286,7 +287,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 
 		/* Couldn't find an existing array, maybe make a new one */
 		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
-				    chosen_name, 0);
+				    chosen_name, 1);
 
 		if (mdfd < 0)
 			goto out_unlock;
@@ -606,6 +607,8 @@ out:
 		close(mdfd);
 	if (policy)
 		dev_policy_free(policy);
+	udev_unblock();
+	sysfs_uevent(&info, "change");
 	sysfs_free(sra);
 	return rv;
 out_unlock:
@@ -1561,7 +1564,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 				trustworthy = LOCAL;
 
 			mdfd = create_mddev(match ? match->devname : NULL, ra->name, trustworthy,
-					    chosen_name, 0);
+					    chosen_name, 1);
 
 			if (!is_fd_valid(mdfd)) {
 				pr_err("create_mddev failed with chosen name %s: %s.\n",
@@ -1581,6 +1584,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		map_free(map);
 		map = NULL;
 		close_fd(&mdfd);
+		udev_unblock();
+		sysfs_uevent(&info, "change");
 	}
 	if (c->export && result) {
 		char sep = '=';
@@ -1607,6 +1612,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 release:
 	map_free(map);
 	sysfs_free(list);
+	udev_unblock();
+	sysfs_uevent(&info, "change");
 	return rv;
 }
 
