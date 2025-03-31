@@ -1327,6 +1327,19 @@ static void update_imsm_raid_level(struct imsm_map *map, int new_level)
 		return;
 	}
 
+	/*
+	 * RAID0 to RAID10 migration.
+	 * Due to the compatibility with VROC UEFI must be maintained, this case must be handled
+	 * separately, because the map does not have an updated number of disks.
+	 */
+	if (map->raid_level == IMSM_T_RAID0) {
+		if (map->num_members == 2)
+			map->raid_level = IMSM_T_RAID1;
+		else
+			map->raid_level = IMSM_T_RAID10;
+		return;
+	}
+
 	if (map->num_members == 4) {
 		if (map->raid_level == IMSM_T_RAID10 || map->raid_level == IMSM_T_RAID1)
 			return;
