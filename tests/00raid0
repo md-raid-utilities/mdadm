@@ -6,8 +6,8 @@ check raid0
 testdev $md0 3 $mdsize2_l 512
 mdadm -S $md0
 
-# verify raid0 with layouts fail for 0.90
-mdadm -CR $md0 -e0.90 -l0 -n4 $dev0 $dev1 $dev2 $dev3
+# verify raid0 with explicit layouts fail for 0.90
+mdadm -CR $md0 -e0.90 -l0 --layout=original -n4 $dev0 $dev1 $dev2 $dev3
 check opposite_result
 
 # now with no superblock
