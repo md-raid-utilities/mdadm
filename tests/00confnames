@@ -4,6 +4,10 @@ set -x -e
 # Test how <devname> is handled during Incremental assemblation with
 # config file and ARRAYLINE specified.
 
+# for native, mdadm is not limiting or checking the set of ASCI symbols that
+# can be used. It is up to user to use symbols that are not conflicting with
+# system utilities. Any problem is this area is not mdadm issue.
+
 names_create "/dev/md/name"
 local _UUID="$(mdadm -D --export /dev/md127 | grep MD_UUID | cut -d'=' -f2)"
 [[ "$_UUID" == "" ]] && echo "Cannot obtain UUID for $DEVNODE_NAME" && exit 1
@@ -41,14 +45,7 @@ mdadm -I $dev0 --config=$config
 names_verify "/dev/md4" "empty" "name"
 mdadm -S "/dev/md4"
 
-# 6. <devname> with some special symbols and locales.
-# <devname> should be ignored.
-names_make_conf $_UUID "tźż-\.,<>st+-" $config
-mdadm -I $dev0 --config=$config
-names_verify "/dev/md127" "name" "name"
-mdadm -S "/dev/md127"
-
-# 7. No <devname> set.
+# 6. No <devname> set.
 # Metadata name and default node used.
 names_make_conf $_UUID "empty" $config
 mdadm -I $dev0 --config=$config
