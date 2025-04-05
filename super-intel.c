@@ -5630,6 +5630,17 @@ static bool imsm_is_name_allowed(struct intel_super *super, const char * const n
 		return false;
 	}
 
+	if (name[0] == '.') {
+		pr_vrb("imsm: Name \"%s\" has forbidden leading dot", name);
+		return false;
+	}
+
+	if (is_name_posix_compatible(name) == false) {
+		pr_vrb("imsm: Name \"%s\" doesn't follow POSIX portable file name character set",
+		       name);
+		return false;
+	}
+
 	for (i = 0; i < mpb->num_raid_devs; i++) {
 		struct imsm_dev *dev = get_imsm_dev(super, i);
 

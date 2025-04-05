@@ -188,34 +188,6 @@ inline void ident_init(struct mddev_ident *ident)
 	ident->uuid_set = 0;
 }
 
-/** ident_check_name() - helper function to verify name.
- * @name: name to check.
- * @prop_name: the name of the property it is validated against, used for logging.
- * @cmdline: context dependent actions.
- *
- * @name must follow name's criteria, be POSIX compatible and does not have leading dot.
- */
-static mdadm_status_t ident_check_name(const char *name, const char *prop_name, const bool cmdline)
-{
-	if (!is_string_lq(name, MD_NAME_MAX + 1)) {
-		ident_log(prop_name, name, "Too long or empty", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
-	if (*name == '.') {
-		/* MD device should not be considered as hidden. */
-		ident_log(prop_name, name, "Leading dot forbidden", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
-	if (!is_name_posix_compatible(name)) {
-		ident_log(prop_name, name, "Not POSIX compatible", cmdline);
-		return MDADM_STATUS_ERROR;
-	}
-
-	return MDADM_STATUS_SUCCESS;
-}
-
 /**
  * _ident_set_devname() - verify devname and set it in &mddev_ident.
  * @ident: pointer to &mddev_ident.
@@ -243,7 +215,6 @@ mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname
 	static const char named_dev_pref[] = DEV_NUM_PREF "_";
 	static const int named_dev_pref_size = sizeof(named_dev_pref) - 1;
 	const char *prop_name = "devname";
-	mdadm_status_t ret;
 	const char *name;
 
 	if (ident->devname) {
@@ -270,9 +241,11 @@ mdadm_status_t _ident_set_devname(struct mddev_ident *ident, const char *devname
 	else
 		name = devname;
 
-	ret = ident_check_name(name, prop_name, cmdline);
-	if (ret)
-		return ret;
+	if (!is_string_lq(name, MD_NAME_MAX + 1)) {
+		ident_log(prop_name, name, "Too long or empty", cmdline);
+		return MDADM_STATUS_ERROR;
+	}
+
 pass:
 	ident->devname = xstrdup(devname);
 	return MDADM_STATUS_SUCCESS;
@@ -294,16 +267,16 @@ mdadm_status_t ident_set_name(struct mddev_ident *ident, const char *name)
 	assert(ident);
 
 	const char *prop_name = "name";
-	mdadm_status_t ret;
 
 	if (ident->name[0]) {
 		ident_log(prop_name, name, "Already defined", true);
 		return MDADM_STATUS_ERROR;
 	}
 
-	ret = ident_check_name(name, prop_name, true);
-	if (ret)
-		return ret;
+	if (!is_string_lq(name, MD_NAME_MAX + 1)) {
+		ident_log(prop_name, name, "Too long or empty", true);
+		return MDADM_STATUS_ERROR;
+	}
 
 	snprintf(ident->name, MD_NAME_MAX + 1, "%s", name);
 	return MDADM_STATUS_SUCCESS;
