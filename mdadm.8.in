@@ -884,10 +884,8 @@ are used to add different devices).
 .BR \-N ", " \-\-name=
 Set a
 .B name
-for the array. It must be
-.BR "POSIX PORTABLE NAME"
-compatible and cannot be longer than 32 chars. This is effective when creating an array
-with a v1 metadata, or an external array.
+for the array. It cannot be longer than 32 chars. This is effective when
+creating an array with a v1 metadata, or an external array.
 
 If name is needed but not specified, it is taken from the basename of the device
 that is being created. See
@@ -1024,11 +1022,9 @@ is much safer.
 
 .TP
 .BR \-N ", " \-\-name=
-Specify the name of the array to assemble. It must be
-.BR "POSIX PORTABLE NAME"
-compatible and cannot be longer than 32 chars. This must be the name
-that was specified when creating the array. It must either match
-the name stored in the superblock exactly, or it must match
+Specify the name of the array to assemble. It cannot be longer than 32 chars.
+This must be the name that was specified when creating the array. It must
+either match the name stored in the superblock exactly, or it must match
 with the current
 .I homehost
 prefixed to the start of the given name.
@@ -2236,10 +2232,8 @@ and
 
 The
 .B name
-option updates the subarray name in the metadata. It must be
-.BR "POSIX PORTABLE NAME"
-compatible and cannot be longer than 32 chars. If successes, new value will be respected after
-next assembly.
+option updates the subarray name in the metadata. It cannot be longer than
+32 chars. If successes, new value will be respected after next assembly.
 
 The
 .B ppl
@@ -3214,9 +3208,7 @@ can be given, or just the suffix of the second sort of name, such as
 .I home
 can be given.
 
-In every style, raw name must be compatible with
-.BR "POSIX PORTABLE NAME"
-and has to be no longer than 32 chars.
+In every style, raw name has to be no longer than 32 chars.
 
 When
 .I mdadm
