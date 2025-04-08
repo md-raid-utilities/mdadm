@@ -23,8 +23,6 @@
  */
 
 #include	"mdadm.h"
-#include	"md_p.h"
-#include	"md_u.h"
 #include	"xmalloc.h"
 
 #include	<ctype.h>
