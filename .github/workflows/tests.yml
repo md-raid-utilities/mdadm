@@ -35,6 +35,9 @@ jobs:
           vagrant status
           vagrant up
 
+     - name: Export RUNNER_NAME
+       run: echo "RUNNER_NAME=$RUNNER_NAME" >> $GITHUB_ENV
+
      - name: 'Run tests'
        id: testing
        continue-on-error: true
@@ -48,18 +51,31 @@ jobs:
           cd ..
           vagrant ssh -c "sudo mkdir -p /home/vagrant/host/logs && sudo mv /var/tmp/*.log /home/vagrant/host/logs"
 
-     - name: "Save artifacts"
-       if: ${{ steps.testing.outcome == 'failure' }}
+     - name: "Save artifacts inspur5"
+       if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5' }}
        uses: actions/upload-artifact@v4
        with:
          name: "Logs from failed tests"
          path: /home/ci/actions-runner/_work/mdadm/logs/*.log
 
+     - name: "Save artifacts inspur5-2"
+       if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5-2'}}
+       uses: actions/upload-artifact@v4
+       with:
+         name: "Logs from failed tests"
+         path: /home/ci/actions-runner-2/_work/mdadm/logs/*.log
+
      - name: "Clean logs"
        if: ${{ steps.testing.outcome == 'failure' }}
        run: |
           cd ..
-          sudo rm /home/ci/actions-runner/_work/mdadm/logs/*.log
+          if [ -d "/home/ci/actions-runner/_work/mdadm/logs" ]; then
+            sudo rm /home/ci/actions-runner/_work/mdadm/logs/*.log
+          fi
+
+          if [ -d "/home/ci/actions-runner-2/_work/mdadm/logs" ]; then
+            sudo rm /home/ci/actions-runner-2/_work/mdadm/logs/*.log
+          fi
 
      - name: "Set failed"
        if: ${{ steps.testing.outcome == 'failure' }}
