@@ -59,6 +59,7 @@ jobs:
        if: ${{ steps.testing.outcome == 'failure' }}
        run: |
           cd ..
+          echo "RUNNER_NAME : $RUNNER_NAME"
           sudo rm /home/ci/actions-runner/_work/mdadm/logs/*.log
 
      - name: "Set failed"
