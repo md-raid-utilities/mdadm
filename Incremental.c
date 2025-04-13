@@ -30,6 +30,7 @@
 
 #include	"mdadm.h"
 #include	"xmalloc.h"
+#include	"udev.h"
 
 #include	<sys/wait.h>
 #include	<dirent.h>
@@ -286,7 +287,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 
 		/* Couldn't find an existing array, maybe make a new one */
 		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
-				    chosen_name, 0);
+				    chosen_name, 1);
 
 		if (mdfd < 0)
 			goto out_unlock;
@@ -447,7 +448,6 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		info.array.working_disks = 0;
 		for (d = sra->devs; d; d=d->next)
 			info.array.working_disks ++;
-
 	}
 	if (strncmp(chosen_name, DEV_MD_DIR, DEV_MD_DIR_LEN) == 0)
 		md_devname = chosen_name + DEV_MD_DIR_LEN;
@@ -464,7 +464,6 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	if (is_container(info.array.level)) {
 		char devnm[32];
 		/* Try to assemble within the container */
-		sysfs_uevent(sra, "change");
 		if (!c->export && c->verbose >= 0)
 			pr_err("container %s now has %d device%s\n",
 			       chosen_name, info.array.working_disks,
@@ -476,6 +475,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
 		close(mdfd);
+		udev_unblock();
+		sysfs_uevent(sra, "change");
 		sysfs_free(sra);
 		if (!rv)
 			rv = Incremental_container(st, chosen_name, c, NULL);
@@ -484,6 +485,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		 * so that it can eg. try to rebuild degraded array */
 		if (st->ss->external)
 			ping_monitor(devnm);
+		udev_unblock();
 		return rv;
 	}
 
@@ -606,7 +608,11 @@ out:
 		close(mdfd);
 	if (policy)
 		dev_policy_free(policy);
-	sysfs_free(sra);
+	udev_unblock();
+	if (sra) {
+		sysfs_uevent(sra, "change");
+		sysfs_free(sra);
+	}
 	return rv;
 out_unlock:
 	map_unlock(&map);
@@ -1561,7 +1567,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 				trustworthy = LOCAL;
 
 			mdfd = create_mddev(match ? match->devname : NULL, ra->name, trustworthy,
-					    chosen_name, 0);
+					    chosen_name, 1);
 
 			if (!is_fd_valid(mdfd)) {
 				pr_err("create_mddev failed with chosen name %s: %s.\n",
@@ -1581,6 +1587,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		map_free(map);
 		map = NULL;
 		close_fd(&mdfd);
+		udev_unblock();
+		sysfs_uevent(&info, "change");
 	}
 	if (c->export && result) {
 		char sep = '=';
@@ -1607,6 +1615,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 release:
 	map_free(map);
 	sysfs_free(list);
+	udev_unblock();
+	sysfs_uevent(&info, "change");
 	return rv;
 }
 
