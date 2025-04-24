@@ -31,9 +31,15 @@ jobs:
      - name: 'Prepare machine'
        run: |
           cd ..
-          vagrant halt
+          vagrant snapshot restore clean_vm_v42
+          echo "FYI vagrant restore command finished with exit code: $?"
+          sleep 2
           vagrant status
           vagrant up
+          sleep 2
+          vagrant ssh -c "sudo timedatectl set-timezone UTC && \
+            sudo systemctl restart chronyd && sudo chronyc -a makestep && sleep 1"
+          echo "FYI vagrant time command finished with exit code: $?" 
 
      - name: 'Run tests'
        id: testing
@@ -69,9 +75,7 @@ jobs:
     runs-on: self-hosted
     needs: [upstream_tests]
     steps:
-      - name: Restore clean VM
+      - name: Halt VM
         run:  |
           cd ..
-          vagrant up
-          vagrant ssh -c "sudo mdadm -Ss"
           vagrant halt
