@@ -1,4 +1,3 @@
-test
 **mdadm** is a utility used to create and manage **software RAID** devices implemented through
 **Multiple devices driver (MD)** in kernel. It supports following RAID metadata formats:
 
