@@ -37,9 +37,8 @@ jobs:
           vagrant status
           vagrant up
           sleep 2
-          vagrant ssh -c "uname -r && sudo timedatectl set-timezone UTC && \
-            sudo systemctl restart chronyd && sudo chronyc -a makestep && sleep 1"
-          echo "FYI vagrant time command finished with exit code: $?" 
+          vagrant ssh -c "uname -r"
+          echo "FYI vagrant uname command finished with exit code: $?" 
 
      - name: 'Run tests'
        id: testing
