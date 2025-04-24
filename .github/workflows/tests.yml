@@ -65,7 +65,7 @@ jobs:
        if: ${{ steps.testing.outcome == 'failure' }}
        run: |
           cd ..
-          sudo rm /home/ci/actions-runner/_work/mdadm/logs/*.log
+          sudo rm -rf /home/ci/actions-runner/_work/mdadm/logs/*.log
 
      - name: "Set failed"
        if: ${{ steps.testing.outcome == 'failure' }}
