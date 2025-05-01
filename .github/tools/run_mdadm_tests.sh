@@ -2,7 +2,15 @@
 
 sudo make clean
 sudo make -j$(nproc)
+if [ $? -ne 0 ]; then
+  echo "Error: make command failed."
+  exit 1 
+fi
 sudo make install
+if [ $? -ne 0 ]; then
+  echo "Error: make install command failed."
+  exit 1
+fi
 sudo mdadm -Ss
 sudo ./test setup
 
