@@ -31,7 +31,9 @@ jobs:
      - name: 'Prepare machine'
        run: |
           cd ..
-          vagrant snapshot restore clean_vm_v42
+          # to upgrade the VMs to Fed42, comment the next line out and uncomment the one below that.
+          vagrant snapshot restore clean_vm_v1
+          # vagrant snapshot restore clean_vm_v42
           echo "FYI vagrant restore command finished with exit code: $?"
           sleep 2
           vagrant status
