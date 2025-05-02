@@ -41,13 +41,14 @@ check wait
 check state UUU
 check chunk 32
 
-mdadm $md0 --grow --chunk=64
-check reshape
+mdadm $md0 --grow --size max
+check resync
 check wait
-check chunk 64
+check chunk 32
+testdrv $md0 2 $mdsize0 32
 
 mdadm -S $md0
 mdadm -A $md0 $dev1 $dev2 $dev3
 check state UUU
-check chunk 64
+check chunk 32
 mdadm -S $md0
