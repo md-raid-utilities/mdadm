@@ -42,6 +42,10 @@ jobs:
           vagrant ssh -c "sudo timedatectl set-timezone UTC && \
             sudo systemctl restart chronyd && sudo chronyc -a makestep && sleep 1 && uname -r"
           echo "FYI vagrant time command finished with exit code: $?"
+
+     - name: Export RUNNER_NAME
+       run: echo "RUNNER_NAME=$RUNNER_NAME" >> $GITHUB_ENV
+
      - name: 'Run tests'
        id: testing
        continue-on-error: true
@@ -55,18 +59,30 @@ jobs:
           cd ..
           vagrant ssh -c "sudo mkdir -p /home/vagrant/host/logs && sudo mv /var/tmp/*.log /home/vagrant/host/logs"
 
-     - name: "Save artifacts"
-       if: ${{ steps.testing.outcome == 'failure' }}
+     - name: "Save artifacts inspur5"
+       if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5' }}
        uses: actions/upload-artifact@v4
        with:
          name: "Logs from failed tests"
          path: /home/ci/actions-runner/_work/mdadm/logs/*.log
 
+     - name: "Save artifacts inspur5-2"
+       if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5-2'}}
+       uses: actions/upload-artifact@v4
+       with:
+         name: "Logs from failed tests"
+         path: /home/ci/actions-runner-2/_work/mdadm/logs/*.log
+
      - name: "Clean logs"
        if: ${{ steps.testing.outcome == 'failure' }}
        run: |
           cd ..
-          sudo rm -rf /home/ci/actions-runner/_work/mdadm/logs/*.log
+
+          if [ "$RUNNER_NAME" == "inspur5" ]; then
+            sudo rm /home/ci/actions-runner/_work/mdadm/logs/*.log
+          else
+            sudo rm /home/ci/actions-runner-2/_work/mdadm/logs/*.log
+          fi
 
      - name: "Set failed"
        if: ${{ steps.testing.outcome == 'failure' }}
