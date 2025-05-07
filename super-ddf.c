@@ -1606,9 +1606,9 @@ static void examine_vd(int n, struct ddf_super *sb, char *guid)
 			       map_num(ddf_sec_level, vc->srl) ?: "-unknown-");
 		}
 		printf("  Device Size[%d] : %llu\n", n,
-		       be64_to_cpu(vc->blocks)/2);
+		       (unsigned long long)(be64_to_cpu(vc->blocks)/2));
 		printf("   Array Size[%d] : %llu\n", n,
-		       be64_to_cpu(vc->array_blocks)/2);
+		       (unsigned long long)(be64_to_cpu(vc->array_blocks)/2));
 	}
 }
 
@@ -1665,7 +1665,7 @@ static void examine_pds(struct ddf_super *sb)
 		printf("       %3d    %08x  ", i,
 		       be32_to_cpu(pd->refnum));
 		printf("%8lluK ",
-		       be64_to_cpu(pd->config_size)>>1);
+				(unsigned long long)be64_to_cpu(pd->config_size)>>1);
 		for (dl = sb->dlist; dl ; dl = dl->next) {
 			if (be32_eq(dl->disk.refnum, pd->refnum)) {
 				char *dv = map_dev(dl->major, dl->minor, 0);
@@ -2901,7 +2901,8 @@ static unsigned int find_unused_pde(const struct ddf_super *ddf)
 static void _set_config_size(struct phys_disk_entry *pde, const struct dl *dl)
 {
 	__u64 cfs, t;
-	cfs = min(dl->size - 32*1024*2ULL, be64_to_cpu(dl->primary_lba));
+	cfs = min((unsigned long long)dl->size - 32*1024*2ULL,
+			(unsigned long long)(be64_to_cpu(dl->primary_lba)));
 	t = be64_to_cpu(dl->secondary_lba);
 	if (t != ~(__u64)0)
 		cfs = min(cfs, t);
