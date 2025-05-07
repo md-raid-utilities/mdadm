@@ -639,11 +639,20 @@ static void execute_alert_cmd(const struct event_data *data)
  */
 static void send_event_email(const struct event_data *data)
 {
-	FILE *mp, *mdstat;
+	FILE *mp = NULL, *mdstat;
 	char buf[BUFSIZ];
 	int n;
 
-	mp = popen(Sendmail, "w");
+	if (info.mailfrom) {
+		char cmd[1024];
+		int rc = snprintf(cmd, sizeof(cmd), "%s -f%s",
+				  Sendmail, info.mailfrom);
+
+		if (rc >= 0 && (unsigned int)rc < sizeof(cmd))
+			mp = popen(cmd, "w");
+	}
+	if (mp == NULL)
+		mp = popen(Sendmail, "w");
 	if (!mp) {
 		pr_err("Cannot open pipe stream for sendmail.\n");
 		return;
