@@ -245,28 +245,6 @@ int add_dev(const char *name, const struct stat *stb, int flag, struct FTW *s)
 	return 0;
 }
 
-#ifndef HAVE_NFTW
-#ifdef HAVE_FTW
-int add_dev_1(const char *name, const struct stat *stb, int flag)
-{
-	return add_dev(name, stb, flag, NULL);
-}
-int nftw(const char *path,
-	 int (*han)(const char *name, const struct stat *stb,
-		    int flag, struct FTW *s), int nopenfd, int flags)
-{
-	return ftw(path, add_dev_1, nopenfd);
-}
-#else
-int nftw(const char *path,
-	 int (*han)(const char *name, const struct stat *stb,
-		    int flag, struct FTW *s), int nopenfd, int flags)
-{
-	return 0;
-}
-#endif /* HAVE_FTW */
-#endif /* HAVE_NFTW */
-
 /*
  * Find a block device with the right major/minor number.
  * If we find multiple names, choose the shortest.
