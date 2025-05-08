@@ -24,7 +24,7 @@
 
 /* The IMSM Capability (IMSM AHCI and ISCU OROM/EFI variable) Version Table definition */
 struct imsm_orom {
-	__u8 signature[4];
+	__u8 signature[4] __attribute__((nonstring));
 	#define IMSM_OROM_SIGNATURE "$VER"
 	#define IMSM_NVME_OROM_COMPAT_SIGNATURE "$NVM"
 	#define IMSM_VMD_OROM_COMPAT_SIGNATURE "$VMD"

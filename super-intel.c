@@ -2325,7 +2325,8 @@ static void export_examine_super_imsm(struct supertype *st)
 	printf("MD_LEVEL=container\n");
 	printf("MD_UUID=%s\n", nbuf+5);
 	printf("MD_DEVICES=%u\n", mpb->num_disks);
-	printf("MD_CREATION_TIME=%llu\n", __le64_to_cpu(mpb->creation_time));
+	printf("MD_CREATION_TIME=%llu\n",
+			(unsigned long long)__le64_to_cpu(mpb->creation_time));
 }
 
 static void detail_super_imsm(struct supertype *st, char *homehost,

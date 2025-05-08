@@ -1,0 +1,22 @@
+Sometimes
+
+This case fails sometimes like:
+mdadm: cannot open MISSING: No such file or directory
+++ return 1
+++ grep -q 'state\[0\] : Optimal, Consistent' /tmp/mdtest-bDoaoB
+++ echo ERROR: member 0 should be optimal in meta data on MISSING
+ERROR: member 0 should be optimal in meta data on MISSING
+++ ret=1
+++ for x in $@
+++ mdadm -E /dev/loop9
+++ rm -f /var/tmp/stderr
+++ case $* in
+++ case $* in
+++ /usr/sbin/mdadm -E /dev/loop9
+++ rv=0
+++ case $* in
+++ cat /var/tmp/stderr
+++ return 0
+++ grep -q 'state\[0\] : Optimal, Consistent' /tmp/mdtest-bDoaoB
+++ echo ERROR: member 0 should be optimal in meta data on /dev/loop9
+ERROR: member 0 should be optimal in meta data on /dev/loop9
