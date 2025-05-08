@@ -1,0 +1,30 @@
+Sometimes
+
+Sometimes it fails:
+++ /usr/sbin/mdadm --remove /dev/md/container /dev/loop2
+++ rv=1
+++ case $* in
+++ cat /var/tmp/stderr
+mdadm: /dev/loop2 is still in use, cannot remove.
+++ return 1
+++ sleep 2
+++ (( i++ ))
+++ (( i<=ret ))
+++ '[' 0 -ne 1 ']'
+++ echo '/dev/loop2 removal from /dev/md/container should have succeeded'
+/dev/loop2 removal from /dev/md/container should have succeeded
+
+Sometimes it fails:
+++ imsm_check_hold /dev/md/container /dev/loop1
+++ mdadm --remove /dev/md/container /dev/loop1
+++ rm -f /var/tmp/stderr
+++ case $* in
+++ case $* in
+++ /usr/sbin/mdadm --remove /dev/md/container /dev/loop1
+++ rv=0
+++ case $* in
+++ cat /var/tmp/stderr
+mdadm: hot removed /dev/loop1 from /dev/md/container
+++ return 0
+++ echo '/dev/loop1 removal from /dev/md/container should have been blocked'
+/dev/loop1 removal from /dev/md/container should have been blocked
