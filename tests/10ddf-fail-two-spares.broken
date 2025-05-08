@@ -1,0 +1,11 @@
+Sometimes
+
+++ grep -q 'state\[0\] : Optimal, Consistent' /tmp/mdtest-5k3MzO
+++ grep -q 'state\[1\] : Optimal, Consistent' /tmp/mdtest-5k3MzO
+++ echo ERROR: /dev/md/vol1 should be optimal in meta data
+ERROR: /dev/md/vol1 should be optimal in meta data
+
+if ! grep -q 'state\[1\] : Optimal, Consistent' $tmp; then
+    echo ERROR: $member1 should be optimal in meta data
+    ret=1
+fi
