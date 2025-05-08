@@ -357,7 +357,10 @@ check() {
 		done
 	;;
 	nosync )
-		sleep 0.5
+		# sync thread is reapped in md_thread, give it more time to wait sync thread
+		# to reap. Before this change, it gives 0.5s which is too small. Sometimes
+		# the sync thread can't be reapped and error happens
+		sleep 3
 		# Since 4.2 we delay the close of recovery until there has been a chance for
 		# spares to be activated.  That means that a recovery that finds nothing
 		# to do can still take a little longer than expected.
