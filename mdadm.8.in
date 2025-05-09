@@ -885,7 +885,7 @@ are used to add different devices).
 Set a
 .B name
 for the array. It must be
-.BR "POSIX PORTABLE NAME"
+.BR "MDADM NAME FORMAT"
 compatible and cannot be longer than 32 chars. This is effective when creating an array
 with a v1 metadata, or an external array.
 
@@ -1025,7 +1025,7 @@ is much safer.
 .TP
 .BR \-N ", " \-\-name=
 Specify the name of the array to assemble. It must be
-.BR "POSIX PORTABLE NAME"
+.BR "MDADM NAME FORMAT"
 compatible and cannot be longer than 32 chars. This must be the name
 that was specified when creating the array. It must either match
 the name stored in the superblock exactly, or it must match
@@ -2237,7 +2237,7 @@ and
 The
 .B name
 option updates the subarray name in the metadata. It must be
-.BR "POSIX PORTABLE NAME"
+.BR "MDADM NAME FORMAT"
 compatible and cannot be longer than 32 chars. If successes, new value will be respected after
 next assembly.
 
@@ -3189,8 +3189,8 @@ When
 .B \-\-incremental
 mode is used, this file gets a list of arrays currently being created.
 
-.SH POSIX PORTABLE NAME
-A valid name can only consist of characters "A-Za-z0-9.-_".
+.SH MDADM NAME FORMAT
+A valid name can only consist of characters "A-Za-z0-9.-_:".
 The name cannot start with a leading "-" and cannot exceed 255 chars.
 
 .SH DEVICE NAMES
@@ -3215,7 +3215,7 @@ can be given, or just the suffix of the second sort of name, such as
 can be given.
 
 In every style, raw name must be compatible with
-.BR "POSIX PORTABLE NAME"
+.BR "MDADM NAME FORMAT"
 and has to be no longer than 32 chars.
 
 When
