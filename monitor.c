@@ -393,6 +393,24 @@ static void signal_manager(void)
  *   - request a sync_action
  *
  */
+static int find_disk_in_container(struct supertype *container, struct mdinfo *mdi)
+{
+	struct mdinfo *fdi, *di;
+
+	fdi = sysfs_read(-1, container->container_devnm, GET_DEVS);
+	if (!fdi)
+		return 0;
+
+	for (di = fdi->devs; di; di = di->next) {
+		if (di->disk.major == mdi->disk.major &&
+			di->disk.minor == mdi->disk.minor) {
+			dprintf("%d:%d found in container in sysfs\n",
+				mdi->disk.major, mdi->disk.minor);
+			return 1;
+		}
+	}
+	return 0;
+}
 
 #define ARRAY_DIRTY 1
 #define ARRAY_BUSY 2
@@ -552,8 +570,21 @@ static int read_and_act(struct active_array *a)
 	 */
 	for (mdi = a->info.devs ; mdi ; mdi = mdi->next) {
 		if (mdi->curr_state & DS_FAULTY) {
-			a->container->ss->set_disk(a, mdi->disk.raid_disk,
-						   mdi->curr_state);
+			/* Mark faulty disk as spare to allow it to be reused during IMSM array
+			 * reconstruction. This fixes the issue when disks links go down
+			 * and up againfter a reboot, IMSM RAID array may come up
+			 * with missing disks.
+			 */
+			if (strcmp(a->container->ss->name, "imsm") == 0 &&
+				!find_disk_in_container(a->container, mdi) &&
+				!(mdi->curr_state & DS_SPARE)) {
+				dprintf("Marking %d:%d as spare for reuse\n",
+					mdi->disk.major, mdi->disk.minor);
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, DS_SPARE);
+			} else {
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, mdi->curr_state);
+			}
+
 			check_degraded = 1;
 			if (mdi->curr_state & DS_BLOCKED)
 				mdi->next_state |= DS_UNBLOCK;
