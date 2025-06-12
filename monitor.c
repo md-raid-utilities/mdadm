@@ -393,6 +393,24 @@ static void signal_manager(void)
  *   - request a sync_action
  *
  */
+static int disk_in_member_arrays(struct supertype *container, struct mdinfo *mdi)
+{
+	struct active_array *a;
+	struct mdinfo *m;
+
+	for (a = container->arrays; a; a = a->next) {
+		if (!a->info.devs)
+			continue;
+
+		for (m = a->info.devs; m; m = m->next) {
+			if (m->disk.major == mdi->disk.major &&
+			    m->disk.minor == mdi->disk.minor)
+				dprintf("%d:%d found in member array \n", m->disk.major, m->disk.minor );
+				return 1;
+		}
+	}
+	return 0;
+}
 
 #define ARRAY_DIRTY 1
 #define ARRAY_BUSY 2
@@ -552,8 +570,14 @@ static int read_and_act(struct active_array *a)
 	 */
 	for (mdi = a->info.devs ; mdi ; mdi = mdi->next) {
 		if (mdi->curr_state & DS_FAULTY) {
-			a->container->ss->set_disk(a, mdi->disk.raid_disk,
-						   mdi->curr_state);
+			// Marking disk as spare for reuse
+			if (strcmp(a->container->ss->name, "imsm") == 0 && !disk_in_member_arrays(a->container, mdi) && !(mdi->curr_state & DS_SPARE)) {
+				dprintf("Marking %d:%d as spare for reuse\n", mdi->disk.major, mdi->disk.minor);
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, DS_SPARE);
+			}
+			else
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, mdi->curr_state);
+			
 			check_degraded = 1;
 			if (mdi->curr_state & DS_BLOCKED)
 				mdi->next_state |= DS_UNBLOCK;
