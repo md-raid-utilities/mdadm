@@ -393,6 +393,24 @@ static void signal_manager(void)
  *   - request a sync_action
  *
  */
+static int disk_in_container_array(struct supertype *container, struct mdinfo *mdi)
+{
+	struct mdinfo *fdi, *di;
+
+	fdi = sysfs_read(-1, container->container_devnm, GET_DEVS);
+	if (!fdi)
+		return 0;
+
+	for (di = fdi->devs; di; di = di->next) {
+		if (di->disk.major == mdi->disk.major &&
+			di->disk.minor == mdi->disk.minor) {
+			dprintf("%d:%d found in container in sysfs\n",
+				mdi->disk.major, mdi->disk.minor);
+			return 1;
+		}
+	}
+	return 0;
+}
 
 #define ARRAY_DIRTY 1
 #define ARRAY_BUSY 2
@@ -552,8 +570,17 @@ static int read_and_act(struct active_array *a)
 	 */
 	for (mdi = a->info.devs ; mdi ; mdi = mdi->next) {
 		if (mdi->curr_state & DS_FAULTY) {
-			a->container->ss->set_disk(a, mdi->disk.raid_disk,
-						   mdi->curr_state);
+			// Marking disk as spare for reuse
+			if (strcmp(a->container->ss->name, "imsm") == 0 &&
+			!disk_in_container_array(a->container, mdi) &&
+			!(mdi->curr_state & DS_SPARE)) {
+				dprintf("Marking %d:%d as spare for reuse\n",
+					mdi->disk.major, mdi->disk.minor);
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, DS_SPARE);
+			} else {
+				a->container->ss->set_disk(a, mdi->disk.raid_disk, mdi->curr_state);
+			}
+
 			check_degraded = 1;
 			if (mdi->curr_state & DS_BLOCKED)
 				mdi->next_state |= DS_UNBLOCK;
