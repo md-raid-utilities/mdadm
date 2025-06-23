@@ -2853,7 +2853,7 @@ void *super1_make_v0(struct supertype *st, struct mdinfo *info, mdp_super_t *sb0
 
 	copy_uuid(sb->set_uuid, info->uuid, super1.swapuuid);
 	sprintf(sb->set_name, "%d", sb0->md_minor);
-	sb->ctime = __cpu_to_le32(info->array.ctime + 1);
+	sb->ctime = __cpu_to_le64(info->array.ctime + 1);
 	sb->level = __cpu_to_le32(info->array.level);
 	sb->layout = __cpu_to_le32(info->array.layout);
 	sb->size = __cpu_to_le64(info->component_size);
