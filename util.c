@@ -2456,7 +2456,7 @@ int zero_disk_range(int fd, unsigned long long sector, size_t count)
 		return -1;
 	}
 
-	if (lseek64(fd, sector * 512, SEEK_SET) < 0) {
+	if (lseek(fd, sector * 512, SEEK_SET) < 0) {
 		ret = -errno;
 		pr_err("Failed to seek offset for zeroing\n");
 		goto out;

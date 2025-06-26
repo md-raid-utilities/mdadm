@@ -212,9 +212,12 @@ int autorepair(int *disk, unsigned long long start, int chunk_size,
 		for(j = 0; j < (chunk_size >> CHECK_PAGE_BITS); j++) {
 			if(page_to_write[j] == 1) {
 				int slot = block_index_for_slot[disk[j]];
-				lseek64(source[slot], offsets[slot] + start * chunk_size + j * CHECK_PAGE_SIZE, SEEK_SET);
+				lseek(source[slot],
+				      offsets[slot] + start * chunk_size +
+				      j * CHECK_PAGE_SIZE, SEEK_SET);
 				write_res += write(source[slot],
-						   blocks[disk[j]] + j * CHECK_PAGE_SIZE,
+						   blocks[disk[j]] +
+						   j * CHECK_PAGE_SIZE,
 						   CHECK_PAGE_SIZE);
 			}
 		}
@@ -287,16 +290,14 @@ int manual_repair(int chunk_size, int syndrome_disks,
 	int write_res1, write_res2;
 	off64_t seek_res;
 
-	seek_res = lseek64(source[fd1],
-			   offsets[fd1] + start * chunk_size, SEEK_SET);
+	seek_res = lseek(source[fd1], offsets[fd1] + start * chunk_size, SEEK_SET);
 	if (seek_res < 0) {
 		fprintf(stderr, "lseek failed for failed_disk1\n");
 		return -1;
 	}
 	write_res1 = write(source[fd1], blocks[failed_slot1], chunk_size);
 
-	seek_res = lseek64(source[fd2],
-			   offsets[fd2] + start * chunk_size, SEEK_SET);
+	seek_res = lseek(source[fd2], offsets[fd2] + start * chunk_size, SEEK_SET);
 	if (seek_res < 0) {
 		fprintf(stderr, "lseek failed for failed_disk2\n");
 		return -1;
@@ -380,7 +381,7 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 			goto exitCheck;
 		}
 		for (i = 0 ; i < raid_disks ; i++) {
-			off64_t seek_res = lseek64(source[i], offsets[i] + start * chunk_size,
+			off64_t seek_res = lseek(source[i], offsets[i] + start * chunk_size,
 						   SEEK_SET);
 			if (seek_res < 0) {
 				fprintf(stderr, "lseek to source %d failed\n", i);

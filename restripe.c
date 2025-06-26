@@ -583,8 +583,7 @@ int save_stripes(int *source, unsigned long long *offsets,
 				       raid_disks, level, layout);
 			if (dnum < 0) abort();
 			if (source[dnum] < 0 ||
-			    lseek64(source[dnum],
-				    offsets[dnum] + offset, 0) < 0 ||
+			    lseek(source[dnum], offsets[dnum] + offset, 0) < 0 ||
 			    read(source[dnum], buf+disk * chunk_size,
 				 chunk_size) != chunk_size) {
 				if (failed <= 2) {
@@ -756,7 +755,7 @@ int restore_stripes(int *dest, unsigned long long *offsets,
 					   raid_disks, level, layout);
 			if (src_buf == NULL) {
 				/* read from file */
-				if (lseek64(source, read_offset, 0) !=
+				if (lseek(source, read_offset, 0) !=
 					 (off64_t)read_offset) {
 					rv = -1;
 					goto abort;
@@ -818,8 +817,7 @@ int restore_stripes(int *dest, unsigned long long *offsets,
 		}
 		for (i=0; i < raid_disks ; i++)
 			if (dest[i] >= 0) {
-				if (lseek64(dest[i],
-					 offsets[i]+offset, 0) < 0) {
+				if (lseek(dest[i], offsets[i]+offset, 0) < 0) {
 					rv = -1;
 					goto abort;
 				}
@@ -868,7 +866,7 @@ int test_stripes(int *source, unsigned long long *offsets,
 		int disk;
 
 		for (i = 0 ; i < raid_disks ; i++) {
-			if ((lseek64(source[i], offsets[i]+start, 0) < 0) ||
+			if ((lseek(source[i], offsets[i]+start, 0) < 0) ||
 			    (read(source[i], stripes[i], chunk_size) !=
 			     chunk_size)) {
 				free(q);
