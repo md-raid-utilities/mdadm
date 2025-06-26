@@ -4280,10 +4280,10 @@ static int grow_backup(struct mdinfo *sra,
 		bsb.magic[15] = '2';
 	for (i = 0; i < dests; i++)
 		if (part)
-			lseek64(destfd[i], destoffsets[i] +
-				__le64_to_cpu(bsb.devstart2)*512, 0);
+			lseek(destfd[i], destoffsets[i] +
+			      __le64_to_cpu(bsb.devstart2) * 512, 0);
 		else
-			lseek64(destfd[i], destoffsets[i], 0);
+			lseek(destfd[i], destoffsets[i], 0);
 
 	rv = save_stripes(sources, offsets, disks, chunk, level, layout,
 			  dests, destfd, offset * 512 * odata,
@@ -4293,24 +4293,24 @@ static int grow_backup(struct mdinfo *sra,
 		return rv;
 	bsb.mtime = __cpu_to_le64(time(0));
 	for (i = 0; i < dests; i++) {
-		bsb.devstart = __cpu_to_le64(destoffsets[i]/512);
+		unsigned long long seek = destoffsets[i] + stripes * chunk * odata;
 
-		bsb.sb_csum = bsb_csum((char*)&bsb,
-				       ((char*)&bsb.sb_csum)-((char*)&bsb));
+		bsb.devstart = __cpu_to_le64(destoffsets[i] / 512);
+
+		bsb.sb_csum = bsb_csum((char *)&bsb, ((char *)&bsb.sb_csum) - ((char *)&bsb));
 		if (memcmp(bsb.magic, "md_backup_data-2", 16) == 0)
-			bsb.sb_csum2 = bsb_csum((char*)&bsb,
-						((char*)&bsb.sb_csum2)-((char*)&bsb));
+			bsb.sb_csum2 = bsb_csum((char *)&bsb,
+						((char *)&bsb.sb_csum2) - ((char *)&bsb));
 
 		rv = -1;
-		if ((unsigned long long)lseek64(destfd[i],
-						destoffsets[i] - 4096, 0) !=
+
+		if ((unsigned long long)lseek(destfd[i], destoffsets[i] - 4096, 0) !=
 		    destoffsets[i] - 4096)
 			break;
 		if (write(destfd[i], &bsb, 512) != 512)
 			break;
 		if (destoffsets[i] > 4096) {
-			if ((unsigned long long)lseek64(destfd[i], destoffsets[i]+stripes*chunk*odata, 0) !=
-			    destoffsets[i]+stripes*chunk*odata)
+			if ((unsigned long long)lseek(destfd[i], seek, 0) != seek)
 				break;
 			if (write(destfd[i], &bsb, 512) != 512)
 				break;
@@ -4359,7 +4359,7 @@ static int forget_backup(int dests, int *destfd,
 		if (memcmp(bsb.magic, "md_backup_data-2", 16) == 0)
 			bsb.sb_csum2 = bsb_csum((char*)&bsb,
 						((char*)&bsb.sb_csum2)-((char*)&bsb));
-		if ((unsigned long long)lseek64(destfd[i], destoffsets[i]-4096, 0) !=
+		if ((unsigned long long)lseek(destfd[i], destoffsets[i]-4096, 0) !=
 		    destoffsets[i]-4096)
 			rv = -1;
 		if (rv == 0 && write(destfd[i], &bsb, 512) != 512)
@@ -4387,8 +4387,8 @@ static void validate(int afd, int bfd, unsigned long long offset)
 	 */
 	if (afd < 0)
 		return;
-	if (lseek64(bfd, offset - 4096, 0) < 0) {
-		pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+	if (lseek(bfd, offset - 4096, 0) < 0) {
+		pr_err("lseek fails %d:%s\n", errno, strerror(errno));
 		return;
 	}
 	if (read(bfd, &bsb2, 512) != 512)
@@ -4421,8 +4421,8 @@ static void validate(int afd, int bfd, unsigned long long offset)
 			}
 		}
 
-		if (lseek64(bfd, offset, 0) < 0) {
-			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+		if (lseek(bfd, offset, 0) < 0) {
+			pr_err("lseek fails %d:%s\n", errno, strerror(errno));
 			goto out;
 		}
 		if ((unsigned long long)read(bfd, bbuf, len) != len) {
@@ -4430,8 +4430,8 @@ static void validate(int afd, int bfd, unsigned long long offset)
 			fail("read first backup failed");
 		}
 
-		if (lseek64(afd, __le64_to_cpu(bsb2.arraystart)*512, 0) < 0) {
-			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+		if (lseek(afd, __le64_to_cpu(bsb2.arraystart)*512, 0) < 0) {
+			pr_err("lseek fails %d:%s\n", errno, strerror(errno));
 			goto out;
 		}
 		if ((unsigned long long)read(afd, abuf, len) != len)
@@ -4450,14 +4450,14 @@ static void validate(int afd, int bfd, unsigned long long offset)
 			bbuf = xmalloc(abuflen);
 		}
 
-		if (lseek64(bfd, offset+__le64_to_cpu(bsb2.devstart2)*512, 0) < 0) {
-			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+		if (lseek(bfd, offset+__le64_to_cpu(bsb2.devstart2)*512, 0) < 0) {
+			pr_err("lseek fails %d:%s\n", errno, strerror(errno));
 			goto out;
 		}
 		if ((unsigned long long)read(bfd, bbuf, len) != len)
 			fail("read second backup failed");
-		if (lseek64(afd, __le64_to_cpu(bsb2.arraystart2)*512, 0) < 0) {
-			pr_err("lseek64 fails %d:%s\n", errno, strerror(errno));
+		if (lseek(afd, __le64_to_cpu(bsb2.arraystart2)*512, 0) < 0) {
+			pr_err("lseek fails %d:%s\n", errno, strerror(errno));
 			goto out;
 		}
 		if ((unsigned long long)read(afd, abuf, len) != len)
@@ -4740,7 +4740,7 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 			st->ss->getinfo_super(st, &dinfo, NULL);
 			st->ss->free_super(st);
 
-			if (lseek64(fd,
+			if (lseek(fd,
 				    (dinfo.data_offset + dinfo.component_size - 8) <<9,
 				    0) < 0) {
 				pr_err("Cannot seek on device %d\n", i);
@@ -4840,7 +4840,7 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 					goto nonew; /* No new data here */
 			}
 		}
-		if (lseek64(fd, __le64_to_cpu(bsb.devstart)*512, 0)< 0) {
+		if (lseek(fd, __le64_to_cpu(bsb.devstart) * 512, 0) < 0) {
 		second_fail:
 			if (verbose)
 				pr_err("Failed to verify secondary backup-metadata block on %s\n",
@@ -4848,7 +4848,7 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 			continue; /* Cannot seek */
 		}
 		/* There should be a duplicate backup superblock 4k before here */
-		if (lseek64(fd, -4096, 1) < 0 ||
+		if (lseek(fd, -4096, 1) < 0 ||
 		    read(fd, &bsb2, sizeof(bsb2)) != sizeof(bsb2))
 			goto second_fail; /* Cannot find leading superblock */
 		if (bsb.magic[15] == '1')

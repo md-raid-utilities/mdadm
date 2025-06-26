@@ -332,12 +332,12 @@ static int copy_metadata0(struct supertype *st, int from, int to)
 
 	offset *= 512;
 
-	if (lseek64(from, offset, 0) < 0LL)
+	if (lseek(from, offset, 0) < 0LL)
 		goto err;
 	if (read(from, buf, bufsize) != bufsize)
 		goto err;
 
-	if (lseek64(to, offset, 0) < 0LL)
+	if (lseek(to, offset, 0) < 0LL)
 		goto err;
 	super = buf;
 	if (super->md_magic != MD_SB_MAGIC ||
@@ -895,7 +895,7 @@ static int store_super0(struct supertype *st, int fd)
 		offset = dsize/512 - 8*2;
 		offset &= ~(4*2-1);
 		offset *= 512;
-		if (lseek64(fd, offset, 0)< 0LL)
+		if (lseek(fd, offset, 0) < 0LL)
 			ret = 3;
 		else if (write(fd, st->other, 1024) != 1024)
 			ret = 4;
@@ -910,7 +910,7 @@ static int store_super0(struct supertype *st, int fd)
 
 	offset *= 512;
 
-	if (lseek64(fd, offset, 0)< 0LL)
+	if (lseek(fd, offset, 0) < 0LL)
 		return 3;
 
 	if (write(fd, super, sizeof(*super)) != sizeof(*super))
@@ -1064,7 +1064,7 @@ static int load_super0(struct supertype *st, int fd, char *devname)
 
 	offset *= 512;
 
-	if (lseek64(fd, offset, 0)< 0LL) {
+	if (lseek(fd, offset, 0) < 0LL) {
 		if (devname)
 			pr_err("Cannot seek to superblock on %s: %s\n",
 				devname, strerror(errno));
@@ -1249,7 +1249,7 @@ static int locate_bitmap0(struct supertype *st, int fd, int node_num)
 
 	offset += MD_SB_BYTES;
 
-	if (lseek64(fd, offset, 0) < 0)
+	if (lseek(fd, offset, 0) < 0)
 		return -1;
 	return 0;
 }
@@ -1275,7 +1275,7 @@ static int write_bitmap0(struct supertype *st, int fd, enum bitmap_update update
 
 	offset *= 512;
 
-	if (lseek64(fd, offset + 4096, 0)< 0LL)
+	if (lseek(fd, offset + 4096, 0) < 0LL)
 		return 3;
 
 	if (posix_memalign(&buf, 4096, 4096))

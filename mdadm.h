@@ -24,15 +24,9 @@
 
 #define	_GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
-#include	<unistd.h>
-#ifdef __GLIBC__
-extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
-#elif !defined(lseek64)
-# if defined(__NO_STAT64) || __WORDSIZE != 32
-# define lseek64 lseek
-# endif
-#endif
+#define  __USE_LARGEFILE64 1
 
+#include	<unistd.h>
 #include	<assert.h>
 #include	<asm/byteorder.h>
 #include	<sys/types.h>
