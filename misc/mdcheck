@@ -172,5 +172,6 @@ do
 		systemctl stop mdcheck_continue.timer
 		exit 0;
 	fi
-	sleep 220
+	sleep 220 &
+	wait $!
 done
