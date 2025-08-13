@@ -66,15 +66,40 @@ shift
 
 # We need a temp file occasionally...
 tmp=/var/lib/mdcheck/.md-check-$$
-trap 'rm -f "$tmp"' 0 2 3 15
+cnt=0
 
+cleanup() {
+    # We've waited, and there are still checks running.
+    # Time to stop them.
+    for i in `eval echo {1..$cnt}`
+    do
+	eval fl=\$MD_${i}_fl
+	eval sys=\$MD_${i}_sys
+	eval dev=\$MD_${i}_dev
+
+	if [ -z "$fl" ]; then continue; fi
+
+	if [ "`cat $sys/md/sync_action`" != 'check' ]
+	then
+	    eval MD_${i}_fl=
+	    rm -f $fl
+	    continue;
+	fi
+	echo idle > $sys/md/sync_action
+	cat $sys/md/sync_min > $fl
+	logger -p daemon.info pause checking $dev at `cat $fl`
+    done
+    rm -f "$tmp"
+}
+
+trap 'exit 129' 2 3 15
+trap 'cleanup' 0
 
 # firstly, clean out really old state files
 mkdir -p /var/lib/mdcheck
 find /var/lib/mdcheck -name "MD_UUID*" -type f -mtime +180 -exec rm {} \;
 
 # Now look at each md device.
-cnt=0
 for dev in /dev/md?*
 do
 	[ -e "$dev" ] || continue
@@ -148,25 +173,4 @@ do
 		exit 0;
 	fi
 	sleep 220
-done
-
-# We've waited, and there are still checks running.
-# Time to stop them.
-for i in `eval echo {1..$cnt}`
-do
-	eval fl=\$MD_${i}_fl
-	eval sys=\$MD_${i}_sys
-	eval dev=\$MD_${i}_dev
-
-	if [ -z "$fl" ]; then continue; fi
-
-	if [ "`cat $sys/md/sync_action`" != 'check' ]
-	then
-		eval MD_${i}_fl=
-		rm -f $fl
-		continue;
-	fi
-	echo idle > $sys/md/sync_action
-	cat $sys/md/sync_min > $fl
-	logger -p daemon.info pause checking $dev at `cat $fl`
 done
