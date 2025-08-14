@@ -31,12 +31,13 @@
 # To support '--continue', arrays are identified by UUID and the 'sync_completed'
 # value is stored  in /var/lib/mdcheck/$UUID
 
-# convert a /dev/md name into /sys/.../md equivalent
-sysname() {
-	set `ls -lLd $1`
-	maj=${5%,}
-	min=$6
-	readlink -f /sys/dev/block/$maj:$min
+# get device name from sysfs
+devname() {
+    local dev
+    [[ -f "$1/uevent" ]] && \
+	    dev=$(. "$1/uevent" && echo -n "$DEVNAME")
+    [[ "$dev" && -b "/dev/$dev" ]] || return 1
+    echo -n "/dev/$dev"
 }
 
 args=$(getopt -o hcd: -l help,continue,duration: -n mdcheck -- "$@")
@@ -100,21 +101,20 @@ mkdir -p /var/lib/mdcheck
 find /var/lib/mdcheck -name "MD_UUID*" -type f -mtime +180 -exec rm {} \;
 
 # Now look at each md device.
-for dev in /dev/md?*
+for sync_act in /sys/block/*/md/sync_action
 do
-	[ -e "$dev" ] || continue
-	sys=`sysname $dev`
-	if [ ! -f "$sys/md/sync_action" ]
-	then # cannot check this array
-		continue
-	fi
-	if [ "`cat $sys/md/sync_action`" != 'idle' ]
+	[ -e "$sync_act" ] || continue
+	if [ "`cat $sync_act`" != 'idle' ]
 	then # This array is busy
 		continue
 	fi
 
+	sys=${sync_act%/md/*}
+	dev=$(devname "$sys") || continue
 	mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
 	source $tmp
+	[[ "$MD_UUID" ]] || continue
+
 	fl="/var/lib/mdcheck/MD_UUID_$MD_UUID"
 	if [ -z "$cont" ]
 	then
