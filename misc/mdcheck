@@ -129,7 +129,7 @@ do
 		logger -p daemon.info mdcheck continue checking $dev from $start
 	fi
 
-	cnt=$[cnt+1]
+	: "$((cnt+=1))"
 	eval MD_${cnt}_fl=\$fl
 	eval MD_${cnt}_sys=\$sys
 	eval MD_${cnt}_dev=\$dev
