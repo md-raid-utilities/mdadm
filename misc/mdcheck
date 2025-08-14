@@ -21,15 +21,21 @@
 #
 # It supports a 'time budget' such that any incomplete 'check'
 # will be checkpointed when that time has expired.
-# A subsequent invocation can allow the 'check' to continue.
+# A subsequent invocation will allow the 'check' to continue.
 #
 # Options are:
-#   --continue    Don't start new checks, only continue old ones.
+#   --continue    Don't start new checks, only continue previously started ones.
+#   --restart:    Enable restarting the array checks
 #   --duration    This is passed to "date --date=$duration" to find out
 #		  when to finish
 #
-# To support '--continue', arrays are identified by UUID and the 'sync_completed'
-# value is stored  in /var/lib/mdcheck/$UUID
+# Arrays are identified by UUID and the 'sync_completed' value is stored
+# in /var/lib/mdcheck/MD_UUID_$UUID. If this file exists on startup of
+# the script, the check will continue where the previous check left off.
+# After the check completes, /var/lib/mdcheck/Checked_$UUID will be created.
+# Another full check will be started after this file is removed.
+# Use "mdcheck --restart" to remove these markers and re-enable checking
+# all arrays.
 
 # get device name from sysfs
 devname() {
@@ -40,30 +46,46 @@ devname() {
     echo -n "/dev/$dev"
 }
 
-args=$(getopt -o hcd: -l help,continue,duration: -n mdcheck -- "$@")
+args=$(getopt -o hcrd: -l help,continue,restart,duration: -n mdcheck -- "$@")
 rv=$?
 if [ $rv -ne 0 ]; then exit $rv; fi
 
 eval set -- $args
 
 cont=
+restart=
 endtime=
 while [ " $1" != " --" ]
 do
     case $1 in
 	--help )
-		echo >&2 'Usage: mdcheck [--continue] [--duration time-offset]'
+		echo >&2 'Usage: mdcheck [--restart|--continue] [--duration time-offset]'
 		echo >&2 '  time-offset must be understood by "date --date"'
 		exit 0
 		;;
-	--continue ) cont=yes ;;
-	--duration ) shift; dur=$1
+	--continue )
+		cont=yes ;;
+	--restart )
+		restart=yes ;;
+	--duration )
+		shift; dur=$1
 		endtime=$(date --date "$dur" "+%s")
 		;;
     esac
     shift
 done
 shift
+
+if [ "$cont" = yes ]; then
+	if [ "$restart" = yes ]; then
+		echo 'ERROR: --restart and --continue cannot be combined' >&2
+		exit 1
+	fi
+elif [ "$restart" = yes ]; then
+	echo 'Re-enabling array checks for all arrays' >&2
+	rm -f /var/lib/mdcheck/Checked_*
+	exit $?
+fi
 
 # We need a temp file occasionally...
 tmp=/var/lib/mdcheck/.md-check-$$
@@ -116,17 +138,16 @@ do
 	[[ "$MD_UUID" ]] || continue
 
 	fl="/var/lib/mdcheck/MD_UUID_$MD_UUID"
-	if [ -z "$cont" ]
-	then
-		start=0
-		logger -p daemon.info mdcheck start checking $dev
-	elif [ -z "$MD_UUID" -o ! -f "$fl" ]
-	then
-		# Nothing to continue here
-		continue
-	else
+	checked="${fl/MD_UUID_/Checked_}"
+	if [[ -f "$fl" ]]; then
+		[[ ! -f "$checked" ]] || {
+		    echo "WARNING: $checked exists, continuing anyway" >&2
+		}
 		start=`cat "$fl"`
-		logger -p daemon.info mdcheck continue checking $dev from $start
+	elif [[ ! -f "$checked" && -z "$cont" ]]; then
+		start=0
+	else # nothing to do
+		continue
 	fi
 
 	: "$((cnt+=1))"
@@ -136,6 +157,7 @@ do
 	echo $start > $fl
 	echo $start > $sys/md/sync_min
 	echo check > $sys/md/sync_action
+	logger -p daemon.info mdcheck checking $dev from $start
 done
 
 if [ -z "$endtime" ]
@@ -158,7 +180,8 @@ do
 		then
 			logger -p daemon.info mdcheck finished checking $dev
 			eval MD_${i}_fl=
-			rm -f $fl
+			rm -f "$fl"
+			touch "${fl/MD_UUID_/Checked_}"
 			continue;
 		fi
 		read a rest < $sys/md/sync_completed
