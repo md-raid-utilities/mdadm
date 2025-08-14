@@ -36,6 +36,16 @@
 # Use "mdcheck --restart" to remove these markers and thus re-enable checking
 # all arrays.
 
+# If the script is run from systemd, simply write to the journal on stderr.
+# Otherwise, use logger.
+log() {
+    if [[ "$INVOCATION_ID" ]]; then
+	    echo "$@" >&2
+    else
+	    logger -p daemon.info "$@"
+    fi
+}
+
 # get device name from sysfs
 devname() {
     local dev
@@ -96,7 +106,7 @@ cleanup() {
 	fi
 	echo idle > $sys/md/sync_action
 	cat $sys/md/sync_min > $fl
-	logger -p daemon.info pause checking $dev at `cat $fl`
+	log pause checking $dev at `cat $fl`
     done
     rm -f "$tmp"
 }
@@ -140,7 +150,7 @@ do
 	echo $start > $fl
 	echo $start > $sys/md/sync_min
 	echo check > $sys/md/sync_action
-	logger -p daemon.info mdcheck checking $dev from $start
+	log mdcheck checking $dev from $start
 done
 
 if [ -z "$endtime" ]
@@ -161,7 +171,7 @@ do
 
 		if [ "`cat $sys/md/sync_action`" != 'check' ]
 		then
-			logger -p daemon.info mdcheck finished checking $dev
+			log mdcheck finished checking $dev
 			eval MD_${i}_fl=
 			rm -f "$fl"
 			touch "${fl/MD_UUID_/Checked_}"
