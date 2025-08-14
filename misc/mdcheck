@@ -31,6 +31,16 @@
 # To support '--continue', arrays are identified by UUID and the 'sync_completed'
 # value is stored  in /var/lib/mdcheck/$UUID
 
+# If the script is run from systemd, simply write to the journal on stderr.
+# Otherwise, use logger.
+log() {
+    if [[ "$INVOCATION_ID" ]]; then
+	    echo "$@" >&2
+    else
+	    logger -p daemon.info "mdcheck: $*"
+    fi
+}
+
 # get device name from sysfs
 devname() {
     local dev
@@ -88,7 +98,7 @@ cleanup() {
 	fi
 	echo idle > $sys/md/sync_action
 	cat $sys/md/sync_min > $fl
-	logger -p daemon.info pause checking $dev at `cat $fl`
+	log pause checking $dev at `cat $fl`
     done
     rm -f "$tmp"
 }
@@ -119,14 +129,14 @@ do
 	if [ -z "$cont" ]
 	then
 		start=0
-		logger -p daemon.info mdcheck start checking $dev
+		log start checking $dev
 	elif [ -z "$MD_UUID" -o ! -f "$fl" ]
 	then
 		# Nothing to continue here
 		continue
 	else
 		start=`cat "$fl"`
-		logger -p daemon.info mdcheck continue checking $dev from $start
+		log continue checking $dev from $start
 	fi
 
 	: "$((cnt+=1))"
@@ -156,7 +166,7 @@ do
 
 		if [ "`cat $sys/md/sync_action`" != 'check' ]
 		then
-			logger -p daemon.info mdcheck finished checking $dev
+			log finished checking $dev
 			eval MD_${i}_fl=
 			rm -f $fl
 			continue;
