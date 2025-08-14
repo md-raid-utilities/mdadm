@@ -12,5 +12,4 @@ Documentation=man:mdadm(8)
 
 [Service]
 Type=simple
-Environment="MDADM_CHECK_DURATION=6 hours"
-ExecStart=/usr/share/mdadm/mdcheck --duration ${MDADM_CHECK_DURATION}
+ExecStart=/usr/share/mdadm/mdcheck --restart
