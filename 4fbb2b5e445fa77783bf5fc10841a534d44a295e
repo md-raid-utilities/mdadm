@@ -1,0 +1,10 @@
+-----BEGIN PGP SIGNATURE-----
+Comment: This signature is for the .tar version of the archive
+Comment: git archive --format tar --prefix=mdadm-4.4/ mdadm-4.4
+Comment: git version 2.43.0
+
+iHUEABYKAB0WIQSiMguC+dUeO7Dis7IByLsjV9FeJAUCaKQGtAAKCRAByLsjV9Fe
+JB22AQC6umOkcEhIFDttJWI2ZMFEJMT8Y7V0513W79BzdUQvYQEAk+y86ysMon5J
+6hPjy+/kI8T7xWT4M4h85h1cTAIn9gg=
+=qf1o
+-----END PGP SIGNATURE-----
