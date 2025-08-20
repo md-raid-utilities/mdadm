@@ -38,7 +38,7 @@ grow:
     raid1 shrink DONE
 
 '--quiet' option, and remove ""
-'--name' option fo v1, and configfile etc...
+'--name' option for v1, and configfile etc...
 
 faulty
   errors in raid1/5/6

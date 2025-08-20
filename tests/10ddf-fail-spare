@@ -25,7 +25,7 @@ check wait
 
 # This test can succeed both ways - if spare was activated
 # before new array was created, we see only member 0.
-# otherwise, we see both, adn member0 is degraded because the
+# otherwise, we see both, and member0 is degraded because the
 # new array grabbed the spare
 # which case occurs depends on the sleep time above.
 ret=0

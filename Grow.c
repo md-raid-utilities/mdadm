@@ -662,12 +662,12 @@ static struct mdp_backup_super {
 	__u64	devstart;	/* address on backup device/file of data */
 	__u64	arraystart;
 	__u64	length;
-	__u32	sb_csum;	/* csum of preceeding bytes. */
+	__u32	sb_csum;	/* csum of preceding bytes. */
 	__u32   pad1;
 	__u64	devstart2;	/* offset in to data of second section */
 	__u64	arraystart2;
 	__u64	length2;
-	__u32	sb_csum2;	/* csum of preceeding bytes. */
+	__u32	sb_csum2;	/* csum of preceding bytes. */
 	__u8 pad[512-68-32];
 } __attribute__((aligned(512))) bsb, bsb2;
 
@@ -1445,7 +1445,7 @@ char *analyse_change(char *devname, struct mdinfo *info, struct reshape *re)
 			return NULL;
 		}
 
-		/* RAID0 can also covert to RAID0/4/5/6 by first converting to
+		/* RAID0 can also convert to RAID0/4/5/6 by first converting to
 		 * a raid4 style layout of the final level.
 		 */
 		switch (info->new_level) {
@@ -1561,7 +1561,7 @@ char *analyse_change(char *devname, struct mdinfo *info, struct reshape *re)
 		 * with appropriate layout and one extra device
 		 */
 		if (re->level != 4 && re->level != 5)
-			return "Cannot covert to RAID0 from this level";
+			return "Cannot convert to RAID0 from this level";
 
 		switch (re->level) {
 		case 4:
@@ -1824,7 +1824,7 @@ int Grow_reshape(char *devname, int fd,
 	 *
 	 * The last can require a reshape.  It is different on different
 	 * levels so we need to check the level before actioning it.
-	 * Some times the level change needs to be requested after the
+	 * Sometimes the level change needs to be requested after the
 	 * reshape (e.g. raid6->raid5, raid5->raid0)
 	 *
 	 */
@@ -2082,7 +2082,7 @@ int Grow_reshape(char *devname, int fd,
 			rv = set_array_size(st, sra, sra->text_version);
 
 		if (raid0_takeover) {
-			/* do not recync non-existing parity,
+			/* do not resync non-existing parity,
 			 * we will drop it anyway
 			 */
 			sysfs_set_str(sra, NULL, "sync_action", "frozen");
@@ -3992,7 +3992,7 @@ int progress_reshape(struct mdinfo *info, struct reshape *reshape,
 	 * Consider extending suspend_point 128M per device if it
 	 * is less than 64M per device beyond reshape_progress.
 	 * But always do a multiple of 'blocks'
-	 * FIXME this is too big - it takes to long to complete
+	 * FIXME this is too big - it takes too long to complete
 	 * this much.
 	 */
 	target = 64*1024*2 * min(reshape->before.data_disks,
@@ -4783,7 +4783,7 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 		/*
 		 * array utime and backup-mtime should be updated at
 		 * much the same time, but it seems that sometimes
-		 * they aren't... So allow considerable flexability in
+		 * they aren't... So allow considerable flexibility in
 		 * matching, and allow this test to be overridden by
 		 * an environment variable.
 		 */

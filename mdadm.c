@@ -1586,7 +1586,7 @@ int main(int argc, char *argv[])
 
 	case GROW:
 		if (array_size > 0) {
-			/* alway impose array size first, independent of
+			/* always impose array size first, independent of
 			 * anything else
 			 * Do not allow level or raid_disks changes at the
 			 * same time as that can be irreversibly destructive.
@@ -1768,7 +1768,7 @@ static int scan_assemble(struct supertype *ss,
 					acnt++;
 				}
 			} while (rv2 != 2);
-			/* Incase there are stacked devices, we need to go around again */
+			/* In case there are stacked devices, we need to go around again */
 		} while (acnt);
 		if (cnt == 0 && rv == 0) {
 			pr_err("No arrays found in config file or automatically\n");

@@ -14,7 +14,7 @@ devlist=
 # If super1 metadata name doesn't have the same hostname with machine,
 # it's treated as foreign.
 # For example, /dev/md0 is created, stops it, then assemble it, the
-# device node will be /dev/md127 (127 is choosed by mdadm autumatically)
+# device node will be /dev/md127 (127 is choosed by mdadm automatically)
 is_foreign="no"
 #disable selinux
 sys_selinux="Permissive"

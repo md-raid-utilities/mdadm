@@ -32,8 +32,8 @@ function names_verify() {
 	local WANTED_NAME="$3"
 	local EXPECTED=""
 
-	# We don't know what is saved in metadata, but we know what to expect. Therfore check if
-	# expecation would be foreign (no hostname information).
+	# We don't know what is saved in metadata, but we know what to expect. Therefore check if
+	# expectation would be foreign (no hostname information).
 	is_raid_foreign $WANTED_NAME
 
 	local RES="$(mdadm -D --export $DEVNODE_NAME | grep MD_DEVNAME)"

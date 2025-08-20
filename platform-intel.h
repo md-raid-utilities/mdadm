@@ -150,7 +150,7 @@ static inline int imsm_orom_has_chunk(const struct imsm_orom *orom, int chunk)
 /**
  * fls - find last (most-significant) bit set
  * @x: the word to search
- * The funciton is borrowed from Linux kernel code
+ * The function is borrowed from Linux kernel code
  * include/asm-generic/bitops/fls.h
  */
 static inline int fls(int x)

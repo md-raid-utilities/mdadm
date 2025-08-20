@@ -817,7 +817,7 @@ void domain_free(struct domainlist *dl)
  * the path, and when finding a new device, we might look for which
  * array previously used that path.
  *
- * The 'array' is described by a map_ent, and the path by a the disk in an
+ * The 'array' is described by a map_ent, and the path by the disk in an
  * mdinfo, or a string.
  */
 

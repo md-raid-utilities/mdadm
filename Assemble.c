@@ -216,7 +216,7 @@ static int select_devices(struct mddev_dev *devlist,
 	}
 
 	/* first walk the list of devices to find a consistent set
-	 * that match the criterea, if that is possible.
+	 * that match the criteria, if that is possible.
 	 * We flag the ones we like with 'used'.
 	 */
 	for (tmpdev = devlist;
@@ -271,7 +271,7 @@ static int select_devices(struct mddev_dev *devlist,
 				tmpdev->used = 2;
 			} if (!tst && (tst = super_by_fd(dfd, NULL)) == NULL) {
 				if (report_mismatch)
-					pr_err("not a recognisable container: %s\n",
+					pr_err("not a recognizable container: %s\n",
 					       devname);
 				tmpdev->used = 2;
 			} else if (!tst->ss->load_container ||
@@ -516,7 +516,7 @@ static int select_devices(struct mddev_dev *devlist,
 								pr_err("%s misses out due to wrong homehost\n",
 								       devname);
 							goto loop;
-						} else { /* reject all those sofar */
+						} else { /* reject all those so far */
 							struct mddev_dev *td;
 							if (report_mismatch)
 								pr_err("%s overrides previous devices due to good homehost\n",
@@ -1582,7 +1582,7 @@ try_again:
 		return err;
 	}
 
-	/* Ok, no bad inconsistancy, we can try updating etc */
+	/* Ok, no bad inconsistency, we can try updating etc */
 	devices = xcalloc(num_devs, sizeof(*devices));
 	devmap = xcalloc(num_devs, content->array.raid_disks);
 	devcnt = load_devices(devices, devmap, ident, &st, devlist,
@@ -1912,7 +1912,7 @@ out:
 			 * If we reopen (to check for layered devices)
 			 * before --monitor closes, we loose.
 			 *
-			 * So: wait upto 1 second for there to be
+			 * So: wait up to 1 second for there to be
 			 * a non-zero capacity.
 			 */
 			while (usecs < 1000) {

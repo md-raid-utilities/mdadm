@@ -160,7 +160,7 @@ int geo_map(int block, unsigned long long stripe, int raid_disks,
 		return block;
 
 	case 600 + ALGORITHM_ROTATING_ZERO_RESTART:
-		/* Different order for calculating Q, otherwize same as ... */
+		/* Different order for calculating Q, otherwise same as ... */
 	case 600 + ALGORITHM_RIGHT_ASYMMETRIC:
 		pd = stripe % raid_disks;
 		if (block == -1)
@@ -562,7 +562,7 @@ int save_stripes(int *source, unsigned long long *offsets,
 	length_test *= len;
 
 	if (length != length_test) {
-		dprintf("Error: save_stripes(): Data are not alligned. EXIT\n");
+		dprintf("Error: save_stripes(): Data are not aligned. EXIT\n");
 		dprintf("\tArea for saving stripes (length) = %llu\n", length);
 		dprintf("\tWork step (len)                  = %i\n", len);
 		dprintf("\tExpected save area (length_test) = %llu\n",

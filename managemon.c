@@ -561,7 +561,7 @@ static void manage_member(struct mdstat_ent *mdstat,
 				continue;
 
 			if (disk->mon_descriptors_not_used == false) {
-				/* To early, repeat later */
+				/* Too early, repeat later */
 				all_removed = false;
 				continue;
 			}

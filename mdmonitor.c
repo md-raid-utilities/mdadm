@@ -154,7 +154,7 @@ int Monitor(struct mddev_dev *devlist,
 	 * It is possible that we cannot get the state of each device
 	 * due to bugs in the md kernel module.
 	 * We also read /proc/mdstat to get rebuild percent,
-	 * and to get state on all active devices incase of kernel bug.
+	 * and to get state on all active devices in case of kernel bug.
 	 *
 	 * Events are:
 	 *    Fail
@@ -1374,7 +1374,7 @@ int WaitClean(char *dev, int verbose)
 		int delay = 5000;
 
 		/* minimize the safe_mode_delay and prepare to wait up to 5s
-		 * for writes to quiesce
+		 * for writes to queue
 		 */
 		sysfs_set_safemode(mdi, 1);
 

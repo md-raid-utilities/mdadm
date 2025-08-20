@@ -14,7 +14,7 @@
  * Oct 12, 2000 Matt Domsch <Matt_Domsch@dell.com>
  * Same crc32 function was used in 5 other places in the kernel.
  * I made one version, and deleted the others.
- * There are various incantations of crc32().  Some use a seed of 0 or ~0.
+ * There are various incarnations of crc32().  Some use a seed of 0 or ~0.
  * Some xor at the end with ~0.  The generic crc32() function takes
  * seed as an argument, and doesn't xor at the end.  Then individual
  * users can do whatever they need.

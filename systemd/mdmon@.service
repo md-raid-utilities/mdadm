@@ -18,7 +18,7 @@ IgnoreOnIsolate=true
 # The mdmon starting in the initramfs (with dracut at least)
 # cannot see sysfs after root is mounted, so we will have to
 # 'takeover'.  As the '--offroot --takeover' don't hurt when
-# not necessary, are are useful with root-on-md in dracut,
+# not necessary, are useful with root-on-md in dracut,
 # have them always present.
 ExecStart=BINDIR/mdmon --foreground --offroot --takeover %I
 # Don't set the PIDFile.  It isn't necessary (systemd can work

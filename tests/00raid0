@@ -36,7 +36,7 @@ do
   mdadm -S $md0
 
   # now with no superblock
-  mdadm -B $md0 -l0 -n5 --chun=$chunk $dev0 $dev1 $dev2 $dev3 $dev4
+  mdadm -B $md0 -l0 -n5 --chunk=$chunk $dev0 $dev1 $dev2 $dev3 $dev4
   check raid0
   testdev $md0 5 $size $chunk
   mdadm -S $md0

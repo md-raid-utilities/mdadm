@@ -1,7 +1,7 @@
 # Release [mdadm-4.4](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.4)
 
 Features:
-- Remobe custom bitmap file support from Yu Kuai.
+- Remove custom bitmap file support from Yu Kuai.
 - Custom device policies implementation from Mariusz Tkaczyk.
 - Self encrypted drives (**SED**) support for IMSM metadata from Blazej Kucman.
 - Support more than 4 disks for **IMSM** RAID10 from Mateusz Kusiak.
@@ -28,7 +28,7 @@ Fixes:
 - Various static code analysis fixes.
 
 In this release we created github repository and allowed participation through
-Github. It allowed us to use Github actions adn create CI. Currently, we have:
+Github. It allowed us to use Github actions and create CI. Currently, we have:
 - Compilation tests with various gcc.
 - **mdadm** tests.
 - Checkpatch test.
@@ -210,7 +210,7 @@ blame me for all the bugs I caused since taking over.
   for example, allows a configuration where when a device is plugged in it is immediately included
   in an md array as a hot spare and possibly starts recovery immediately if an array is degraded.
 
-- Some understanding of mbr and gpt paritition tables. This is primarily to support the new
+- Some understanding of mbr and gpt partition tables. This is primarily to support the new
   hot-plug support. If a device is plugged in and policy suggests it should have a partition table,
   the partition table will be copied from a suitably similar device, and then the partitions will
   hot-plug and can then be added to md arrays.
@@ -220,7 +220,7 @@ blame me for all the bugs I caused since taking over.
   array even if a general hotplug will not be included.
 
 - Enhanced reshape options, including growing a RAID0 by converting to RAID4, restriping, and
-  converting back. Also convertions between RAID0 and RAID10 and between RAID1 and RAID10 are
+  converting back. Also conversions between RAID0 and RAID10 and between RAID1 and RAID10 are
   possible (with a suitably recent kernel).
 
 - Spare migration for IMSM arrays. Spare migration can now work across 'containers' using
@@ -348,7 +348,7 @@ And fixed regressions:
 - Fix some bugs with **--grow --chunksize=**.
 - Stopping a container is not permitted when members are still active.
 - Various mdmon fixes.
-- Alway make bitmap 4K-aligned if at all possible.
+- Always make bitmap 4K-aligned if at all possible.
 - Fix **--force** assembly of **v1.x** arrays which are in the process of recovering.
 - Add section on 'scrubbing' to 'md' man page.
 - Various command-line-option parsing improvements.

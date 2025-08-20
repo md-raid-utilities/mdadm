@@ -24,7 +24,7 @@ sleep 2
 # stop reshape
 echo frozen > /sys/block/md0/md/sync_action
 
-# read accross reshape
+# read across reshape
 dd if=$md0 of=/dev/NULL bs=1m count=100 iflag=direct &> /dev/null &
 sleep 2
 

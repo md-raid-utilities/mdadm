@@ -26,7 +26,7 @@ vol1_chunk=64
 vol1_num_comps=$num_disks
 vol1_offset=$((vol0_comp_size + 4096))
 
-# After migration paramters
+# After migration parameters
 vol1_new_level=0
 vol1_new_num_comps=$vol1_num_comps
 vol1_new_chunk=256

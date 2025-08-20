@@ -157,7 +157,7 @@ arrays.
 
 .SS LINEAR
 
-A LINEAR array simply catenates the available space on each
+A LINEAR array simply concatenates the available space on each
 drive to form one large virtual drive.
 
 One advantage of this arrangement over the more common RAID0
@@ -214,7 +214,7 @@ option.
 Once you have updated the layout you will not be able to mount the array
 on an older kernel.  If you need to revert to an older kernel, the
 layout information can be erased with the
-.B "--update=layout-unspecificed"
+.B "--update=layout-unspecified"
 option.  If you use this option to
 .B --assemble
 while running a newer kernel, the array will NOT assemble, but the
@@ -969,7 +969,7 @@ other device(s).
 .I md
 cannot control the timeout that the underlying devices use to
 determine failure.  Any changes desired to that timeout must be set
-explictly on the underlying device, separately from using
+explicitly on the underlying device, separately from using
 .IR mdadm .
 
 If a FAILFAST request does fail, and if it is still safe to mark the

@@ -33,7 +33,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 	/* switch to readonly or rw
 	 *
 	 * requires >= 0.90.0
-	 * first check that array is runing
+	 * first check that array is running
 	 * use RESTART_ARRAY_RW or STOP_ARRAY_RO
 	 *
 	 */
@@ -1416,7 +1416,7 @@ int Manage_subdevs(char *devname, int fd,
 	int raid_slot = -1;
 
 	if (sysfs_init(&info, fd, NULL)) {
-		pr_err("sysfs not availabile for %s\n", devname);
+		pr_err("sysfs not available for %s\n", devname);
 		goto abort;
 	}
 
@@ -1434,7 +1434,7 @@ int Manage_subdevs(char *devname, int fd,
 
 	tst = super_by_fd(fd, &subarray);
 	if (!tst) {
-		pr_err("unsupport array - version %d.%d\n",
+		pr_err("unsupported array - version %d.%d\n",
 			array.major_version, array.minor_version);
 		goto abort;
 	}

@@ -26,7 +26,7 @@ echo want_replacement > /sys/block/md0/md/rd0/state
 echo reshape > /sys/block/md0/md/sync_action
 sleep 2
 
-# reassemeble array
+# reassemble array
 mdadm -S $md0 || die "can't stop array"
 mdadm --assemble $md0 $devs $dev3 $dev4 || die "can't assemble array"
 

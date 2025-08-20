@@ -541,7 +541,7 @@ void arrayline(char *line)
 			else
 				mis.spare_group = xstrdup(w + 12);
 		} else if (strncasecmp(w, "level=", 6) == 0 ) {
-			/* this is mainly for compatability with --brief output */
+			/* this is mainly for compatibility with --brief output */
 			mis.level = map_name(pers, w + 6);
 		} else if (strncasecmp(w, "disks=", 6) == 0) {
 			/* again, for compat */

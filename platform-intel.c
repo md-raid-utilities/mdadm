@@ -634,7 +634,7 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 	if (probe_roms_init(align) != 0)
 		return NULL;
 	probe_roms();
-	/* ignore return value - True is returned if both adapater roms are found */
+	/* ignore return value - True is returned if both adapter roms are found */
 	scan_adapter_roms(scan);
 	probe_roms_exit();
 
@@ -708,7 +708,7 @@ typedef struct uefi_acpi_table {
 	__u32 creator_revision;
 	/* controller GUID */
 	struct efi_guid identifier;
-	/* OROM data offeset */
+	/* OROM data offset */
 	__u16 dataOffset;
 } uefi_acpi_table_t;
 
@@ -1233,13 +1233,13 @@ const struct imsm_orom *find_imsm_capability(struct sys_dev *hba)
 	return NULL;
 }
 
-/* Check whether the nvme device is represented by nvme subsytem,
+/* Check whether the nvme device is represented by nvme subsystem,
  * if yes virtual path should be changed to hardware device path,
  * to allow IMSM capabilities detection.
  * Returns:
  *	hardware path to device - if the device is represented via
- *		nvme virtual subsytem
- *	NULL - if the device is not represented via nvme virtual subsytem
+ *		nvme virtual subsystem
+ *	NULL - if the device is not represented via nvme virtual subsystem
  */
 char *get_nvme_multipath_dev_hw_path(const char *dev_path)
 {
@@ -1273,9 +1273,9 @@ char *get_nvme_multipath_dev_hw_path(const char *dev_path)
 
 /* Description: Return part or whole realpath for the dev
  * Parameters:
- *	dev - the device to be quered
+ *	dev - the device to be queried
  *	dev_level - level of "/device" entries. It allows to caller to access
- *		    virtual or physical devices which are on "path" to quered
+ *		    virtual or physical devices which are on "path" to queried
  *		    one.
  *	buf - optional, must be PATH_MAX size. If set, then will be used.
  */
@@ -1416,7 +1416,7 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 /* Scan over all controller's namespaces and compare nsid value to verify if
  * current one is supported. The routine doesn't check IMSM capabilities for
  * namespace. Only one nvme namespace is supported by IMSM.
- * Paramteres:
+ * Parameters:
  *	fd - open descriptor to the nvme namespace
  *	verbose - error logging level
  * Returns:

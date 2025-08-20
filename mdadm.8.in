@@ -1267,7 +1267,7 @@ For more information, see
 The
 .B layout\-unspecified
 option reverts the effect of
-.B layout\-orignal
+.B layout\-original
 or
 .B layout\-alternate
 and allows the array to be again used on a kernel prior to Linux 5.3.

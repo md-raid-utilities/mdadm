@@ -1,5 +1,5 @@
 
-# create a liner array, and add more drives to to.
+# create a liner array, and add more drives too.
 
 if [ "$LINEAR" != "yes" ]; then
   echo -ne 'skipping... '
