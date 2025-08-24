@@ -28,7 +28,7 @@
 #
 #
 # The AUTO line can control which arrays get assembled by auto-assembly,
-# meaing either "mdadm -As" when there are no 'ARRAY' lines in this file,
+# meaning either "mdadm -As" when there are no 'ARRAY' lines in this file,
 # or "mdadm --incremental" when the array found is not listed in this file.
 # By default, all arrays that are found are assembled.
 # If you want to ignore all DDF arrays (maybe they are managed by dmraid),

@@ -62,7 +62,7 @@ struct active_array {
  * Metadata updates are handled by the monitor thread,
  * as it has exclusive access to the metadata.
  * When the manager want to updates metadata, either
- * for it's own reason (e.g. committing a spare) or
+ * for its own reason (e.g. committing a spare) or
  * on behalf of mdadm, it creates a metadata_update
  * structure and queues it to the monitor.
  * Updates are created and processed by code under the

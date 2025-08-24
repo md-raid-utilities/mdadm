@@ -112,7 +112,7 @@ Handling metadata updates
 -------------------------
 
 There are a number of cases in which mdadm needs to update the
-metdata which mdmon is managing.  These include:
+metadata which mdmon is managing.  These include:
  - creating a new array in an active container
  - adding a device to a container
  - reconfiguring an array

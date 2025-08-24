@@ -210,7 +210,7 @@ sync_action
   The following calls are made into the metadata handler to assist
   with initiating and monitoring a 'reshape'.
 
-  1/ ->reshape_super is called quite early (after only minimial
+  1/ ->reshape_super is called quite early (after only minimal
      checks) to make sure that the metadata can record the new shape
      and any necessary transitions.  It may be passed a 'container'
      or an individual array within a container, and it should notice

@@ -353,7 +353,7 @@ tidyup
 
 test13()
 {
-dsc "Test 13: Common domain, two containers, fail a disk in container, action is below spare, the spare should be moved regadless of action"
+dsc "Test 13: Common domain, two containers, fail a disk in container, action is below spare, the spare should be moved regardless of action"
 setupdevs 0 0 1 $platform
 setupdevs 1 4 5 $platform
 # same domain but different action on 4 5 6

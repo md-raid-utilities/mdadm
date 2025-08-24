@@ -22,7 +22,7 @@ by describing the devices and arrays in this configuration file.
 .SS SYNTAX
 The file should be seen as a collection of words separated by white
 space (space, tab, or newline).
-Any word that beings with a hash sign (#) starts a comment and that
+Any word that begins with a hash sign (#) starts a comment and that
 word together with the remainder of the line is ignored.
 
 Spaces can be included in a word using quotation characters.  Either
@@ -379,7 +379,7 @@ is over-ridden and no homehost name is assumed.
 When arrays are created, this host name will be stored in the
 metadata.  When arrays are assembled using auto-assembly, arrays which
 do not record the correct homehost name in their metadata will be
-assembled using a "foreign" name.  A "foreign" name alway ends with a
+assembled using a "foreign" name.  A "foreign" name always ends with a
 digit string preceded by an underscore to differentiate it
 from any possible local name. e.g.
 .B /dev/md/1_1
@@ -389,13 +389,13 @@ or
 .TP
 .B HOMECLUSTER
 The
-.B homcluster
+.B homecluster
 line gives a default value for the
 .B \-\-homecluster=
 option to mdadm.  It specifies  the  cluster name for the md device.
 The md device can be assembled only on the cluster which matches
 the name specified. If
-.B homcluster
+.B homecluster
 is not provided, mdadm tries to detect the cluster name automatically.
 
 There should only be one
@@ -561,7 +561,7 @@ these disks will be treated according to the
 .I action=
 setting  from this line.  If a
 .I domain
-is set in the line, then the domain associated with each patition will
+is set in the line, then the domain associated with each partition will
 be based on the domain, but with
 .RB \(dq -part N\(dq
 appended, when N is the partition number for the partition that was
@@ -652,7 +652,7 @@ default config file was not opened successfully.
 
 The alternative directory with config files. Used when
 .I mdadm
-is runninng without --config option, after reading the
+is running without --config option, after reading the
 .B {CONFFILE2}
 alternative config file whether it was successful or not. Files in
 that directory are read in lexical order.

@@ -42,7 +42,7 @@ int Examine(struct mddev_dev *devlist,
 	 *
 	 * Print:
 	 *   version, ctime, level, size, raid+spare+
-	 *   prefered minor
+	 *   preferred minor
 	 *   uuid
 	 *
 	 *   utime, state etc

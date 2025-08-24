@@ -88,7 +88,7 @@ int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 
 int Kill_subarray(char *dev, char *subarray, int verbose)
 {
-	/* Delete a subarray out of a container, the subarry must be
+	/* Delete a subarray out of a container, the subarray must be
 	 * inactive.  The subarray string must be a subarray index
 	 * number.
 	 *
