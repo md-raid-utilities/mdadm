@@ -174,7 +174,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 
 	if (st == NULL && (st = guess_super_type(dfd, guess_array)) == NULL) {
 		if (c->verbose >= 0)
-			pr_err("no recognisable superblock on %s.\n",
+			pr_err("no recognizable superblock on %s.\n",
 			       devname);
 		rv = try_spare(devname, &dfd, policy,
 			       have_target ? &target_array : NULL,
@@ -1163,7 +1163,7 @@ static int partition_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 
 		/* This is an acceptable device to copy partition
 		 * metadata from.  We could just stop here, but I
-		 * think I want to keep looking incase a larger
+		 * think I want to keep looking in case a larger
 		 * metadata which makes better use of the device can
 		 * be found.
 		 */
@@ -1648,7 +1648,7 @@ static bool is_devnode_path(char *devnode)
  * @verbose: verbose flag.
  *
  * Fail member device in each subarray and remove member device from external container.
- * The resposibility of removing member disks from external subararys belongs to mdmon.
+ * The responsibility of removing member disks from external subarrays belongs to mdmon.
  */
 static mdadm_status_t Incremental_remove_external(char *device_devnm, char *container_devnm,
 						  struct mdstat_ent *mdstat, int verbose)
@@ -1664,7 +1664,7 @@ static mdadm_status_t Incremental_remove_external(char *device_devnm, char *cont
 			continue;
 
 		/*
-		 * Checking mdstat is pointles because it might be outdated, try open descriptor
+		 * Checking mdstat is pointless because it might be outdated, try open descriptor
 		 * instead. If it fails, we are fine with that, device is already gone.
 		 */
 		state_fd = sysfs_open_memb_attr(memb->devnm, device_devnm, "state", O_RDWR);
@@ -1702,8 +1702,8 @@ static mdadm_status_t Incremental_remove_external(char *device_devnm, char *cont
  * @verbose: verbose flag.
  *
  * First, fail the device (if needed) and then remove the device. This code is critical for system
- * funtionality and that is why it is keept as simple as possible. We do not load devices using
- * sysfs_read() because any unerelated failure may lead us to abort. We also do not call
+ * functionality and that is why it is kept as simple as possible. We do not load devices using
+ * sysfs_read() because any unrelated failure may lead us to abort. We also do not call
  * Manage_Subdevs().
  */
 int Incremental_remove(char *devname, char *id_path, int verbose)
@@ -1788,7 +1788,7 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 		goto out;
 	}
 
-	/* Native arrays are handled separatelly to provide more detailed error handling */
+	/* Native arrays are handled separately to provide more detailed error handling */
 	rv = sysfs_set_memb_state(ent->devnm, devnm, MEMB_STATE_FAULTY);
 	if (rv && verbose >= 0)
 		pr_err("Cannot fail member device %s in array %s.\n", devnm, ent->devnm);

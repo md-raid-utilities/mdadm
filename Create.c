@@ -953,7 +953,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	}
 
 	if (st->ss == &super_imsm && s->level == 10 && s->raiddisks > 4) {
-		/* Print no matter runstop was specifed */
+		/* Print no matter runstop was specified */
 		pr_err("Warning! VROC UEFI driver does not support RAID10 in requested layout.\n");
 		pr_err("Array won't be suitable as boot device.\n");
 		warn = 1;

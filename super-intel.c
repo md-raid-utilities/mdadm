@@ -108,7 +108,7 @@
 #define SECT_PER_MB_SHIFT 11
 #define MAX_SECTOR_SIZE 4096
 #define MULTIPLE_PPL_AREA_SIZE_IMSM (1024 * 1024) /* Size of the whole
-						   * mutliple PPL area
+						   * multiple PPL area
 						   */
 
 /*
@@ -159,7 +159,7 @@ struct imsm_disk {
 };
 ASSERT_SIZE(imsm_disk, 48)
 
-/* map selector for map managment
+/* map selector for map management
  */
 #define MAP_0		0
 #define MAP_1		1
@@ -204,7 +204,7 @@ struct imsm_vol {
 	__u8  migr_state;	/* Normal or Migrating */
 #define MIGR_INIT 0
 #define MIGR_REBUILD 1
-#define MIGR_VERIFY 2 /* analagous to echo check > sync_action */
+#define MIGR_VERIFY 2 /* analogous to echo check > sync_action */
 #define MIGR_GEN_MIGR 3
 #define MIGR_STATE_CHANGE 4
 #define MIGR_REPAIR 5
@@ -387,7 +387,7 @@ ASSERT_SIZE(migr_record, 128)
 /**
  * enum imsm_status - internal IMSM return values representation.
  * @STATUS_OK: function succeeded.
- * @STATUS_ERROR: General error ocurred (not specified).
+ * @STATUS_ERROR: General error occurred (not specified).
  *
  * Typedefed to imsm_status_t.
  */
@@ -3338,7 +3338,7 @@ static int load_imsm_migr_rec(struct intel_super *super)
  *	super	: imsm internal array info
  *	u	: pointer to prepared update
  * Returns:
- *	Uptate length.
+ *	Updated length.
  *	If length is equal to 0, input pointer u contains no update
  ******************************************************************************/
 static int imsm_create_metadata_checkpoint_update(
@@ -3451,7 +3451,7 @@ static int write_imsm_migr_rec(struct supertype *st)
 		append_metadata_update(st, u, len);
 		/* during reshape we do all work inside metadata handler
 		 * manage_reshape(), so metadata update has to be triggered
-		 * insida it
+		 * inside it
 		 */
 		flush_metadata_updates(st);
 		st->update_tail = &st->updates;
@@ -3463,7 +3463,7 @@ static int write_imsm_migr_rec(struct supertype *st)
 	return retval;
 }
 
-/* spare/missing disks activations are not allowe when
+/* spare/missing disks activations are not allowed when
  * array/container performs reshape operation, because
  * all arrays in container works on the same disks set
  */
@@ -3994,7 +3994,7 @@ static int update_super_imsm(struct supertype *st, struct mdinfo *info,
 	 *  uuid:  Change the uuid of the array to match watch is given
 	 *
 	 * Following are not relevant for this imsm:
-	 *  sparc2.2 : update from old dodgey metadata
+	 *  sparc2.2 : update from old dodgy metadata
 	 *  super-minor: change the preferred_minor number
 	 *  summaries:  update redundant counters.
 	 *  homehost:  update the recorded homehost
@@ -4157,7 +4157,7 @@ static int compare_super_imsm(struct supertype *st, struct supertype *tst,
 	}
 
 	/* if an anchor does not have num_raid_devs set then it is a free
-	* floating spare. don't assosiate spare with any array, as during assembly
+	* floating spare. don't associate spare with any array, as during assembly
 	* spares shall fall into separate container, from which they can be moved
 	* when necessary
 	*/
@@ -4373,7 +4373,7 @@ load_imsm_disk(int fd, struct intel_super *super, char *devname, int keep_fd)
 	if (disk) {
 		dl->disk = *disk;
 		/* only set index on disks that are a member of a
-		 * populated contianer, i.e. one with raid_devs
+		 * populated container, i.e. one with raid_devs
 		 */
 		if (is_failed(&dl->disk))
 			dl->index = -2;
@@ -4390,9 +4390,9 @@ load_imsm_disk(int fd, struct intel_super *super, char *devname, int keep_fd)
  * the current array state before being called.
  *
  * Migration is indicated by one of the following states
- * 1/ Idle (migr_state=0 map0state=normal||unitialized||degraded||failed)
+ * 1/ Idle (migr_state=0 map0state=normal||uninitialized||degraded||failed)
  * 2/ Initialize (migr_state=1 migr_type=MIGR_INIT map0state=normal
- *    map1state=unitialized)
+ *    map1state=uninitialized)
  * 3/ Repair (Resync) (migr_state=1 migr_type=MIGR_REPAIR  map0state=normal
  *    map1state=normal)
  * 4/ Rebuild (migr_state=1 migr_type=MIGR_REBUILD map0state=normal
@@ -4586,7 +4586,7 @@ static int load_imsm_mpb(int fd, struct intel_super *super, char *devname)
 	get_dev_size(fd, NULL, &dsize);
 	if (dsize < 2*sector_size) {
 		if (devname)
-			pr_err("%s: device to small for imsm\n",
+			pr_err("%s: device too small for imsm\n",
 			       devname);
 		return 1;
 	}
@@ -5190,7 +5190,7 @@ imsm_thunderdome(struct intel_super **super_list, int len)
 			if (disk) {
 				dl->disk = *disk;
 				/* only set index on disks that are a member of
-				 * a populated contianer, i.e. one with
+				 * a populated container, i.e. one with
 				 * raid_devs
 				 */
 				if (is_failed(&dl->disk))
@@ -5985,7 +5985,7 @@ static int add_to_super_imsm_volume(struct supertype *st, mdu_disk_info_t *dk,
 	dl->disk.status = CONFIGURED_DISK;
 
 	/* update size of 'missing' disks to be at least as large as the
-	 * largest acitve member (we only have dummy missing disks when
+	 * largest active member (we only have dummy missing disks when
 	 * creating the first volume)
 	 */
 	if (super->current_vol == 0) {
@@ -6622,7 +6622,7 @@ static int validate_ppl_imsm(struct supertype *st, struct mdinfo *info,
 	}
 
 	/*
-	 * Update metadata to use mutliple PPLs area (1MB).
+	 * Update metadata to use multiple PPLs area (1MB).
 	 * This is done once for all RAID members
 	 */
 	if (info->consistency_policy == CONSISTENCY_POLICY_PPL &&
@@ -7010,7 +7010,7 @@ static unsigned long long merge_extents(struct intel_super *super, const bool ex
 
 	if (e[extent_idx].size == 0)
 		/*
-		 * extent_idx points to the metadata, post_reservation is allready done.
+		 * extent_idx points to the metadata, post_reservation is already done.
 		 */
 		post_reservation = 0;
 	free(e);
@@ -7199,7 +7199,7 @@ count_volumes_list(struct md_list *devlist, char *homehost,
 	struct supertype *st;
 
 	/* first walk the list of devices to find a consistent set
-	 * that match the criterea, if that is possible.
+	 * that match the criteria, if that is possible.
 	 * We flag the ones we like with 'used'.
 	 */
 	*found = 0;
@@ -7439,7 +7439,7 @@ static int count_volumes(struct intel_hba *hba, int dpa, int verbose)
 
 static int imsm_default_chunk(const struct imsm_orom *orom)
 {
-	/* up to 512 if the plaform supports it, otherwise the platform max.
+	/* up to 512 if the platform supports it, otherwise the platform max.
 	 * 128 if no platform detected
 	 */
 	int fs = max(7, orom ? fls(orom->sss) : 0);
@@ -8300,9 +8300,9 @@ static struct mdinfo *container_content_imsm(struct supertype *st, char *subarra
 			if (!(ord & IMSM_ORD_REBUILD))
 				this->array.working_disks++;
 			/*
-			 * if we skip some disks the array will be assmebled degraded;
+			 * if we skip some disks the array will be assembled degraded;
 			 * reset resync start to avoid a dirty-degraded
-			 * situation when performing the intial sync
+			 * situation when performing the initial sync
 			 */
 			if (skip)
 				missing++;
@@ -8503,7 +8503,7 @@ static int imsm_open_new(struct supertype *c, struct active_array *a,
 	struct metadata_update mu;
 
 	if (inst >= mpb->num_raid_devs) {
-		pr_err("subarry index %d, out of range\n", inst);
+		pr_err("subarray index %d, out of range\n", inst);
 		return -ENODEV;
 	}
 
@@ -8667,7 +8667,7 @@ static unsigned long long imsm_set_array_size(struct imsm_dev *dev,
 	int used_disks = imsm_num_data_members(map);
 
 	if (used_disks == 0) {
-		/* when problems occures
+		/* when problems occurs
 		 * return current array_blocks value
 		 */
 		array_blocks = imsm_dev_size(dev);
@@ -8745,7 +8745,7 @@ static void imsm_progress_container_reshape(struct intel_super *super)
 	}
 }
 
-/* Handle dirty -> clean transititions, resync and reshape.  Degraded and rebuild
+/* Handle dirty -> clean transitions, resync and reshape.  Degraded and rebuild
  * states are handled in imsm_set_disk() with one exception, when a
  * resync is stopped due to a new failure this routine will set the
  * 'degraded' state for the array.
@@ -8814,7 +8814,7 @@ static int imsm_set_array_state(struct active_array *a, int consistent)
 		consistent = 0;
 
 	if (is_resync_complete(&a->info)) {
-		/* complete intialization / resync,
+		/* complete initialization / resync,
 		 * recovery and interrupted recovery is completed in
 		 * ->set_disk
 		 */
@@ -9088,7 +9088,7 @@ static int store_imsm_mpb(int fd, struct imsm_super *mpb)
 		/* -1 to account for anchor */
 		sectors = mpb_sectors(mpb, sector_size) - 1;
 
-		/* write the extended mpb to the sectors preceeding the anchor */
+		/* write the extended mpb to the sectors preceding the anchor */
 		if (lseek(fd, dsize - (sector_size * (2 + sectors)),
 		   SEEK_SET) < 0)
 			return 1;
@@ -9363,7 +9363,7 @@ static struct mdinfo *imsm_activate_spare(struct active_array *a,
 	 * are removed from container.
 	 */
 	if (failed) {
-		dprintf("found failed disks in %.*s, check if there anotherfailed sub-array.\n",
+		dprintf("found failed disks in %.*s, check if there's another failed sub-array.\n",
 			MAX_RAID_SERIAL_LEN, dev->volume);
 		/* check if states of the other volumes allow for rebuild */
 		for (i = 0; i <  super->anchor->num_raid_devs; i++) {
@@ -9528,7 +9528,7 @@ static int add_remove_disk_update(struct intel_super *super)
 	int check_degraded = 0;
 	struct dl *disk;
 
-	/* add/remove some spares to/from the metadata/contrainer */
+	/* add/remove some spares to/from the metadata/container */
 	while (super->disk_mgmt_list) {
 		struct dl *disk_cfg;
 
@@ -10240,7 +10240,7 @@ static void imsm_process_update(struct supertype *st,
 
 		/* handle activate_spare versus create race:
 		 * check to make sure that overlapping arrays do not include
-		 * overalpping disks
+		 * overlapping disks
 		 */
 		for (i = 0; i < mpb->num_raid_devs; i++) {
 			dev = get_imsm_dev(super, i);
@@ -11131,7 +11131,7 @@ int save_backup_imsm(struct supertype *st,
 	start = info->reshape_progress * 512;
 	for (i = 0; i < new_disks; i++) {
 		target_offsets[i] = migr_chkp_area_pba(super->migr_rec) * 512;
-		/* move back copy area adderss, it will be moved forward
+		/* move back copy area address, it will be moved forward
 		 * in restore_stripes() using start input variable
 		 */
 		target_offsets[i] -= start/data_disks;
@@ -11148,7 +11148,7 @@ int save_backup_imsm(struct supertype *st,
 			    dest_layout,
 			    -1,    /* source backup file descriptor */
 			    0,     /* input buf offset
-				    * always 0 buf is already offseted */
+				    * always 0 buf is already offsetted */
 			    start,
 			    length,
 			    buf) != 0) {
@@ -11192,9 +11192,9 @@ int save_checkpoint_imsm(struct supertype *st, struct mdinfo *info, int state)
 		return 2;
 	}
 	curr_migr_unit = info->reshape_progress / blocks_per_unit;
-	/* check if array is alligned to copy area
-	 * if it is not alligned, add one to current migration unit value
-	 * this can happend on array reshape finish only
+	/* check if array is aligned to copy area
+	 * if it is not aligned, add one to current migration unit value
+	 * this can happened on array reshape finish only
 	 */
 	if (info->reshape_progress % blocks_per_unit)
 		curr_migr_unit++;
@@ -11494,7 +11494,7 @@ mdadm_status_t test_and_add_drive_policies_imsm(struct dev_policy **pols, int di
  * @c: spare_criteria struct to fill, not NULL.
  *
  * If superblock is not loaded, use mddev_path to load_container. It must be given in this case.
- * Filles size and sector size accordingly to superblock.
+ * Fills size and sector size accordingly to superblock.
  */
 mdadm_status_t get_spare_criteria_imsm(struct supertype *st, char *mddev_path,
 				       struct spare_criteria *c)
@@ -11692,7 +11692,7 @@ static int imsm_reshape_is_allowed_on_container(struct supertype *st,
 
 /* Function: get_spares_for_grow
  * Description: Allocates memory and creates list of spare devices
- *		avaliable in container. Checks if spare drive size is acceptable.
+ *		available in container. Checks if spare drive size is acceptable.
  * Parameters: Pointer to the supertype structure
  * Returns: Pointer to the list of spare devices (mdinfo structure) on success,
  *		NULL if fail
@@ -12442,7 +12442,7 @@ int wait_for_reshape_imsm(struct mdinfo *sra, int ndata)
 	do {
 		if (sysfs_fd_get_ll(fd, &completed) < 0) {
 			if (!retry) {
-				dprintf("cannot read reshape_position (no reshape in progres)\n");
+				dprintf("cannot read reshape_position (no reshape in progress)\n");
 				close(fd);
 				return 1;
 			}
@@ -12546,13 +12546,13 @@ int check_degradation_change(struct mdinfo *info,
  *		process. It creates stripes backups (if required) and sets
  *		checkpoints.
  * Parameters:
- *	afd		: Backup handle (nattive) - not used
+ *	afd		: Backup handle (native) - not used
  *	sra		: general array info
  *	reshape		: reshape parameters - not used
  *	st		: supertype structure
  *	blocks		: size of critical section [blocks]
  *	fds		: table of source device descriptor
- *	offsets		: start of array (offest per devices)
+ *	offsets		: start of array (offset per devices)
  *	dests		: not used
  *	destfd		: table of destination device descriptor
  *	destoffsets	: table of destination offsets (per device)
@@ -12607,7 +12607,7 @@ static int imsm_manage_reshape(
 	if (migr_vol_qan != 1) {
 		pr_err("%s", migr_vol_qan ?
 			"Number of migrating volumes greater than 1\n" :
-			"There is no volume during migrationg\n");
+			"There is no volume during migration\n");
 		goto abort;
 	}
 
@@ -12693,13 +12693,13 @@ static int imsm_manage_reshape(
 			 * start     - start address of current unit
 			 *             to backup [bytes]
 			 * start_src - start address of current unit
-			 *             to backup alligned to source array
+			 *             to backup aligned to source array
 			 *             [bytes]
 			 */
 			unsigned long long next_step_filler;
 			unsigned long long copy_length = next_step * 512;
 
-			/* allign copy area length to stripe in old geometry */
+			/* align copy area length to stripe in old geometry */
 			next_step_filler = ((copy_length + start_buf_shift)
 					    % old_data_stripe_length);
 			if (next_step_filler)
@@ -12791,7 +12791,7 @@ static int imsm_manage_reshape(
 	/* After the reshape eliminate size mismatch in metadata.
 	 * Don't update md/component_size here, volume hasn't
 	 * to take whole space. It is allowed by kernel.
-	 * md/component_size will be set propoperly after next assembly.
+	 * md/component_size will be set properly after next assembly.
 	 */
 	imsm_fix_size_mismatch(st, subarray_index);
 
@@ -13165,7 +13165,7 @@ static int is_vol_to_setup_bitmap(struct mdinfo *info, struct imsm_dev *dev)
 
 /*******************************************************************************
  * Function:	set_bitmap_sysfs
- * Description:	Set the sysfs atributes of a given volume to activate the bitmap.
+ * Description:	Set the sysfs attributes of a given volume to activate the bitmap.
  * Parameters:
  *	info		: info about the volume where the bitmap should be setup
  *	chunksize	: bitmap chunk size

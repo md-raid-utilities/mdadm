@@ -3,7 +3,7 @@
 # We test mdadm on loop-back block devices.
 # dir for storing files should be settable by command line maybe
 size=20000
-# super0, round down to multiple of 64 and substract 64
+# super0, round down to multiple of 64 and subtract 64
 mdsize0=19904
 # super00 is nested, subtract 128
 mdsize00=19840
@@ -139,7 +139,7 @@ check_env() {
 	done
 	if $(lsblk -a | grep -iq raid)
 	then
-		# donot run mdadm -Ss directly if there are RAIDs working.
+		# do not run mdadm -Ss directly if there are RAIDs working.
 		echo "test: please run test suite without running RAIDs environment."
 		exit 1
 	fi

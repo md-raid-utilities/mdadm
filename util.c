@@ -1102,7 +1102,7 @@ int open_dev_excl(char *devnm)
 	int i;
 	int flags = O_RDWR;
 	dev_t devid = devnm2devid(devnm);
-	unsigned int delay = 1; // miliseconds
+	unsigned int delay = 1; // milliseconds
 
 	sprintf(buf, "%d:%d", major(devid), minor(devid));
 	for (i = 0; i < 25; i++) {
@@ -1140,7 +1140,7 @@ void wait_for(char *dev, int fd)
 {
 	int i;
 	struct stat stb_want;
-	unsigned int delay = 1; // miliseconds
+	unsigned int delay = 1; // milliseconds
 
 	if (fstat(fd, &stb_want) != 0 ||
 	    (stb_want.st_mode & S_IFMT) != S_IFBLK)
@@ -2329,7 +2329,7 @@ mdadm_status_t continue_via_systemd(char *devnm, char *service_name, char *prefi
 		execl("/bin/systemctl", "systemctl", "restart", pathbuf, NULL);
 		exit(MDADM_STATUS_ERROR);
 	default: /* parent */
-		/* Check if forked process successfully trigered service */
+		/* Check if forked process successfully triggered service */
 		pid = wait(&status);
 		if (pid >= 0 && status == 0)
 			return MDADM_STATUS_SUCCESS;

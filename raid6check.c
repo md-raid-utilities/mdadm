@@ -336,10 +336,10 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 
 	/* block_index_for_slot[] provides the reverse mapping from blocks to stripes.
 	 * The index is a syndrome position, the content is a raid_disk number.
-	 * indicies -1 and -2 work, and are P and Q disks */
+	 * indices -1 and -2 work, and are P and Q disks */
 	int *block_index_for_slot = xmalloc((syndrome_disks+2) * sizeof(int));
 
-	/* 'p' and 'q' contain calcualted P and Q, to be compared with
+	/* 'p' and 'q' contain calculated P and Q, to be compared with
 	 * blocks[-1] and blocks[-2];
 	 */
 	uint8_t *p = xmalloc(chunk_size);

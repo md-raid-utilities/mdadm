@@ -38,7 +38,7 @@ struct misc_dev_info {
 };
 
 #define MULTIPLE_PPL_AREA_SIZE_SUPER1 (1024 * 1024) /* Size of the whole
-						     * mutliple PPL area
+						     * multiple PPL area
 						     */
 
 static int role_from_sb(struct mdp_superblock_1 *sb)
@@ -55,7 +55,7 @@ static int role_from_sb(struct mdp_superblock_1 *sb)
 }
 
 /* return how many bytes are needed for bitmap, for cluster-md each node
- * should have it's own bitmap */
+ * should have its own bitmap */
 static unsigned int calc_bitmap_size(bitmap_super_t *bms, unsigned int boundary)
 {
 	unsigned long long bits, bytes;

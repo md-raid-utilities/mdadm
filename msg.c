@@ -288,7 +288,7 @@ int check_mdmon_version(char *container)
 	if (!mdmon_running(container)) {
 		/* if mdmon is not active we assume that any instance that is
 		 * later started will match the current mdadm version, if this
-		 * assumption is violated we may inadvertantly rebuild an array
+		 * assumption is violated we may inadvertently rebuild an array
 		 * that was meant for reshape, or start rebuild on a spare that
 		 * was to be moved to another container
 		 */

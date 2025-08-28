@@ -79,10 +79,10 @@
 #define MD_DISK_SYNC		2 /* disk is in sync with the raid set */
 #define MD_DISK_REMOVED		3 /* disk is in sync with the raid set */
 #define MD_DISK_CLUSTER_ADD	4 /* Initiate a disk add across the cluster
-				   * For clustered enviroments only.
+				   * For clustered environments only.
 				   */
 #define MD_DISK_CANDIDATE	5 /* disk is added as spare (local) until confirmed
-				   * For clustered enviroments only.
+				   * For clustered environments only.
 				   */
 
 #define	MD_DISK_WRITEMOSTLY	9 /* disk is "write-mostly" is RAID1 config.

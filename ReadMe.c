@@ -572,7 +572,7 @@ char Help_config[] =
 " array.  The identity can be given as a UUID with a word starting 'uuid=', or\n"
 " as a minor-number stored in the superblock using 'super-minor=', or as a list\n"
 " of devices.  This is given as a comma separated list of names, possibly\n"
-" containing wildcards, preceded by 'devices='. If multiple critea are given,\n"
+" containing wildcards, preceded by 'devices='. If multiple criteria are given,\n"
 " than a device must match all of them to be considered.\n"
 "\n"
 " Other configuration lines include:\n"
