@@ -258,7 +258,7 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 
 			st = xcalloc(1, sizeof *st);
-			if ('/' == *mdlist->devname) {
+			if ('/' == *mdlist->devname) {  /* absolute path */
 				snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR),
 					 "%s", mdlist->devname);
 			} else {
