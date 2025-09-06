@@ -258,12 +258,12 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 
 			st = xcalloc(1, sizeof *st);
-			if ( '/' == *mdlist->devname ) {
-				snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), "%s",
-					 mdlist->devname);
+			if ('/' == *mdlist->devname) {
+				snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR),
+					 "%s", mdlist->devname);
 			} else {
-				snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), DEV_MD_DIR "%s",
-					 basename(mdlist->devname));
+				snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR),
+					 DEV_MD_DIR "%s", basename(mdlist->devname));
 			}
 			st->next = statelist;
 			st->devnm[0] = 0;
