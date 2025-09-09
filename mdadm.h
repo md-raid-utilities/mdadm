@@ -558,6 +558,7 @@ enum bitmap_type {
 	BitmapNone,
 	BitmapInternal,
 	BitmapCluster,
+	BitmapLockless,
 	BitmapUnknown,
 };
 
@@ -1151,7 +1152,9 @@ extern struct superswitch {
 	 */
 	int (*add_internal_bitmap)(struct supertype *st, int *chunkp,
 				   int delay, int write_behind,
-				   unsigned long long size, int may_change, int major);
+				   unsigned long long size, int may_change,
+				   int major, bool assume_clean);
+	int (*get_bitmap_type)(struct supertype *st);
 	/* Perform additional setup required to activate a bitmap.
 	 */
 	int (*set_bitmap)(struct supertype *st, struct mdinfo *info);
