@@ -340,7 +340,7 @@ struct mdinfo {
 	int			mismatch_cnt;
 	char			text_version[50];
 
-	int container_member; /* for assembling external-metatdata arrays
+	int container_member; /* for assembling external-metadata arrays
 			       * This is to be used internally by metadata
 			       * handler only */
 	/**
@@ -431,7 +431,7 @@ extern char Version[], Usage[], Help[], OptionHelp[],
 	Help_incr[],
 	Help_manage[], Help_misc[], Help_monitor[], Help_config[];
 
-/* for option that don't have short equivilents, we assign arbitrary
+/* for option that don't have short equivalents, we assign arbitrary
  * numbers later than any 'short' character option.
  */
 enum special_options {
@@ -903,7 +903,7 @@ static inline bool is_level456(int level)
  * @fd: pointer to file descriptor.
  *
  * The function closes and invalidates file descriptor if appropriative. It
- * ignores incorrect file descriptor quitely to simplify error handling.
+ * ignores incorrect file descriptor quietly to simplify error handling.
  */
 static inline void close_fd(int *fd)
 {
@@ -1194,7 +1194,7 @@ extern struct superswitch {
 	 * @disk_fd: file descriptor of the device to check.
 	 * @verbose: verbose flag.
 	 *
-	 * Used by IMSM to verify all drives in container/array, against requirements not recored
+	 * Used by IMSM to verify all drives in container/array, against requirements not recorded
 	 * in superblock, like controller type for IMSM. It should check all drives even if
 	 * they are not actually used, because mdmon or kernel are free to use any drive assigned to
 	 * container automatically.
@@ -1306,7 +1306,7 @@ extern struct superswitch {
 	/* get list of bad blocks from metadata */
 	struct md_bb *(*get_bad_blocks)(struct active_array *a, int n);
 
-	int swapuuid; /* true if uuid is bigending rather than hostendian */
+	int swapuuid; /* true if uuid is bigendian rather than hostendian */
 	int external;
 	const char *name; /* canonical metadata name */
 } *superlist[];
@@ -1355,9 +1355,9 @@ struct supertype {
 	unsigned long long devsize;
 	unsigned long long data_offset; /* used by v1.x only */
 	int ignore_hw_compat; /* used to inform metadata handlers that it should ignore
-				 HW/firmware related incompatability to load metadata.
+				 HW/firmware related incompatibility to load metadata.
 				 Used when examining metadata to display content of disk
-				 when user has no hw/firmare compatible system.
+				 when user has no hw/firmware compatible system.
 			      */
 	struct metadata_update *updates;
 	struct metadata_update **update_tail;
@@ -1810,7 +1810,7 @@ static inline int is_subarray(char *vers)
 	 *				      reconfigure.  They might be read-only
 	 *				      or might be undergoing reshape etc.
 	 * containername is e.g. md0, md_d1
-	 * componentname is dependant on the metadata. e.g. '1' 'S1' ...
+	 * componentname is dependent on the metadata. e.g. '1' 'S1' ...
 	 */
 	return (*vers == '/' || *vers == '-');
 }

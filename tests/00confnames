@@ -4,7 +4,7 @@ set -x -e
 # Test how <devname> is handled during Incremental assemblation with
 # config file and ARRAYLINE specified.
 
-# for native, mdadm is not limiting or checking the set of ASCI symbols that
+# for native, mdadm is not limiting or checking the set of ASCII symbols that
 # can be used. It is up to user to use symbols that are not conflicting with
 # system utilities. Any problem is this area is not mdadm issue.
 

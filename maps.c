@@ -202,7 +202,7 @@ mapping_t update_options[] = {
  * @map: map to search.
  * @num: key to match.
  *
- * Shall be used only if key existence is quaranted.
+ * Shall be used only if key existence is guaranteed.
  *
  * Return: Pointer to name of the element.
  */

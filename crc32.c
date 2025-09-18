@@ -2,7 +2,7 @@
  * Copyright (C) 1995-2003 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
- * Note: zlib license from from zlib.h added explicitly as mdadm does
+ * Note: zlib license from zlib.h added explicitly as mdadm does
  *       not include zlib.h. License from v1.2.2 of zlib:
  *
  *  This software is provided 'as-is', without any express or implied
