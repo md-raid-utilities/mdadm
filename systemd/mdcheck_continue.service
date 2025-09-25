@@ -12,7 +12,6 @@ Documentation=man:mdadm(8)
 [Service]
 Type=simple
 Environment="MDADM_CHECK_DURATION=6 hours"
-# Note that we're not calling "mdcheck --continue" here.
-# We want previously started checks to be continued, and new ones
-# to be started.
-ExecStart=/usr/share/mdadm/mdcheck --duration ${MDADM_CHECK_DURATION}
+# mdcheck --start will continues previously started checks, and starts from
+# zero for arrays without a "Checked_$UUID" marker in /var/lib/mdcheck
+ExecStart=/usr/share/mdadm/mdcheck --start --duration ${MDADM_CHECK_DURATION}

@@ -23,19 +23,26 @@
 # will be checkpointed when that time has expired.
 # A subsequent invocation will allow the 'check' to continue.
 #
+# Arrays are identified by UUID and the 'sync_completed' value is stored
+# in /var/lib/mdcheck/MD_UUID_$UUID. When the script has finished checking
+# an array, it creates a file /var/lib/mdcheck/Checked_$UUID.
+#
+# Modes are:
+#   --continue      Don't start new checks, only continue previously started
+#                   ones for which MD_UUID_$UUID already exists.
+#   --start         Like --continue, but also start new checks for arrays
+#                   for which the file Checked_$UUID does not exist.
+#   --restart:      Enable restarting checks that were previously finished
+#                   (remove all Checked_* files) and exit immediately.
+#                   This mode doesn't start any array checks.
+#
+# With none of these options given, a new check from 0 will be started on
+# all arrays, even those that hadn't finished before.
+#
 # Options are:
-#   --continue    Don't start new checks, only continue previously started ones.
-#   --restart:    Enable restarting the array checks
 #   --duration    This is passed to "date --date=$duration" to find out
 #		  when to finish
-#
-# Arrays are identified by UUID and the 'sync_completed' value is stored
-# in /var/lib/mdcheck/MD_UUID_$UUID. If this file exists on startup of
-# the script, the check will continue where the previous check left off.
-# After the check completes, /var/lib/mdcheck/Checked_$UUID will be created.
-# Another full check will be started after this file is removed.
-# Use "mdcheck --restart" to remove these markers and re-enable checking
-# all arrays.
+
 
 # If the script is run from systemd, simply write to the journal on stderr.
 # Otherwise, use logger.
@@ -56,27 +63,52 @@ devname() {
     echo -n "/dev/$dev"
 }
 
-args=$(getopt -o "" -l help,continue,restart,duration: -n mdcheck -- "$@")
+usage() {
+    echo >&2 'Usage: mdcheck [mode] [options]
+
+Mode:
+	--help		print this help
+	--continue	only continue previously started checks
+	--start		continue, and start check on arrays that have not been checked
+	--restart	re-enable checking previously finished arrays
+	<EMPTY>		start check from position 0 on all arrays
+Options:
+	--duration <time-offset>
+			set the amount of time to run the checks for
+			(<time-offset> must be understood by "date --date")'
+}
+
+set_mode() {
+    [[ "$MODE" ]] && {
+        echo >&2 'ERROR: only one of --continue, --start, or --restart may be set
+'
+	usage
+	exit 1
+    }
+    MODE=$1
+}
+
+args=$(getopt -o "" -l help,continue,start,restart,duration: -n mdcheck -- "$@")
 rv=$?
-if [ $rv -ne 0 ]; then exit $rv; fi
+if [ $rv -ne 0 ]; then
+	usage
+	exit $rv
+fi
 
 eval set -- $args
 
-cont=
-restart=
+MODE=
 endtime=
 while [ " $1" != " --" ]
 do
     case $1 in
 	--help )
-		echo >&2 'Usage: mdcheck [--restart|--continue] [--duration time-offset]'
-		echo >&2 '  time-offset must be understood by "date --date"'
+		usage
 		exit 0
 		;;
-	--continue )
-		cont=yes ;;
-	--restart )
-		restart=yes ;;
+	--continue|--start|--restart)
+		set_mode "$1"
+		;;
 	--duration )
 		shift; dur=$1
 		endtime=$(date --date "$dur" "+%s")
@@ -86,16 +118,22 @@ do
 done
 shift
 
-if [ "$cont" = yes ]; then
-	if [ "$restart" = yes ]; then
-		echo 'ERROR: --restart and --continue cannot be combined' >&2
-		exit 1
-	fi
-elif [ "$restart" = yes ]; then
-	log 'Re-enabling array checks for all arrays'
-	rm -f /var/lib/mdcheck/Checked_*
-	exit $?
-fi
+[[ $# -eq 0 ]] || {
+    usage
+    exit 1
+}
+
+case $MODE in
+    --restart)
+	    log 'Re-enabling array checks for previously finished arrays'
+	    rm -f /var/lib/mdcheck/Checked_*
+	    exit 0
+	    ;;
+    "")
+	    log 'Starting new check from 0 on all MD RAID arrays'
+	    rm -f /var/lib/mdcheck/Checked_* /var/lib/mdcheck/MD_UUID_*
+	    ;;
+esac
 
 # We need a temp file occasionally...
 tmp=/var/lib/mdcheck/.md-check-$$
@@ -154,7 +192,7 @@ do
 		    log "WARNING: $checked exists, continuing anyway"
 		}
 		start=`cat "$fl"`
-	elif [[ ! -f "$checked" && -z "$cont" ]]; then
+	elif [[ ! -f "$checked" && "$MODE" != --continue ]]; then
 		start=0
 	else # nothing to do
 		continue
