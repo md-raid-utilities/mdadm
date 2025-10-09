@@ -30,6 +30,7 @@
 #include "xmalloc.h"
 
 #include <ctype.h>
+#include <limits.h>
 
 /**
  * set_bitmap_value() - set bitmap value.
@@ -76,6 +77,33 @@ static mdadm_status_t set_bitmap_value(struct shape *s, struct context *c, char 
 	return MDADM_STATUS_ERROR;
 }
 
+/*
+ * Logical block size settings only support metadata 1.x.
+ */
+static mdadm_status_t shape_set_logical_block_size(struct shape *s, char *optarg)
+{
+	char *end;
+	unsigned long size = strtoul(optarg, &end, 10);
+
+	if (end != optarg + strlen(optarg)) {
+		pr_err("logical block size [%s] can't be converted to an integer\n", optarg);
+		return MDADM_STATUS_ERROR;
+	} else if (errno == ERANGE) {
+		pr_err("logical block size [%s] more than ULONG_MAX\n", optarg);
+		return MDADM_STATUS_ERROR;
+	}
+
+	/* Here only perform a simple check, while detailed check will be handled in kernel */
+	if (size == 0 || size > UINT_MAX) {
+		pr_err("The range of logical-block-size is (0, %u], current is %lu\n",
+				UINT_MAX, size);
+		return MDADM_STATUS_ERROR;
+	}
+
+	s->logical_block_size = size;
+	return MDADM_STATUS_SUCCESS;
+}
+
 static int scan_assemble(struct supertype *ss,
 			 struct context *c,
 			 struct mddev_ident *ident);
@@ -116,6 +144,7 @@ int main(int argc, char *argv[])
 		.consistency_policy	= CONSISTENCY_POLICY_UNKNOWN,
 		.data_offset = INVALID_SECTORS,
 		.btype		= BitmapUnknown,
+		.logical_block_size = 0,
 	};
 
 	char sys_hostname[256];
@@ -1185,6 +1214,10 @@ int main(int argc, char *argv[])
 				exit(2);
 			}
 			continue;
+		case O(CREATE, LogicalBlockSize):
+			if (shape_set_logical_block_size(&s, optarg) != MDADM_STATUS_SUCCESS)
+				exit(2);
+			continue;
 		}
 		/* We have now processed all the valid options. Anything else is
 		 * an error
@@ -1198,6 +1231,18 @@ int main(int argc, char *argv[])
 				opt, map_num_s(modes, mode));
 		exit(2);
 
+	}
+
+	/* When metadata is not specified using the -e option,
+	 * metadata version is 1.2 by default. So the logical
+	 * block size can be configured.
+	 * When using the -e option, need to check if the
+	 * metadata version is 1.x.
+	 */
+	if (s.logical_block_size && ss && strcmp(ss->ss->name, "1.x")){
+		pr_err("The logical block size is only supported for metadata 1.x.\n");
+		pr_err("Current metadata version is %s\n", ss->ss->name);
+		exit(2);
 	}
 
 	if (print_help) {

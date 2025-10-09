@@ -989,6 +989,21 @@ Can be used with \-\-grow to change the consistency policy of an active array
 in some cases. See CONSISTENCY POLICY CHANGES below.
 .RE
 
+.TP
+.BR \-\-logical\-block\-size=
+The option can only be used in Create mode and metadata version is 1.x. If during
+creation, the member disks have mixed LBS values (512 and 4K), the array will
+default to using 4K as its LBS. However, if the 4K disk is removed and the system
+is rebooted, the array's LBS will fall back to 512. If the array's LBS is 512,
+then a disk with a 4K LBS cannot be added to the array.
+
+In general, choosing a large LBS for the array is beneficial, but it can
+introduce write-amplification. The larger the array's LBS, the larger the write
+size to each member disk. Therefore, users should evaluate their actual workload
+and choose an appropriate LBS accordingly.
+
+The option should be set by the user based on their own usage scenario, choosing
+an LBS value that best matches their needs.
 
 .SH For assemble:
 
