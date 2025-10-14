@@ -1324,6 +1324,8 @@ static int load_super_ddf(struct supertype *st, int fd,
 	struct ddf_super *super;
 	int rv;
 
+	free_super_ddf(st);
+
 	if (get_dev_size(fd, devname, &dsize) == 0)
 		return 1;
 
@@ -1344,8 +1346,6 @@ static int load_super_ddf(struct supertype *st, int fd,
 			       devname, dsize);
 		return 1;
 	}
-
-	free_super_ddf(st);
 
 	if (posix_memalign((void**)&super, 512, sizeof(*super))!= 0) {
 		pr_err("malloc of %zu failed.\n",
