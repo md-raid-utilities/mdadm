@@ -286,6 +286,7 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 				rv = 1;
 				goto out;
 			}
+		free_mdstat(mds);
 	}
 
 	/* If the array is undergoing a reshape which changes the number
