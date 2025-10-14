@@ -693,6 +693,8 @@ int check_raid(int fd, char *name)
 		/* Looks like GPT or MBR */
 		pr_err("partition table exists on %s\n", name);
 	}
+
+	free(st);
 	return 1;
 }
 
