@@ -2557,3 +2557,57 @@ bool is_file(const char *path)
 
 	return true;
 }
+
+bool get_md_mod_parameter(const char *name, char *buffer, int bsize)
+{
+	char path[256];
+	int bytes_read;
+	int fd;
+	int ret = true;
+
+	snprintf(path, sizeof(path), "/sys/module/md_mod/parameters/%s", name);
+
+	fd = open(path, O_RDWR);
+	if (fd < 0) {
+		pr_err("Can't open %s\n", path);
+		return false;
+	}
+
+	bytes_read = read(fd, buffer, bsize-1);
+	if (bytes_read < 0) {
+		pr_err("Failed to read %s\n", path);
+		ret = false;
+		goto out;
+	}
+
+	buffer[bytes_read] = '\0';
+	if (buffer[bytes_read-1] == '\n')
+		buffer[bytes_read-1] = '\0';
+
+out:
+	close(fd);
+	return ret;
+}
+
+bool set_md_mod_parameter(const char *name, const char *value)
+{
+	char path[256];
+	int fd;
+	bool ret = true;
+
+	snprintf(path, sizeof(path), "/sys/module/md_mod/parameters/%s", name);
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
+		pr_err("Can't open %s\n", path);
+		return false;
+	}
+
+	if (write(fd, value, strlen(value)) != (ssize_t)strlen(value)) {
+		pr_err("Failed to write to %s\n", path);
+		ret = false;
+	}
+
+	close(fd);
+	return ret;
+}
