@@ -13011,7 +13011,7 @@ static int validate_internal_bitmap_imsm(struct supertype *st)
 static int add_internal_bitmap_imsm(struct supertype *st, int *chunkp,
 				    int delay, int write_behind,
 				    unsigned long long size, int may_change,
-				    int amajor)
+				    int amajor, bool assume_clean)
 {
 	struct intel_super *super = st->sb;
 	int vol_idx = super->current_vol;
