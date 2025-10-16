@@ -139,7 +139,7 @@ char *find_free_devnm(void)
 int create_mddev(char *dev, char *name, int trustworthy,
 		 char *chosen, int block_udev)
 {
-	int mdfd;
+	int mdfd = -1;
 	struct stat stb;
 	int num = -1;
 	struct createinfo *ci = conf_get_create_info();
@@ -147,6 +147,12 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	char devname[37];
 	char devnm[32];
 	char cbuf[400];
+	char md_mod_param[64];
+
+	if (!init_md_mod_param(md_mod_param, sizeof(md_mod_param))) {
+		pr_err("%s:%d init md module parameters fail\n", __func__, __LINE__);
+		return -1;
+	}
 
 	if (!udev_is_available())
 		block_udev = 0;
@@ -173,7 +179,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			    (strcmp(cname, "md") != 0 && strcmp(cname, "md_d") != 0)) {
 				pr_err("%s is an invalid name for an md device.  Try /dev/md/%s\n",
 					dev, dev+5);
-				return -1;
+				goto out;
 			}
 
 			/* recreate name: /dev/md/0 or /dev/md/d0 */
@@ -186,11 +192,11 @@ int create_mddev(char *dev, char *name, int trustworthy,
 		 */
 		if (strchr(cname, '/') != NULL) {
 			pr_err("%s is an invalid name for an md device.\n", dev);
-			return -1;
+			goto out;
 		}
 		if (cname[0] == 0) {
 			pr_err("%s is an invalid name for an md device (empty!).\n", dev);
-			return -1;
+			goto out;
 		}
 		if (num < 0) {
 			/* If cname  is 'N' or 'dN', we get dev number
@@ -283,7 +289,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	if (num < 0 && cname && ci->names) {
 		sprintf(devnm, "md_%s", cname);
 		if (block_udev && udev_block(devnm) != UDEV_STATUS_SUCCESS)
-			return -1;
+			goto out;
 		if (!create_named_array(devnm)) {
 			devnm[0] = 0;
 			udev_unblock();
@@ -292,7 +298,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	if (num >= 0) {
 		sprintf(devnm, "md%d", num);
 		if (block_udev && udev_block(devnm) != UDEV_STATUS_SUCCESS)
-			return -1;
+			goto out;
 		if (!create_named_array(devnm)) {
 			devnm[0] = 0;
 			udev_unblock();
@@ -305,7 +311,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 
 			if (!_devnm) {
 				pr_err("No avail md devices - aborting\n");
-				return -1;
+				goto out;
 			}
 			strcpy(devnm, _devnm);
 		} else {
@@ -313,11 +319,11 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			if (mddev_busy(devnm)) {
 				pr_err("%s is already in use.\n",
 				       dev);
-				return -1;
+				goto out;
 			}
 		}
 		if (block_udev && udev_block(devnm) != UDEV_STATUS_SUCCESS)
-			return -1;
+			goto out;
 		create_named_array(devnm);
 	}
 
@@ -340,14 +346,14 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			    stb.st_rdev != devnm2devid(devnm)) {
 				pr_err("%s exists but looks wrong, please fix\n",
 					devname);
-				return -1;
+				goto out;
 			}
 		} else {
 			if (mknod(devname, S_IFBLK|0600,
 				  devnm2devid(devnm)) != 0) {
 				pr_err("failed to create %s\n",
 					devname);
-				return -1;
+				goto out;
 			}
 			if (chown(devname, ci->uid, ci->gid))
 				perror("chown");
@@ -356,7 +362,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			if (stat(devname, &stb) < 0) {
 				pr_err("failed to stat %s\n",
 						devname);
-				return -1;
+				goto out;
 			}
 			add_dev(devname, &stb, 0, NULL);
 		}
@@ -395,6 +401,8 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	if (mdfd < 0)
 		pr_err("unexpected failure opening %s\n",
 			devname);
+out:
+	restore_md_mod_param(md_mod_param);
 	return mdfd;
 }
 

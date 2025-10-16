@@ -1269,3 +1269,33 @@ bool sysfs_is_libata_allow_tpm_enabled(const int verbose)
 		return true;
 	return false;
 }
+
+bool init_md_mod_param(char *buffer, int bsize)
+{
+	bool ret = true;
+
+	/*
+	 * Init md module parameter legacy_async_del_gendisk to N
+	 */
+	if (get_linux_version() >= 6018000) {
+		ret = get_md_mod_parameter(MD_MOD_ASYNC_DEL_GENDISK, buffer, bsize);
+		if (!ret)
+			return ret;
+
+		ret = set_md_mod_parameter(MD_MOD_ASYNC_DEL_GENDISK, "N");
+	}
+
+	return ret;
+}
+
+void restore_md_mod_param(char *buffer)
+{
+	bool ret = true;
+
+	if (get_linux_version() >= 6018000) {
+		ret = set_md_mod_parameter(MD_MOD_ASYNC_DEL_GENDISK, buffer);
+		if (!ret)
+			pr_err("restore %s to %s fail\n", buffer,
+					MD_MOD_ASYNC_DEL_GENDISK);
+	}
+}
