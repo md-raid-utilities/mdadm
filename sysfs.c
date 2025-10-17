@@ -160,6 +160,7 @@ mdadm_status_t sysfs_set_memb_state_fd(int fd, memb_state_t state, int *err)
 mdadm_status_t sysfs_set_memb_state(char *array_devnm, char *memb_devnm, memb_state_t state)
 {
 	int state_fd = sysfs_open_memb_attr(array_devnm, memb_devnm, "state", O_RDWR);
+	mdadm_status_t status;
 
 	if (!is_fd_valid(state_fd)) {
 		pr_err("Cannot open file descriptor to %s in array %s, aborting.\n",
@@ -167,9 +168,9 @@ mdadm_status_t sysfs_set_memb_state(char *array_devnm, char *memb_devnm, memb_st
 			return MDADM_STATUS_ERROR;
 	}
 
-	return sysfs_set_memb_state_fd(state_fd, state, NULL);
-
+	status = sysfs_set_memb_state_fd(state_fd, state, NULL);
 	close_fd(&state_fd);
+	return status;
 }
 
 /**
