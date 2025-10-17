@@ -141,6 +141,8 @@ struct dlm_lksb {
 #define MDMON_DIR "/run/mdadm"
 #endif /* MDMON_DIR */
 
+#define MD_MOD_ASYNC_DEL_GENDISK "legacy_async_del_gendisk"
+
 /* FAILED_SLOTS is where to save files storing recent removal of array
  * member in order to allow future reuse of disk inserted in the same
  * slot for array recovery
@@ -855,6 +857,8 @@ extern int restore_stripes(int *dest, unsigned long long *offsets,
 			   unsigned long long start, unsigned long long length,
 			   char *src_buf);
 extern bool sysfs_is_libata_allow_tpm_enabled(const int verbose);
+extern bool init_md_mod_param(char *buffer, int bsize);
+extern void restore_md_mod_param(char *buffer);
 
 #ifndef Sendmail
 #define Sendmail "/usr/lib/sendmail -t"
@@ -1794,6 +1798,8 @@ extern void set_dlm_hooks(void);
 extern void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt);
 extern bool is_directory(const char *path);
 extern bool is_file(const char *path);
+extern bool get_md_mod_parameter(const char *name, char *buffer, int bsize);
+extern bool set_md_mod_parameter(const char *name, const char *value);
 extern int s_gethostname(char *buf, int buf_len);
 
 #define _ROUND_UP(val, base)	(((val) + (base) - 1) & ~(base - 1))
