@@ -1513,7 +1513,7 @@ extern int restore_backup(struct supertype *st,
 			  int verbose);
 extern int Grow_continue_command(char *devname, int fd, struct context *c);
 
-extern int Assemble(struct supertype *st, char *mddev,
+extern int Assemble(struct supertype **super, char *mddev,
 		    struct mddev_ident *ident,
 		    struct mddev_dev *devlist,
 		    struct context *c);

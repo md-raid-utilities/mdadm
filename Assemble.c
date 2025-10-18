@@ -1308,7 +1308,7 @@ static int start_array(int mdfd,
 	return 1;
 }
 
-int Assemble(struct supertype *st, char *mddev,
+int Assemble(struct supertype **super, char *mddev,
 	     struct mddev_ident *ident,
 	     struct mddev_dev *devlist,
 	     struct context *c)
@@ -1398,6 +1398,7 @@ int Assemble(struct supertype *st, char *mddev,
 	char chosen_name[1024];
 	struct map_ent *map = NULL;
 	struct map_ent *mp;
+	struct supertype *st = *super;
 
 	/*
 	 * If any subdevs are listed, then any that don't
@@ -1588,6 +1589,12 @@ try_again:
 	devcnt = load_devices(devices, devmap, ident, &st, devlist,
 			      c, content, mdfd, mddev,
 			      &most_recent, &bestcnt, &best, inargv);
+	/*
+	 * load_devices may release superblock which passes to it
+	 * and alloc new superblock for it.
+	 */
+	*super = st;
+
 	if (devcnt < 0) {
 		mdfd = -3;
 		/*
