@@ -1424,10 +1424,10 @@ int main(int argc, char *argv[])
 				if (mdfd >= 0)
 					close(mdfd);
 			} else {
-				rv |= Assemble(ss, ident.devname, array_ident, NULL, &c);
+				rv |= Assemble(&ss, ident.devname, array_ident, NULL, &c);
 			}
 		} else if (!c.scan)
-			rv = Assemble(ss, ident.devname, &ident, devlist->next, &c);
+			rv = Assemble(&ss, ident.devname, &ident, devlist->next, &c);
 		else if (devs_found > 0) {
 			if (c.update && devs_found > 1) {
 				pr_err("can only update a single array at a time\n");
@@ -1445,7 +1445,7 @@ int main(int argc, char *argv[])
 					rv |= 1;
 					continue;
 				}
-				rv |= Assemble(ss, dv->devname, array_ident, NULL, &c);
+				rv |= Assemble(&ss, dv->devname, array_ident, NULL, &c);
 			}
 		} else {
 			if (c.update) {
@@ -1737,7 +1737,7 @@ static int scan_assemble(struct supertype *ss,
 			if (a->devname && is_devname_ignore(a->devname) == true)
 				continue;
 
-			r = Assemble(ss, a->devname,
+			r = Assemble(&ss, a->devname,
 				     a, NULL, c);
 			if (r == 0) {
 				a->assembled = 1;
@@ -1760,7 +1760,7 @@ static int scan_assemble(struct supertype *ss,
 			struct mddev_dev *devlist = conf_get_devs();
 			acnt = 0;
 			do {
-				rv2 = Assemble(ss, NULL,
+				rv2 = Assemble(&ss, NULL,
 					       ident,
 					       devlist, c);
 				if (rv2 == 0) {
