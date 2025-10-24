@@ -148,6 +148,11 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	char devnm[32];
 	char cbuf[400];
 
+	if (!init_md_mod_param()) {
+		pr_err("init md module parameters fail\n");
+		return -1;
+	}
+
 	if (!udev_is_available())
 		block_udev = 0;
 
