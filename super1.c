@@ -2374,11 +2374,19 @@ static __u64 avail_size1(struct supertype *st, __u64 devsize,
 	return 0;
 }
 
+static int get_bitmap_type1(struct supertype *st)
+{
+	struct mdp_superblock_1 *sb = st->sb;
+	bitmap_super_t *bms = (bitmap_super_t *)(((char *)sb) + MAX_SB_SIZE);
+
+	return __le32_to_cpu(bms->version);
+}
+
 static int
 add_internal_bitmap1(struct supertype *st,
 		     int *chunkp, int delay, int write_behind,
 		     unsigned long long size,
-		     int may_change, int major)
+		     int may_change, int major, bool assume_clean)
 {
 	/*
 	 * If not may_change, then this is a 'Grow' without sysfs support for
@@ -2408,6 +2416,14 @@ add_internal_bitmap1(struct supertype *st,
 		 * would be non-zero
 		 */
 		creating = 1;
+
+	if (major == BITMAP_MAJOR_LOCKLESS) {
+		if (!creating || st->minor_version != 2) {
+			pr_err("lockless bitmap is only supported with creating the array with 1.2 metadata\n");
+			return -EINVAL;
+		}
+	}
+
 	switch(st->minor_version) {
 	case 0:
 		/*
@@ -2476,9 +2492,16 @@ add_internal_bitmap1(struct supertype *st,
 	}
 
 	room -= bbl_size;
-	if (chunk == UnSet && room > 128*2)
+	if (major == BITMAP_MAJOR_LOCKLESS) {
+		if (chunk != UnSet) {
+			pr_err("lockless bitmap doesn't support chunksize\n");
+			return -EINVAL;
+		}
+		room = 128*2;
+	} else if (chunk == UnSet && room > 128*2) {
 		/* Limit to 128K of bitmap when chunk size not requested */
 		room = 128*2;
+	}
 
 	if (room <= 1)
 		/* No room for a bitmap */
@@ -2537,6 +2560,13 @@ add_internal_bitmap1(struct supertype *st,
 		bms->cluster_name[len - 1] = '\0';
 	}
 
+	/* kernel will initialize bitmap */
+	if (major == BITMAP_MAJOR_LOCKLESS) {
+		bms->state = __cpu_to_le32(1 << BITMAP_FIRST_USE);
+		if (assume_clean)
+			bms->state |= __cpu_to_le32(1 << BITMAP_CLEAN);
+		bms->sectors_reserved = __le32_to_cpu(room);
+	}
 	*chunkp = chunk;
 	return 0;
 }
@@ -2912,6 +2942,7 @@ struct superswitch super1 = {
 	.avail_size = avail_size1,
 	.add_internal_bitmap = add_internal_bitmap1,
 	.locate_bitmap = locate_bitmap1,
+	.get_bitmap_type = get_bitmap_type1,
 	.write_bitmap = write_bitmap1,
 	.free_super = free_super1,
 #if __BYTE_ORDER == BIG_ENDIAN
