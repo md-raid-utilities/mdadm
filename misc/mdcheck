@@ -50,7 +50,7 @@ devname() {
     echo -n "/dev/$dev"
 }
 
-args=$(getopt -o hcd: -l help,continue,duration: -n mdcheck -- "$@")
+args=$(getopt -o "" -l help,continue,duration: -n mdcheck -- "$@")
 rv=$?
 if [ $rv -ne 0 ]; then exit $rv; fi
 
