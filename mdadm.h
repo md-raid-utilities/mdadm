@@ -636,6 +636,7 @@ struct context {
 	char	*action;
 	int	nodes;
 	char	*homecluster;
+	char	*metadata;
 };
 
 struct shape {
@@ -1513,10 +1514,8 @@ extern int restore_backup(struct supertype *st,
 			  int verbose);
 extern int Grow_continue_command(char *devname, int fd, struct context *c);
 
-extern int Assemble(struct supertype *st, char *mddev,
-		    struct mddev_ident *ident,
-		    struct mddev_dev *devlist,
-		    struct context *c);
+extern int Assemble(char *mddev, struct mddev_ident *ident,
+			struct mddev_dev *devlist, struct context *c);
 
 extern int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		 struct context *c);
