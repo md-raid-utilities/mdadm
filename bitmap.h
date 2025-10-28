@@ -14,12 +14,17 @@
 #define BITMAP_MAJOR_LO 3
 #define BITMAP_MAJOR_HI 4
 #define	BITMAP_MAJOR_CLUSTERED 5
+#define BITMAP_MAJOR_LOCKLESS 6
 #define BITMAP_MAGIC 0x6d746962
 
 /* use these for bitmap->flags and bitmap->sb->state bit-fields */
 enum bitmap_state {
-	BITMAP_ACTIVE = 0x001, /* the bitmap is in use */
-	BITMAP_STALE  = 0x002  /* the bitmap file is out of date or had -EIO */
+	BITMAP_STALE		= 1,  /* the bitmap file is out of date or had -EIO */
+	BITMAP_WRITE_ERROR	= 2, /* A write error has occurred */
+	BITMAP_FIRST_USE	= 3,
+	BITMAP_CLEAN		= 4,
+	BITMAP_DAEMON_BUSY	= 5,
+	BITMAP_HOSTENDIAN	= 15,
 };
 
 /* the superblock at the front of the bitmap file -- little endian */
