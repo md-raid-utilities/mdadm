@@ -12,4 +12,4 @@ Documentation=man:mdadm(8)
 
 [Service]
 Type=simple
-ExecStart=/usr/share/mdadm/mdcheck --restart
+ExecStart=MISCDIR/mdcheck --restart

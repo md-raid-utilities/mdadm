@@ -162,6 +162,7 @@ MANDIR  = /usr/share/man
 MAN4DIR = $(MANDIR)/man4
 MAN5DIR = $(MANDIR)/man5
 MAN8DIR = $(MANDIR)/man8
+MISCDIR = /usr/share/mdadm
 
 UDEVDIR := $(shell $(PKG_CONFIG) --variable=udevdir udev 2>/dev/null)
 ifndef UDEVDIR
@@ -302,7 +303,7 @@ install-systemd: systemd/mdmon@.service
 		mdcheck_continue.timer mdcheck_continue.service \
 		mdmonitor-oneshot.timer mdmonitor-oneshot.service \
 		; \
-	do sed -e 's,BINDIR,$(BINDIR),g' systemd/$$file > .install.tmp.2 && \
+	do sed -e 's,BINDIR,$(BINDIR),g;s,MISCDIR,$(MISCDIR),g' systemd/$$file > .install.tmp.2 && \
 	   $(ECHO) $(INSTALL) -D -m 644 systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   $(INSTALL) -D -m 644 .install.tmp.2 $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   rm -f .install.tmp.2; \
@@ -312,6 +313,12 @@ install-systemd: systemd/mdmon@.service
 	   $(ECHO) $(INSTALL) -D -m 755  systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   $(INSTALL) -D -m 755  .install.tmp.3 $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   rm -f .install.tmp.3; \
+	done
+	@for file in mdcheck ; \
+	do sed -e 's,BINDIR,$(BINDIR),g' misc/$$file > .install.tmp.4 && \
+	   $(ECHO) $(INSTALL) -D -m 755  misc/$$file $(DESTDIR)$(MISCDIR)/$$file ; \
+	   $(INSTALL) -D -m 755  .install.tmp.4 $(DESTDIR)$(MISCDIR)/$$file ; \
+	   rm -f .install.tmp.4; \
 	done
 
 install-bin: mdadm mdmon
