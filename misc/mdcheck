@@ -181,7 +181,7 @@ do
 
 	sys=${sync_act%/md/*}
 	dev=$(devname "$sys") || continue
-	mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
+	BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
 	source $tmp
 	[[ "$MD_UUID" ]] || continue
 
