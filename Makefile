@@ -162,6 +162,7 @@ MANDIR  = /usr/share/man
 MAN4DIR = $(MANDIR)/man4
 MAN5DIR = $(MANDIR)/man5
 MAN8DIR = $(MANDIR)/man8
+MISCDIR = /usr/share/mdadm
 
 UDEVDIR := $(shell $(PKG_CONFIG) --variable=udevdir udev 2>/dev/null)
 ifndef UDEVDIR
@@ -200,6 +201,15 @@ MON_SRCS = $(patsubst %.o,%.c,$(MON_OBJS))
 
 STATICSRC = pwgr.c
 STATICOBJS = pwgr.o
+
+UDEV_RULES = 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.rules \
+		69-md-clustered-confirm-device.rules
+SYSTEMD_UNITS = mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
+		mdadm-last-resort@.service mdadm-grow-continue@.service \
+		mdcheck_start.timer mdcheck_start.service \
+		mdcheck_continue.timer mdcheck_continue.service \
+		mdmonitor-oneshot.timer mdmonitor-oneshot.service
+
 
 all : mdadm mdmon
 man : mdadm.man md.man mdadm.conf.man mdmon.man raid6check.man
@@ -287,8 +297,7 @@ install-man: mdadm.8 md.4 mdadm.conf.5 mdmon.8
 
 install-udev: udev-md-raid-arrays.rules udev-md-raid-assembly.rules udev-md-raid-creating.rules \
 		udev-md-clustered-confirm-device.rules 
-	@for file in 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.rules \
-		69-md-clustered-confirm-device.rules ; \
+	@for file in $(UDEV_RULES); \
 	do sed -e 's,BINDIR,$(BINDIR),g' udev-$${file#??-} > .install.tmp.1 && \
 	   $(ECHO) $(INSTALL) -D -m 644 udev-$${file#??-} $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
 	   $(INSTALL) -D -m 644 .install.tmp.1 $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
@@ -296,13 +305,8 @@ install-udev: udev-md-raid-arrays.rules udev-md-raid-assembly.rules udev-md-raid
 	done
 
 install-systemd: systemd/mdmon@.service
-	@for file in mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
-		mdadm-last-resort@.service mdadm-grow-continue@.service \
-		mdcheck_start.timer mdcheck_start.service \
-		mdcheck_continue.timer mdcheck_continue.service \
-		mdmonitor-oneshot.timer mdmonitor-oneshot.service \
-		; \
-	do sed -e 's,BINDIR,$(BINDIR),g' systemd/$$file > .install.tmp.2 && \
+	@for file in $(SYSTEMD_UNITS); \
+	do sed -e 's,BINDIR,$(BINDIR),g;s,MISCDIR,$(MISCDIR),g' systemd/$$file > .install.tmp.2 && \
 	   $(ECHO) $(INSTALL) -D -m 644 systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   $(INSTALL) -D -m 644 .install.tmp.2 $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   rm -f .install.tmp.2; \
@@ -313,13 +317,24 @@ install-systemd: systemd/mdmon@.service
 	   $(INSTALL) -D -m 755  .install.tmp.3 $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   rm -f .install.tmp.3; \
 	done
+	@for file in mdcheck ; \
+	do sed -e 's,BINDIR,$(BINDIR),g' misc/$$file > .install.tmp.4 && \
+	   $(ECHO) $(INSTALL) -D -m 755  misc/$$file $(DESTDIR)$(MISCDIR)/$$file ; \
+	   $(INSTALL) -D -m 755  .install.tmp.4 $(DESTDIR)$(MISCDIR)/$$file ; \
+	   rm -f .install.tmp.4; \
+	done
 
 install-bin: mdadm mdmon
 	$(INSTALL) -D $(STRIP) -m 755 mdadm $(DESTDIR)$(BINDIR)/mdadm
 	$(INSTALL) -D $(STRIP) -m 755 mdmon $(DESTDIR)$(BINDIR)/mdmon
 
 uninstall:
-	rm -f $(DESTDIR)$(MAN8DIR)/mdadm.8 $(DESTDIR)$(MAN8DIR)/mdmon.8 $(DESTDIR)$(MAN4DIR)/md.4 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5 $(DESTDIR)$(BINDIR)/mdadm
+	rm -f $(DESTDIR)$(BINDIR)/mdadm $(DESTDIR)$(BINDIR)/mdmon
+	rm -f $(DESTDIR)$(MAN8DIR)/mdadm.8 $(DESTDIR)$(MAN8DIR)/mdmon.8 $(DESTDIR)$(MAN4DIR)/md.4 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
+	rm -f $(UDEV_RULES:%=$(DESTDIR)$(UDEVDIR)/rules.d/%)
+	rm -f $(SYSTEMD_UNITS:%=$(DESTDIR)$(SYSTEMD_DIR)/%)
+	rm -f $(DESTDIR)$(SYSTEMD_DIR)-shutdown/mdadm.shutdown
+	rm -f $(DESTDIR)$(MISCDIR)/mdcheck
 
 test: mdadm mdmon test_stripe swap_super raid6check
 	@echo "Please run './test' as root"
