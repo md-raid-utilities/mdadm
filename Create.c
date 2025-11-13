@@ -1281,6 +1281,14 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 				goto abort;
 			}
 		} else {
+			if (s->logical_block_size &&
+				sysfs_set_num(&info, NULL, "logical_block_size",
+							  s->logical_block_size)) {
+				pr_err("Failed to set logical_block_size %u\n",
+						s->logical_block_size);
+				goto abort;
+			}
+
 			/* param is not actually used */
 			mdu_param_t param;
 			if (ioctl(mdfd, RUN_ARRAY, &param)) {

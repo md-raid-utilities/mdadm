@@ -498,6 +498,7 @@ enum special_options {
 	ClusterConfirm,
 	WriteJournal,
 	ConsistencyPolicy,
+	LogicalBlockSize,
 };
 
 enum update_opt {
@@ -660,6 +661,7 @@ struct shape {
 	unsigned long long data_offset;
 	int	consistency_policy;
 	change_dir_t direction;
+	unsigned int logical_block_size;
 };
 
 /* List of device names - wildcards expanded */
