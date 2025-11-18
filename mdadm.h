@@ -141,6 +141,8 @@ struct dlm_lksb {
 #define MDMON_DIR "/run/mdadm"
 #endif /* MDMON_DIR */
 
+#define MD_MOD_ASYNC_DEL_GENDISK "legacy_async_del_gendisk"
+
 /* FAILED_SLOTS is where to save files storing recent removal of array
  * member in order to allow future reuse of disk inserted in the same
  * slot for array recovery
@@ -637,6 +639,7 @@ struct context {
 	char	*action;
 	int	nodes;
 	char	*homecluster;
+	char	*metadata;
 };
 
 struct shape {
@@ -856,6 +859,7 @@ extern int restore_stripes(int *dest, unsigned long long *offsets,
 			   unsigned long long start, unsigned long long length,
 			   char *src_buf);
 extern bool sysfs_is_libata_allow_tpm_enabled(const int verbose);
+extern bool init_md_mod_param(void);
 
 #ifndef Sendmail
 #define Sendmail "/usr/lib/sendmail -t"
@@ -1516,10 +1520,8 @@ extern int restore_backup(struct supertype *st,
 			  int verbose);
 extern int Grow_continue_command(char *devname, int fd, struct context *c);
 
-extern int Assemble(struct supertype *st, char *mddev,
-		    struct mddev_ident *ident,
-		    struct mddev_dev *devlist,
-		    struct context *c);
+extern int Assemble(char *mddev, struct mddev_ident *ident,
+			struct mddev_dev *devlist, struct context *c);
 
 extern int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		 struct context *c);

@@ -1,7 +1,7 @@
 **mdadm** is a utility used to create and manage **software RAID** devices implemented through
 **Multiple devices driver (MD)** in kernel. It supports following RAID metadata formats:
 
-* [Linux native RAID](https://raid.wiki.kernel.org/index.php/RAID_superblock_formats):
+* [Linux native RAID](https://docs.kernel.org/admin-guide/md.html#superblock-formats):
 
   Known as **native** or **native RAID**. First and default metadata format. Metadata management
   is implemented in **MD driver**.

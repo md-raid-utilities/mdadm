@@ -1,0 +1,71 @@
+---
+name: mdadm test
+on:
+  push:
+    branches:
+      - test_on_push
+    paths:
+      - '*.c'
+      - '*.h'
+      - 'tests/*'
+      - 'test'
+      - '.github/workflows/mdadm-test.yml'
+  pull_request:
+    branches:
+      - test_on_pr
+    paths:
+      - '*.c'
+      - '*.h'
+      - 'tests/*'
+      - 'test'
+      - '.github/workflows/mdadm-test.yml'
+  workflow_dispatch:
+jobs:
+  mdadm_tests:
+    runs-on: ubuntu-latest
+    name: Run mdadm test script
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: >-
+          sudo apt update &&
+          sudo apt install
+          --yes --no-upgrade --no-install-recommends --no-install-suggests
+          make gcc libudev-dev
+
+      - name: Build mdadm
+        run: make -j$(nproc) BINDIR=/usr/sbin
+
+      - name: Install mdadm
+        run: sudo make BINDIR=/usr/sbin install-bin
+
+      - name: Print mdadm version
+        run: mdadm --version
+
+      - name: Set targetdir to /mnt/tmp
+        run: sed -i '/^targetdir=/s,/var/tmp,/mnt/tmp,' test
+
+      - name: Create targetdir
+        run: sudo mkdir -p /mnt/tmp
+
+      - name: Run tests
+        id: run_tests
+        run: >-
+          sudo ./test --skip-broken --no-error
+          --disable-integrity --disable-multipath --disable-linear
+          --keep-going
+        continue-on-error: true
+
+      - name: Collect logs of failed tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: "mdadm-failed-test-logs"
+          path: /mnt/tmp/*.log
+
+      - name: Fail if any test failed
+        if: steps.run_tests.outcome != 'success'
+        run: /bin/false
