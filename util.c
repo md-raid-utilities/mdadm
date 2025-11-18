@@ -693,6 +693,8 @@ int check_raid(int fd, char *name)
 		/* Looks like GPT or MBR */
 		pr_err("partition table exists on %s\n", name);
 	}
+
+	free(st);
 	return 1;
 }
 
@@ -2456,7 +2458,7 @@ int zero_disk_range(int fd, unsigned long long sector, size_t count)
 		return -1;
 	}
 
-	if (lseek64(fd, sector * 512, SEEK_SET) < 0) {
+	if (lseek(fd, sector * 512, SEEK_SET) < 0) {
 		ret = -errno;
 		pr_err("Failed to seek offset for zeroing\n");
 		goto out;
@@ -2556,4 +2558,49 @@ bool is_file(const char *path)
 		return false;
 
 	return true;
+}
+
+bool set_md_mod_parameter(const char *name, const char *value)
+{
+	char path[256];
+	int fd;
+	bool ret = true;
+
+	snprintf(path, sizeof(path), "/sys/module/md_mod/parameters/%s", name);
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
+		pr_err("Can't open %s\n", path);
+		return false;
+	}
+
+	if (write(fd, value, strlen(value)) != (ssize_t)strlen(value)) {
+		pr_err("Failed to write to %s\n", path);
+		ret = false;
+	}
+
+	close(fd);
+	return ret;
+}
+
+/* Init kernel md_mod parameters here if needed */
+bool init_md_mod_param(void)
+{
+	bool ret = true;
+
+	/*
+	 * In kernel 9e59d609763f calls del_gendisk in sync way. So device
+	 * node can be removed after stop command. But it can introduce a
+	 * regression which can be fixed by github pr182. New mdadm version
+	 * with pr182 can work well with new kernel. But users who don't
+	 * update mdadm and update to new kernel, they can't assemble array
+	 * anymore. So kernel adds a kernel parameter legacy_async_del_gendisk
+	 * and uses async as default.
+	 * We'll use sync mode since 6.18 rather than async mode. So in future
+	 * the kernel parameter will be removed.
+	 */
+	if (get_linux_version() >= 6018000)
+		ret = set_md_mod_parameter(MD_MOD_ASYNC_DEL_GENDISK, "N");
+
+	return ret;
 }

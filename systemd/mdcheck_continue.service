@@ -7,10 +7,11 @@
 
 [Unit]
 Description=MD array scrubbing - continuation
-ConditionPathExistsGlob=/var/lib/mdcheck/MD_UUID_*
 Documentation=man:mdadm(8)
 
 [Service]
-Type=oneshot
+Type=simple
 Environment="MDADM_CHECK_DURATION=6 hours"
-ExecStart=/usr/share/mdadm/mdcheck --continue --duration ${MDADM_CHECK_DURATION}
+# mdcheck --start will continues previously started checks, and starts from
+# zero for arrays without a "Checked_$UUID" marker in /var/lib/mdcheck
+ExecStart=/usr/share/mdadm/mdcheck --start --duration ${MDADM_CHECK_DURATION}

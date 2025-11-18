@@ -9,7 +9,7 @@
 Description=MD array scrubbing
 
 [Timer]
-OnCalendar=Sun *-*-1..7 1:00:00
+OnCalendar=Sun *-*-1..7 0:45:00
 
 [Install]
 WantedBy= mdmonitor.service

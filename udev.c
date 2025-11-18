@@ -147,9 +147,16 @@ enum udev_status udev_wait_for_events(int seconds)
 	tv.tv_sec = seconds;
 	tv.tv_usec = 0;
 
-	if (select(fd + 1, &readfds, NULL, NULL, &tv) > 0 && FD_ISSET(fd, &readfds))
-		if (udev_monitor_receive_device(udev_monitor))
+	if (select(fd + 1, &readfds, NULL, NULL, &tv) > 0 && FD_ISSET(fd, &readfds)) {
+		struct udev_device *dev = udev_monitor_receive_device(udev_monitor);
+
+		if (dev) {
+			udev_device_unref(dev);
 			return UDEV_STATUS_SUCCESS; /* event detected */
+		} else {
+			return UDEV_STATUS_ERROR;
+		}
+	}
 	return UDEV_STATUS_TIMEOUT;
 }
 #endif

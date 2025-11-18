@@ -1715,6 +1715,7 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 	struct mdstat_ent *ent;
 	struct mdinfo mdi;
 	int mdfd = -1;
+	int retry = 25;
 
 	if (strcmp(devnm, devname) != 0)
 		if (!is_devnode_path(devname)) {
@@ -1790,11 +1791,26 @@ int Incremental_remove(char *devname, char *id_path, int verbose)
 
 	/* Native arrays are handled separatelly to provide more detailed error handling */
 	rv = sysfs_set_memb_state(ent->devnm, devnm, MEMB_STATE_FAULTY);
-	if (rv && verbose >= 0)
-		pr_err("Cannot fail member device %s in array %s.\n", devnm, ent->devnm);
+	if (rv) {
+		if (verbose >= 0)
+			pr_err("Cannot fail member device %s in array %s.\n", devnm, ent->devnm);
+		goto out;
+	}
 
-	if (rv == MDADM_STATUS_SUCCESS)
+	/*
+	 * If resync/recovery is running, sync thread is interrupted by setting member faulty.
+	 * And it needs to wait some time to let kernel to reap sync thread. If not, it will
+	 * fail to remove it.
+	 */
+	while (retry) {
 		rv = sysfs_set_memb_state(ent->devnm, devnm, MEMB_STATE_REMOVE);
+		if (rv) {
+			sleep_for(0, MSEC_TO_NSEC(200), true);
+			retry--;
+			continue;
+		}
+		break;
+	}
 
 	if (rv && verbose >= 0)
 		pr_err("Cannot remove member device %s from %s.\n", devnm, ent->devnm);

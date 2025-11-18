@@ -254,12 +254,14 @@ int Monitor(struct mddev_dev *devlist,
 				continue;
 			if (is_devname_ignore(mdlist->devname) == true)
 				continue;
-			if (!is_mddev(mdlist->devname))
-				continue;
 
 			st = xcalloc(1, sizeof *st);
-			snprintf(st->devname, MD_NAME_MAX + sizeof(DEV_MD_DIR), DEV_MD_DIR "%s",
-				 basename(mdlist->devname));
+			snprintf(st->devname, sizeof(st->devname), "%s%s",
+				 '/' == *mdlist->devname ? "" : DEV_MD_DIR, mdlist->devname);
+			if (!is_mddev(st->devname)) {
+				free(st);
+				continue;
+			}
 			st->next = statelist;
 			st->devnm[0] = 0;
 			st->percent = RESYNC_UNKNOWN;
@@ -639,11 +641,20 @@ static void execute_alert_cmd(const struct event_data *data)
  */
 static void send_event_email(const struct event_data *data)
 {
-	FILE *mp, *mdstat;
+	FILE *mp = NULL, *mdstat;
 	char buf[BUFSIZ];
 	int n;
 
-	mp = popen(Sendmail, "w");
+	if (info.mailfrom) {
+		char cmd[1024];
+		int rc = snprintf(cmd, sizeof(cmd), "%s -f%s",
+				  Sendmail, info.mailfrom);
+
+		if (rc >= 0 && (unsigned int)rc < sizeof(cmd))
+			mp = popen(cmd, "w");
+	}
+	if (mp == NULL)
+		mp = popen(Sendmail, "w");
 	if (!mp) {
 		pr_err("Cannot open pipe stream for sendmail.\n");
 		return;

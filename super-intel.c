@@ -3230,7 +3230,7 @@ static int read_imsm_migr_rec(int fd, struct intel_super *super)
 	unsigned long long dsize;
 
 	get_dev_size(fd, NULL, &dsize);
-	if (lseek64(fd, dsize - (sector_size*MIGR_REC_SECTOR_POSITION),
+	if (lseek(fd, dsize - (sector_size*MIGR_REC_SECTOR_POSITION),
 		   SEEK_SET) < 0) {
 		pr_err("Cannot seek to anchor block: %s\n",
 		       strerror(errno));
@@ -3421,7 +3421,7 @@ static int write_imsm_migr_rec(struct supertype *st)
 			continue;
 
 		get_dev_size(sd->fd, NULL, &dsize);
-		if (lseek64(sd->fd, dsize - (MIGR_REC_SECTOR_POSITION *
+		if (lseek(sd->fd, dsize - (MIGR_REC_SECTOR_POSITION *
 		    sector_size),
 		    SEEK_SET) < 0) {
 			pr_err("Cannot seek to anchor block: %s\n",
@@ -4591,7 +4591,7 @@ static int load_imsm_mpb(int fd, struct intel_super *super, char *devname)
 		return 1;
 	}
 
-	if (lseek64(fd, dsize - (sector_size * 2), SEEK_SET) < 0) {
+	if (lseek(fd, dsize - (sector_size * 2), SEEK_SET) < 0) {
 		if (devname)
 			pr_err("Cannot seek to anchor block on %s: %s\n",
 			       devname, strerror(errno));
@@ -4660,7 +4660,7 @@ static int load_imsm_mpb(int fd, struct intel_super *super, char *devname)
 	}
 
 	/* read the extended mpb */
-	if (lseek64(fd, dsize - (sector_size * (2 + sectors)), SEEK_SET) < 0) {
+	if (lseek(fd, dsize - (sector_size * (2 + sectors)), SEEK_SET) < 0) {
 		if (devname)
 			pr_err("Cannot seek to extended mpb on %s: %s\n",
 			       devname, strerror(errno));
@@ -5471,11 +5471,11 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 	int rv;
 	int retry;
 
+	free_super_imsm(st);
+
 	if (test_partition(fd))
 		/* IMSM not allowed on partitions */
 		return 1;
-
-	free_super_imsm(st);
 
 	super = alloc_super();
 	if (!super)
@@ -6164,7 +6164,7 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 	/* clear migr_rec when adding disk to container */
 	memset(super->migr_rec_buf, 0, MIGR_REC_BUF_SECTORS * MAX_SECTOR_SIZE);
 
-	if (lseek64(fd, (size - MIGR_REC_SECTOR_POSITION * member_sector_size), SEEK_SET) >= 0) {
+	if (lseek(fd, (size - MIGR_REC_SECTOR_POSITION * member_sector_size), SEEK_SET) >= 0) {
 		unsigned int nbytes = MIGR_REC_BUF_SECTORS * member_sector_size;
 
 		if ((unsigned int)write(fd, super->migr_rec_buf, nbytes) != nbytes)
@@ -6387,7 +6387,7 @@ static int write_super_imsm(struct supertype *st, int doclose)
 			unsigned long long dsize;
 
 			get_dev_size(d->fd, NULL, &dsize);
-			if (lseek64(d->fd, dsize - sector_size,
+			if (lseek(d->fd, dsize - sector_size,
 			    SEEK_SET) >= 0) {
 				if ((unsigned int)write(d->fd,
 				    super->migr_rec_buf,
@@ -6470,7 +6470,7 @@ static int write_ppl_header(unsigned long long ppl_sector, int fd, void *buf)
 
 	ppl_hdr->checksum = __cpu_to_le32(~crc32c_le(~0, buf, PPL_HEADER_SIZE));
 
-	if (lseek64(fd, ppl_sector * 512, SEEK_SET) < 0) {
+	if (lseek(fd, ppl_sector * 512, SEEK_SET) < 0) {
 		ret = -errno;
 		perror("Failed to seek to PPL header location");
 		return ret;
@@ -6564,7 +6564,7 @@ static int validate_ppl_imsm(struct supertype *st, struct mdinfo *info,
 
 		dprintf("Checking potential PPL at offset: %llu\n", ppl_offset);
 
-		if (lseek64(d->fd, info->ppl_sector * 512 + ppl_offset,
+		if (lseek(d->fd, info->ppl_sector * 512 + ppl_offset,
 			    SEEK_SET) < 0) {
 			perror("Failed to seek to PPL header location");
 			ret = -1;
@@ -9089,7 +9089,7 @@ static int store_imsm_mpb(int fd, struct imsm_super *mpb)
 		sectors = mpb_sectors(mpb, sector_size) - 1;
 
 		/* write the extended mpb to the sectors preceeding the anchor */
-		if (lseek64(fd, dsize - (sector_size * (2 + sectors)),
+		if (lseek(fd, dsize - (sector_size * (2 + sectors)),
 		   SEEK_SET) < 0)
 			return 1;
 
@@ -9099,7 +9099,7 @@ static int store_imsm_mpb(int fd, struct imsm_super *mpb)
 	}
 
 	/* first block is stored on second to last sector of the disk */
-	if (lseek64(fd, dsize - (sector_size * 2), SEEK_SET) < 0)
+	if (lseek(fd, dsize - (sector_size * 2), SEEK_SET) < 0)
 		return 1;
 
 	if ((unsigned int)write(fd, buf, sector_size) != sector_size)
@@ -11282,7 +11282,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 			skipped_disks++;
 			continue;
 		}
-		if (lseek64(dl_disk->fd, read_offset, SEEK_SET) < 0) {
+		if (lseek(dl_disk->fd, read_offset, SEEK_SET) < 0) {
 			pr_err("Cannot seek to block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
@@ -11294,7 +11294,7 @@ int recover_backup_imsm(struct supertype *st, struct mdinfo *info)
 			skipped_disks++;
 			continue;
 		}
-		if (lseek64(dl_disk->fd, write_offset, SEEK_SET) < 0) {
+		if (lseek(dl_disk->fd, write_offset, SEEK_SET) < 0) {
 			pr_err("Cannot seek to block: %s\n",
 			       strerror(errno));
 			skipped_disks++;
@@ -12776,7 +12776,7 @@ static int imsm_manage_reshape(
 		unsigned long long dsize;
 
 		get_dev_size(d->fd, NULL, &dsize);
-		if (lseek64(d->fd, dsize - MIGR_REC_SECTOR_POSITION*sector_size,
+		if (lseek(d->fd, dsize - MIGR_REC_SECTOR_POSITION*sector_size,
 			    SEEK_SET) >= 0) {
 			if ((unsigned int)write(d->fd, super->migr_rec_buf,
 			    MIGR_REC_BUF_SECTORS*sector_size) !=
@@ -12932,7 +12932,7 @@ static int validate_internal_bitmap_for_drive(struct supertype *st,
 		}
 	}
 
-	if (lseek64(fd, offset * super->sector_size, SEEK_SET) < 0)
+	if (lseek(fd, offset * super->sector_size, SEEK_SET) < 0)
 		goto abort;
 	if (read(fd, read_buf, IMSM_BITMAP_HEADER_SIZE) !=
 	    IMSM_BITMAP_HEADER_SIZE)
@@ -13050,7 +13050,7 @@ static int locate_bitmap_imsm(struct supertype *st, int fd, int node_num)
 	offset = get_bitmap_header_sector(super, super->current_vol);
 	dprintf("bitmap header offset is %llu\n", offset);
 
-	lseek64(fd, offset << 9, 0);
+	lseek(fd, offset << 9, 0);
 
 	return 0;
 }
@@ -13104,7 +13104,7 @@ static int write_init_bitmap_imsm(struct supertype *st, int fd,
 		return -1;
 	memset(buf, 0xFF, MAX_SECTOR_SIZE);
 	offset = get_bitmap_sector(super, vol_idx);
-	lseek64(fd, offset << 9, 0);
+	lseek(fd, offset << 9, 0);
 	while (written < IMSM_BITMAP_AREA_SIZE) {
 		to_write = IMSM_BITMAP_AREA_SIZE - written;
 		if (to_write > MAX_SECTOR_SIZE)

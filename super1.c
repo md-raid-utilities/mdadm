@@ -628,7 +628,7 @@ static int copy_metadata1(struct supertype *st, int from, int to)
 		goto err;
 	}
 
-	if (lseek64(from, sb_offset << 9, 0) < 0LL)
+	if (lseek(from, sb_offset << 9, 0) < 0LL)
 		goto err;
 	if (read(from, buf, bufsize) != bufsize)
 		goto err;
@@ -642,7 +642,7 @@ static int copy_metadata1(struct supertype *st, int from, int to)
 	    calc_sb_1_csum(sb) != super.sb_csum)
 		goto err;
 
-	if (lseek64(to, sb_offset << 9, 0) < 0LL)
+	if (lseek(to, sb_offset << 9, 0) < 0LL)
 		goto err;
 	if (write(to, buf, bufsize) != bufsize)
 		goto err;
@@ -658,9 +658,9 @@ static int copy_metadata1(struct supertype *st, int from, int to)
 
 		bitmap_offset += (int32_t)__le32_to_cpu(super.bitmap_offset);
 
-		if (lseek64(from, bitmap_offset<<9, 0) < 0)
+		if (lseek(from, bitmap_offset<<9, 0) < 0)
 			goto err;
-		if (lseek64(to, bitmap_offset<<9, 0) < 0)
+		if (lseek(to, bitmap_offset<<9, 0) < 0)
 			goto err;
 
 		for (written = 0; written < bytes ; ) {
@@ -699,9 +699,9 @@ static int copy_metadata1(struct supertype *st, int from, int to)
 
 		bb_offset += (int32_t)__le32_to_cpu(super.bblog_offset);
 
-		if (lseek64(from, bb_offset<<9, 0) < 0)
+		if (lseek(from, bb_offset<<9, 0) < 0)
 			goto err;
-		if (lseek64(to, bb_offset<<9, 0) < 0)
+		if (lseek(to, bb_offset<<9, 0) < 0)
 			goto err;
 
 		for (written = 0; written < bytes ; ) {
@@ -803,7 +803,7 @@ static int examine_badblocks_super1(struct supertype *st, int fd, char *devname)
 	offset = __le64_to_cpu(sb->super_offset) +
 		(int)__le32_to_cpu(sb->bblog_offset);
 	offset <<= 9;
-	if (lseek64(fd, offset, 0) < 0) {
+	if (lseek(fd, offset, 0) < 0) {
 		pr_err("Cannot seek to bad-blocks list\n");
 		free(bbl);
 		return 1;
@@ -1701,7 +1701,7 @@ static int store_super1(struct supertype *st, int fd)
 		abort();
 	}
 
-	if (lseek64(fd, sb_offset << 9, 0)< 0LL)
+	if (lseek(fd, sb_offset << 9, 0) < 0LL)
 		return 3;
 
 	sbsize = ROUND_UP(sizeof(*sb) + 2 * __le32_to_cpu(sb->max_dev), 512);
@@ -1770,7 +1770,7 @@ static int write_init_ppl1(struct supertype *st, struct mdinfo *info, int fd)
 						      sizeof(sb->set_uuid)));
 	ppl_hdr->checksum = __cpu_to_le32(~crc32c_le(~0, buf, PPL_HEADER_SIZE));
 
-	if (lseek64(fd, info->ppl_sector * 512, SEEK_SET) < 0) {
+	if (lseek(fd, info->ppl_sector * 512, SEEK_SET) < 0) {
 		ret = errno;
 		perror("Failed to seek to PPL header location");
 	}
@@ -1815,7 +1815,7 @@ static int write_empty_r5l_meta_block(struct supertype *st, int fd)
 	crc = crc32c_le(crc, (void *)mb, META_BLOCK_SIZE);
 	mb->checksum = crc;
 
-	if (lseek64(fd, __le64_to_cpu(sb->data_offset) * 512, 0) < 0LL) {
+	if (lseek(fd, __le64_to_cpu(sb->data_offset) * 512, 0) < 0LL) {
 		pr_err("cannot seek to offset of the meta block\n");
 		goto fail_to_write;
 	}
@@ -2184,7 +2184,7 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 		return -EINVAL;
 	}
 
-	if (lseek64(fd, sb_offset << 9, 0)< 0LL) {
+	if (lseek(fd, sb_offset << 9, 0) < 0LL) {
 		if (devname)
 			pr_err("Cannot seek to superblock on %s: %s\n",
 				devname, strerror(errno));
@@ -2569,7 +2569,7 @@ static int locate_bitmap1(struct supertype *st, int fd, int node_num)
 	}
 	if (mustfree)
 		free(sb);
-	if (lseek64(fd, offset<<9, 0) < 0) {
+	if (lseek(fd, offset<<9, 0) < 0) {
 		pr_err("lseek fails\n");
 		ret = -1;
 	}

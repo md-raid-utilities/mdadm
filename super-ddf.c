@@ -815,7 +815,7 @@ static int load_ddf_header(int fd, unsigned long long lba,
 	if (lba >= size-1)
 		return 0;
 
-	if (lseek64(fd, lba << 9, 0) == -1L)
+	if (lseek(fd, lba << 9, 0) == -1L)
 		return 0;
 
 	if (read(fd, hdr, 512) != 512)
@@ -868,7 +868,7 @@ static void *load_section(int fd, struct ddf_super *super, void *buf,
 	else
 		offset += be64_to_cpu(super->active->secondary_lba);
 
-	if ((unsigned long long)lseek64(fd, offset << 9, 0) != (offset << 9)) {
+	if ((unsigned long long)lseek(fd, offset << 9, 0) != (offset << 9)) {
 		if (dofree)
 			free(buf);
 		return NULL;
@@ -932,8 +932,8 @@ static int search_for_ddf_headers(int fd, char *devname,
 		if (search_end - pos < SEARCH_BLOCK_SIZE)
 			bytes_block_to_read = search_end - pos;
 
-		if (lseek64(fd, pos, SEEK_SET) < 0) {
-			pr_err("lseek64 for %s failed %d:%s\n",
+		if (lseek(fd, pos, SEEK_SET) < 0) {
+			pr_err("lseek for %s failed %d:%s\n",
 				fd2devnm(fd), errno, strerror(errno));
 			result = 2;
 			goto cleanup;
@@ -984,7 +984,7 @@ static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 	get_dev_size(fd, NULL, &dsize);
 
 	/* Check the last 512 bytes for the DDF header. */
-	if (lseek64(fd, dsize - 512, SEEK_SET) == -1L) {
+	if (lseek(fd, dsize - 512, SEEK_SET) == -1L) {
 		if (devname) {
 			pr_err("Cannot seek to last 512 bytes on %s: %s\n",
 			       devname, strerror(errno));
@@ -1019,7 +1019,7 @@ static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 		}
 
 		/* Seek to the found position */
-		if (lseek64(fd, ddfpos, SEEK_SET) == -1L) {
+		if (lseek(fd, ddfpos, SEEK_SET) == -1L) {
 			if (devname) {
 				pr_err("Cannot seek to anchor block on %s\n",
 					devname);
@@ -1208,6 +1208,8 @@ static int load_ddf_local(int fd, struct ddf_super *super,
 	dl->devname = devname ? xstrdup(devname) : NULL;
 
 	if (fstat(fd, &stb) != 0) {
+		if (dl->devname)
+			free(dl->devname);
 		free(dl);
 		return 1;
 	}
@@ -1324,6 +1326,8 @@ static int load_super_ddf(struct supertype *st, int fd,
 	struct ddf_super *super;
 	int rv;
 
+	free_super_ddf(st);
+
 	if (get_dev_size(fd, devname, &dsize) == 0)
 		return 1;
 
@@ -1344,8 +1348,6 @@ static int load_super_ddf(struct supertype *st, int fd,
 			       devname, dsize);
 		return 1;
 	}
-
-	free_super_ddf(st);
 
 	if (posix_memalign((void**)&super, 512, sizeof(*super))!= 0) {
 		pr_err("malloc of %zu failed.\n",
@@ -1849,7 +1851,7 @@ static int copy_metadata_ddf(struct supertype *st, int from, int to)
 	if (!get_dev_size(from, NULL, &dsize))
 		goto err;
 
-	if (lseek64(from, dsize - 512, 0) == -1L)
+	if (lseek(from, dsize - 512, 0) == -1L)
 		goto err;
 
 	if (read(from, buf, 512) != 512)
@@ -1870,7 +1872,7 @@ static int copy_metadata_ddf(struct supertype *st, int from, int to)
 
 	bytes = dsize - offset;
 
-	if (lseek64(from, offset, 0) == -1L || lseek64(to, offset, 0) == -1L)
+	if (lseek(from, offset, 0) == -1L || lseek(to, offset, 0) == -1L)
 		goto err;
 
 	while (written < bytes) {
@@ -3132,7 +3134,7 @@ static int __write_ddf_structure(struct dl *d, struct ddf_super *ddf, __u8 type)
 	header->openflag = 1;
 	header->crc = calc_crc(header, 512);
 
-	if (lseek64(fd, sector << 9, 0) == -1L)
+	if (lseek(fd, sector << 9, 0) == -1L)
 		goto out;
 
 	if (write(fd, header, 512) < 0)
@@ -3199,7 +3201,7 @@ out:
 	header->openflag = 0;
 	header->crc = calc_crc(header, 512);
 
-	if (lseek64(fd, sector << 9, 0) == -1L)
+	if (lseek(fd, sector << 9, 0) == -1L)
 		return 0;
 
 	if (write(fd, header, 512) < 0)
@@ -3254,7 +3256,7 @@ static int _write_super_to_disk(struct ddf_super *ddf, struct dl *d)
 	if (!__write_ddf_structure(d, ddf, DDF_HEADER_SECONDARY))
 		return 0;
 
-	if (lseek64(fd, (size - 1) * 512, SEEK_SET) == -1L)
+	if (lseek(fd, (size - 1) * 512, SEEK_SET) == -1L)
 		return 0;
 
 	if (write(fd, &ddf->anchor, 512) < 0)
@@ -4050,7 +4052,7 @@ static int store_super_ddf(struct supertype *st, int fd)
 
 	buf = xmemalign(SEARCH_BLOCK_SIZE, SEARCH_REGION_SIZE);
 	memset(buf, 0, SEARCH_REGION_SIZE);
-	if (lseek64(fd, dsize - SEARCH_REGION_SIZE, 0) == -1L) {
+	if (lseek(fd, dsize - SEARCH_REGION_SIZE, 0) == -1L) {
 		free(buf);
 		return 1;
 	}

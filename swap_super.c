@@ -16,7 +16,7 @@
 
 #define MD_NEW_SIZE_SECTORS(x)		((x & ~(MD_RESERVED_SECTORS - 1)) - MD_RESERVED_SECTORS)
 
-extern long long lseek64(int, long long, int);
+#define  __USE_LARGEFILE64 1
 
 int main(int argc, char *argv[])
 {
@@ -38,10 +38,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	offset = MD_NEW_SIZE_SECTORS(size) * 512LL;
-	if (lseek64(fd, offset, 0) < 0LL) {
-		perror("lseek64");
+	if (lseek(fd, offset, 0) < 0LL)
 		exit(1);
-	}
+
 	if (read(fd, super, 4096) != 4096) {
 		perror("read");
 		exit(1);
@@ -68,10 +67,9 @@ int main(int argc, char *argv[])
 		super[32*4+10*4 +i] = t;
 	}
 
-	if (lseek64(fd, offset, 0) < 0LL) {
-		perror("lseek64");
+	if (lseek(fd, offset, 0) < 0LL)
 		exit(1);
-	}
+
 	if (write(fd, super, 4096) != 4096) {
 		perror("write");
 		exit(1);
