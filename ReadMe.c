@@ -149,6 +149,7 @@ struct option long_options[] = {
 	{"home-cluster", 1, 0, ClusterName},
 	{"write-journal", 1, 0, WriteJournal},
 	{"consistency-policy", 1, 0, 'k'},
+	{"logical-block-size", 1, 0, LogicalBlockSize},
 
 	/* For assemble */
 	{"uuid", 1, 0, 'u'},
@@ -331,6 +332,7 @@ char Help_create[] =
 "  --consistency-policy= : Specify the policy that determines how the array\n"
 "                     -k : maintains consistency in case of unexpected shutdown.\n"
 "  --write-zeroes        : Write zeroes to the disks before creating. This will bypass initial sync.\n"
+"  --logical-block-size= : Set the logical block size (in Byte) for the RAID.\n"
 "\n"
 ;
 
