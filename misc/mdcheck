@@ -58,8 +58,11 @@ log() {
 devname() {
     local dev
     [[ -f "$1/uevent" ]] && \
-	    dev=$(. "$1/uevent" && echo -n "$DEVNAME")
-    [[ "$dev" && -b "/dev/$dev" ]] || return 1
+	    dev=$(eval "$(cat "$1/uevent")"; echo -n "$DEVNAME")
+    [[ "$dev" && -b "/dev/$dev" ]] || {
+	log "failed to read DEVNAME from $1"
+	return 1
+    }
     echo -n "/dev/$dev"
 }
 
