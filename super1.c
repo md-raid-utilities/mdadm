@@ -1102,7 +1102,8 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 			snprintf(info->name, sizeof(info->name), "%d", info->array.md_minor);
 		memset(sb->set_name, 0, sizeof(sb->set_name));
 
-		namelen = strnlen(homehost, MD_NAME_MAX) + 1 + strnlen(info->name, MD_NAME_MAX);
+		namelen = homehost ? strnlen(homehost ? , MD_NAME_MAX) : 0
+			+ 1 + strnlen(info->name, MD_NAME_MAX);
 		if (homehost &&
 		    strchr(info->name, ':') == NULL &&
 		    namelen < MD_NAME_MAX) {
