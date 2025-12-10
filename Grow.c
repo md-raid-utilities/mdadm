@@ -2984,7 +2984,7 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 	return 0;
 }
 
-int sigterm = 0;
+volatile sig_atomic_t sigterm = 0;
 static void catch_term(int sig)
 {
 	sigterm = 1;
