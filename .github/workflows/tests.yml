@@ -59,14 +59,14 @@ jobs:
 
      - name: "Save artifacts inspur5"
        if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5' }}
-       uses: actions/upload-artifact@v5
+       uses: actions/upload-artifact@v6
        with:
          name: "Logs from failed tests"
          path: /home/ci/actions-runner/_work/mdadm/logs/*.log
 
      - name: "Save artifacts inspur5-2"
        if: ${{ steps.testing.outcome == 'failure' && env.RUNNER_NAME == 'inspur5-2'}}
-       uses: actions/upload-artifact@v5
+       uses: actions/upload-artifact@v6
        with:
          name: "Logs from failed tests"
          path: /home/ci/actions-runner-2/_work/mdadm/logs/*.log
