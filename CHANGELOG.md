@@ -1,3 +1,43 @@
+# Release [mdadm-4.5](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.5)
+
+Features:
+- Supports --logical-block-size in --create from Wu Guanghao
+- Create array with sync del gendisk mode from Xiao Ni
+- Update raid6check man page from Mingye Wang
+- Re-enable mdadm --monitor ... for /dev/mdX from Dr. Joachim Schneider
+- Use MAILFROM to set sendmail envelope sender address in mdmon from Martin Wilck
+- Don't stop array after creating it during assemble from Xiao Ni
+- Use kernel raid headers from Mariusz Tkaczyk
+- Allow RAID0 to be created with v0.90 metadata from NeilBrown
+- Optimize DDF header search for widely used RAID controllers from lilinzhe
+- Persist properties of MD devices after switch_root from Antonio Alvarez Feijoo
+- Refactor continue_via_systemd() to make it more readable from Mateusz Kusiak
+- Remove --freeze-reshape logic in reshape from Mateusz Kusiak
+- Simplify remove logic in Incremental from Mariusz Tkaczyk
+
+Fixes:
+- Fix crash with homehost=none in super1 from Martin Wilck
+- Moves memory management into Assemble to avoid null pointer dereference from Xiao Ni
+- Wait a while before removing a member in Incremental from Xiao Ni
+- Some memleak issues from Wu Guanghao
+- Fix memleak in udev from Mariusz Tkaczyk
+- Support non-absolute name during monitor scan from QRPp
+- Mdcheck fix and improvment from Martin Wilck
+- Remove POSIX check for name from Mariusz Tkaczyk
+- Enable udev block for Incremental/Assemble to avoid race condition from Nigel Croxon
+- Fix buiding errors from Xiao Ni
+- Use standard libc nftw from Xiao Ni
+- Allow any valid minor number in md device name from Martin Wilck
+- Fix RAID0 to RAID10 migration for imsm array from Blazej Kucman
+- Don't set badblock flag when adding a new disk from Wu Guanghao
+- Regression tests fix from Xiao Ni
+- Fix metadata corruption when managing new imsm array from Junxiao Bi
+- Add update_super in ddf to prevent crash when assembling ddf array from lilinzhe
+- Disable legacy option ROM scan on UEFI machines for imsm array from Ross Lagerwall
+- Add sbin path to env PATH to avoid command modprobe can't be found from Coly Li
+- Add xmalloc.h to raid6check.c to fix building error from Xiao Ni
+- Do not start reshape before switchroot from Mateusz Kusiak
+
 # Release [mdadm-4.4](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.4)
 
 Features:
