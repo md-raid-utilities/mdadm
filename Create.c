@@ -539,6 +539,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			pr_err("At least 2 nodes are needed for cluster-md\n");
 			return 1;
 		}
+	} else if (s->btype == BitmapLockless) {
+		major_num = BITMAP_MAJOR_LOCKLESS;
 	}
 
 	memset(&info, 0, sizeof(info));
@@ -1180,7 +1182,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	 * to stop another mdadm from finding and using those devices.
 	 */
 
-	if (s->btype == BitmapInternal || s->btype == BitmapCluster) {
+	if (s->btype == BitmapInternal || s->btype == BitmapCluster ||
+	    s->btype == BitmapLockless) {
 		if (!st->ss->add_internal_bitmap) {
 			pr_err("internal bitmaps not supported with %s metadata\n",
 				st->ss->name);
@@ -1188,10 +1191,13 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		}
 		if (st->ss->add_internal_bitmap(st, &s->bitmap_chunk,
 						c->delay, s->write_behind,
-						bitmapsize, 1, major_num)) {
+						bitmapsize, 1, major_num, s->assume_clean)) {
 			pr_err("Given bitmap chunk size not supported.\n");
 			goto abort_locked;
 		}
+		if (s->btype == BitmapLockless &&
+		    sysfs_set_str(&info, NULL, "bitmap_type", "llbitmap") < 0)
+			goto abort_locked;
 	}
 
 	if (sysfs_init(&info, mdfd, NULL)) {

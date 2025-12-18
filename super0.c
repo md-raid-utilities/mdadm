@@ -1185,7 +1185,7 @@ static __u64 avail_size0(struct supertype *st, __u64 devsize,
 static int add_internal_bitmap0(struct supertype *st, int *chunkp,
 				int delay, int write_behind,
 				unsigned long long size, int may_change,
-				int major)
+				int major, bool assume_clean)
 {
 	/*
 	 * The bitmap comes immediately after the superblock and must be 60K in size
