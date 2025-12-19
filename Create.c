@@ -48,6 +48,23 @@ static int round_size_and_verify(unsigned long long *size, int chunk)
 	return 0;
 }
 
+static void check_logical_block_size_compatibility(struct mdinfo *info)
+{
+	char buf[10] = {0};
+
+	/*
+	 * The logical block size feature is only used with metadata 1.x,
+	 * so the metadata version also needs to be checked.
+	 */
+	if (sysfs_attribute_available(info, NULL, "logical_block_size") &&
+		sysfs_get_str(info, NULL, "metadata_version", buf, sizeof(buf)) > 0 &&
+		!memcmp(buf, "1.", 2)) {
+		pr_info("Arrays created by newer kernels have the logical block size feature enabled "
+				"by default. Such arrays can only be used on kernel versions later than 6.18\n");
+	}
+
+}
+
 /**
  * default_layout() - Get default layout for level.
  * @st: metadata requested, could be NULL.
@@ -1303,6 +1320,14 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 				ioctl(mdfd, STOP_ARRAY, NULL);
 				goto abort;
 			}
+
+			/* After the kernel started supporting the logical block size feature,
+			 * it modified the array metadata, which may lead to compatibility issues.
+			 * As a result, arrays created on newer kernels cannot be used on older
+			 * kernel versions, so users need to warned.
+			 */
+			check_logical_block_size_compatibility(&info);
+
 			/* if start_ro module parameter is set, array is
 			 * auto-read-only, which is bad as the resync won't
 			 * start.  So lets make it read-write now.
