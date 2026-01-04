@@ -38,33 +38,15 @@ int create_named_array(char *devnm)
 	};
 
 	fd = open(new_array_file, O_WRONLY);
-	if (fd < 0 && errno == ENOENT) {
-		char buf[PATH_MAX] = {0};
-		char *env_ptr;
-
-		env_ptr = getenv("PATH");
-		/*
-		 * When called by udev worker context, path of modprobe
-		 * might not be in env PATH. Set sbin paths into PATH
-		 * env to avoid potential failure when run modprobe here.
-		 */
-		if (env_ptr)
-			snprintf(buf, PATH_MAX - 1, "%s:%s", env_ptr,
-				 "/sbin:/usr/sbin:/usr/local/sbin");
-		else
-			snprintf(buf, PATH_MAX - 1, "%s",
-				 "/sbin:/usr/sbin:/usr/local/sbin");
-
-		setenv("PATH", buf, 1);
-
-		if (system("modprobe md_mod") == 0)
-			fd = open(new_array_file, O_WRONLY);
-	}
 	if (fd >= 0) {
 		n = write(fd, devnm, strlen(devnm));
 		close(fd);
+	} else {
+		pr_err("Fail to open %s\n", new_array_file);
+		return 0;
 	}
-	if (fd < 0 || n != (int)strlen(devnm)) {
+
+	if (n != (int)strlen(devnm)) {
 		pr_err("Fail to create %s when using %s, fallback to creation via node\n",
 			devnm, new_array_file);
 		return 0;
@@ -148,7 +130,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 	char devnm[32];
 	char cbuf[400];
 
-	if (!init_md_mod_param()) {
+	if (!init_md_mod()) {
 		pr_err("init md module parameters fail\n");
 		return -1;
 	}

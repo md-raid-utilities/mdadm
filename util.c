@@ -2583,10 +2583,41 @@ bool set_md_mod_parameter(const char *name, const char *value)
 	return ret;
 }
 
-/* Init kernel md_mod parameters here if needed */
-bool init_md_mod_param(void)
+/* Init kernel md_mod and parameters here if needed */
+bool init_md_mod(void)
 {
 	bool ret = true;
+	char module_path[32];
+	FILE *fp;
+
+	snprintf(module_path, sizeof(module_path), "/sys/module/md_mod");
+	fp = fopen(module_path, "r");
+	if (fp == NULL) {
+
+		char buf[PATH_MAX] = {0};
+		char *env_ptr;
+
+		env_ptr = getenv("PATH");
+		/*
+		 * When called by udev worker context, path of modprobe
+		 * might not be in env PATH. Set sbin paths into PATH
+		 * env to avoid potential failure when run modprobe here.
+		 */
+		if (env_ptr)
+			snprintf(buf, PATH_MAX - 1, "%s:%s", env_ptr,
+				 "/sbin:/usr/sbin:/usr/local/sbin");
+		else
+			snprintf(buf, PATH_MAX - 1, "%s",
+				 "/sbin:/usr/sbin:/usr/local/sbin");
+
+		setenv("PATH", buf, 1);
+
+		if (system("modprobe md_mod") != 0) {
+			pr_err("Can't load kernel module md_mod\n");
+			return false;
+		}
+	} else
+		fclose(fp);
 
 	/*
 	 * In kernel 9e59d609763f calls del_gendisk in sync way. So device
