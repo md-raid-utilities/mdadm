@@ -1,0 +1,10 @@
+-----BEGIN PGP SIGNATURE-----
+Comment: This signature is for the .tar version of the archive
+Comment: git archive --format tar --prefix=mdadm-4.5/ mdadm-4.5
+Comment: git version 2.50.1 (Apple Git-155)
+
+iHUEABYIAB0WIQQ1K3m9z4UoTAwx7/TwvCcJqXH6mAUCaWW/oAAKCRDwvCcJqXH6
+mPElAQDJDzVBSXJumjo+FlqBIedkk6AHywdT5qBuv3wJ3r4S1gD/TF7phLPWXPF+
+WYy1DT4HVeJ2e4XvN0gWsSi0lELeKAs=
+=jXS8
+-----END PGP SIGNATURE-----
