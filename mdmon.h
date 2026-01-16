@@ -81,7 +81,7 @@ extern struct md_generic_cmd *active_cmd;
 void remove_pidfile(char *devname);
 void do_monitor(struct supertype *container);
 void do_manager(struct supertype *container);
-extern int sigterm;
+extern volatile sig_atomic_t sigterm;
 
 int read_dev_state(int fd);
 bool is_container_member(struct mdstat_ent *mdstat, char *container);
