@@ -1376,7 +1376,7 @@ int Assemble(char *mddev, struct mddev_ident *ident,
 	int *best = NULL; /* indexed by raid_disk */
 	int bestcnt = 0;
 	int devcnt;
-	unsigned int okcnt, sparecnt, rebuilding_cnt, replcnt, journalcnt;
+	unsigned int okcnt, sparecnt, rebuilding_cnt, journalcnt;
 	int journal_clean = 0;
 	int i;
 	int was_forced = 0;
@@ -1629,7 +1629,6 @@ try_again:
 	 */
 	avail = xcalloc(content->array.raid_disks, 1);
 	okcnt = 0;
-	replcnt = 0;
 	sparecnt=0;
 	journalcnt=0;
 	rebuilding_cnt=0;
@@ -1689,8 +1688,7 @@ try_again:
 					if (!avail[i/2]) {
 						okcnt++;
 						avail[i/2]=1;
-					} else
-						replcnt++;
+					}
 				} else
 					rebuilding_cnt++;
 			} else if (devices[j].i.disk.raid_disk != MD_DISK_ROLE_JOURNAL)
