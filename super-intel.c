@@ -10003,7 +10003,7 @@ static int apply_takeover_update(struct imsm_update_takeover *u,
 	struct imsm_dev *dev_new;
 	struct imsm_map *map;
 	struct dl *dm, *du;
-	int i;
+	unsigned int i;
 
 	for (dv = super->devlist; dv; dv = dv->next)
 		if (dv->index == (unsigned int)u->subarray) {
