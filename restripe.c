@@ -756,7 +756,7 @@ int restore_stripes(int *dest, unsigned long long *offsets,
 			if (src_buf == NULL) {
 				/* read from file */
 				if (lseek(source, read_offset, 0) !=
-					 (off64_t)read_offset) {
+					 (off_t)read_offset) {
 					rv = -1;
 					goto abort;
 				}

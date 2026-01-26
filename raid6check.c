@@ -288,7 +288,7 @@ int manual_repair(int chunk_size, int syndrome_disks,
 	}
 
 	int write_res1, write_res2;
-	off64_t seek_res;
+	off_t seek_res;
 
 	seek_res = lseek(source[fd1], offsets[fd1] + start * chunk_size, SEEK_SET);
 	if (seek_res < 0) {
@@ -381,7 +381,7 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 			goto exitCheck;
 		}
 		for (i = 0 ; i < raid_disks ; i++) {
-			off64_t seek_res = lseek(source[i], offsets[i] + start * chunk_size,
+			off_t seek_res = lseek(source[i], offsets[i] + start * chunk_size,
 						   SEEK_SET);
 			if (seek_res < 0) {
 				fprintf(stderr, "lseek to source %d failed\n", i);
