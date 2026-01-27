@@ -74,7 +74,7 @@ struct active_array *pending_discard;
 
 int mon_tid, mgr_tid;
 
-int sigterm;
+volatile sig_atomic_t sigterm;
 
 #ifdef USE_PTHREADS
 static void *run_child(void *v)
