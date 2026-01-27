@@ -1528,6 +1528,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 	for (ra = list ; ra ; ra = ra->next) {
 		int mdfd = -1;
 		char chosen_name[1024];
+		char *sysname;
 		struct map_ent *mp;
 		struct mddev_ident *match = NULL;
 
@@ -1620,6 +1621,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 					   chosen_name, &result);
 		map_free(map);
 		map = NULL;
+		sysname = fd2devnm(mdfd);
+		strncpy(info.sys_name, sysname, sizeof(sysname) - 1);
 		close_fd(&mdfd);
 		udev_unblock();
 		sysfs_uevent(&info, "change");
