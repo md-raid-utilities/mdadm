@@ -181,6 +181,7 @@ struct imsm_map {
 #define IMSM_T_RAID1 1
 #define IMSM_T_RAID5 5
 #define IMSM_T_RAID10 10
+#define IMSM_T_LEVEL_UNKNOWN 255
 	__u8  num_members;	/* number of member disks */
 	__u8  num_domains;	/* number of parity domains */
 	__u8  failed_disk_num;  /* valid only when state is degraded */
@@ -5792,6 +5793,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	}
 	map->num_members = info->raid_disks;
 
+	map->raid_level = IMSM_T_LEVEL_UNKNOWN;
 	update_imsm_raid_level(map, info->level);
 	set_num_domains(map);
 
