@@ -181,6 +181,7 @@ struct imsm_map {
 #define IMSM_T_RAID1 1
 #define IMSM_T_RAID5 5
 #define IMSM_T_RAID10 10
+#define IMSM_T_LEVEL_UNKNOWN 255
 	__u8  num_members;	/* number of member disks */
 	__u8  num_domains;	/* number of parity domains */
 	__u8  failed_disk_num;  /* valid only when state is degraded */
@@ -1326,7 +1327,6 @@ static void update_imsm_raid_level(struct imsm_map *map, int new_level)
 		map->raid_level = new_level;
 		return;
 	}
-
 	/*
 	 * RAID0 to RAID10 migration.
 	 * Due to the compatibility with VROC UEFI must be maintained, this case must be handled
@@ -1343,11 +1343,9 @@ static void update_imsm_raid_level(struct imsm_map *map, int new_level)
 	if (map->num_members == 4) {
 		if (map->raid_level == IMSM_T_RAID10 || map->raid_level == IMSM_T_RAID1)
 			return;
-
 		map->raid_level = IMSM_T_RAID1;
 		return;
 	}
-
 	map->raid_level = IMSM_T_RAID10;
 }
 
@@ -5792,6 +5790,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	}
 	map->num_members = info->raid_disks;
 
+	map->raid_level = IMSM_T_LEVEL_UNKNOWN;
 	update_imsm_raid_level(map, info->level);
 	set_num_domains(map);
 
