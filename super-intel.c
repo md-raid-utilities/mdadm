@@ -3826,11 +3826,13 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 	/* Set raid_disks to zero so that Assemble will always pull in valid
 	 * spares
 	 */
+	mpb = super->anchor;
+
 	info->array.raid_disks    = 0;
 	info->array.level         = LEVEL_CONTAINER;
 	info->array.layout        = 0;
 	info->array.md_minor      = -1;
-	info->array.ctime         = 0; /* N/A for imsm */
+	info->array.ctime         = __le64_to_cpu(mpb->creation_time);
 	info->array.utime         = 0;
 	info->array.chunk_size    = 0;
 
@@ -3850,7 +3852,6 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 	info->bb.supported = 1;
 
 	/* do we have the all the insync disks that we expect? */
-	mpb = super->anchor;
 	info->events = __le32_to_cpu(mpb->generation_num);
 
 	for (i = 0; i < mpb->num_raid_devs; i++) {
