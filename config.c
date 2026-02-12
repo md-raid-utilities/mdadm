@@ -83,7 +83,7 @@ char DefaultAltConfDir[] = CONFFILE2 ".d";
 
 enum linetype { Devices, Array, Mailaddr, Mailfrom, Program, CreateDev,
 		Homehost, HomeCluster, AutoMode, Policy, PartPolicy, Sysfs,
-		MonitorDelay, EncryptionNoVerify, LTEnd };
+		MonitorDelay, EncryptionNoVerify, Probing, LTEnd };
 char *keywords[] = {
 	[Devices]  = "devices",
 	[Array]    = "array",
@@ -99,6 +99,7 @@ char *keywords[] = {
 	[Sysfs]    = "sysfs",
 	[MonitorDelay] = "monitordelay",
 	[EncryptionNoVerify] = "ENCRYPTION_NO_VERIFY",
+	[Probing] = "probing",
 	[LTEnd]    = NULL
 };
 
@@ -689,6 +690,19 @@ void encryption_no_verify_line(char *line)
 	}
 }
 
+static bool probing_ddf_extended;
+void probing_line(char *line)
+{
+	char *word;
+
+	for (word = dl_next(line); word != line; word = dl_next(word)) {
+		if (strcasecmp(word, "ddf_extended") == 0)
+			probing_ddf_extended = true;
+		else
+			pr_err("unrecognised word on PROBING line: %s\n", word);
+	}
+}
+
 char auto_yes[] = "yes";
 char auto_no[] = "no";
 char auto_homehost[] = "homehost";
@@ -876,6 +890,9 @@ void conf_file(FILE *f)
 		case EncryptionNoVerify:
 			encryption_no_verify_line(line);
 			break;
+		case Probing:
+			probing_line(line);
+			break;
 		default:
 			pr_err("Unknown keyword %s\n", line);
 		}
@@ -1043,6 +1060,12 @@ bool conf_get_sata_opal_encryption_no_verify(void)
 {
 	load_conffile();
 	return sata_opal_encryption_no_verify;
+}
+
+bool conf_get_probing_ddf_extended(void)
+{
+	load_conffile();
+	return probing_ddf_extended;
 }
 
 struct createinfo *conf_get_create_info(void)

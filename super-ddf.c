@@ -1006,7 +1006,7 @@ static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 		}
 	}
 
-	if (!found_anchor) {
+	if (!found_anchor && conf_get_probing_ddf_extended()) {
 		/* If not found, perform a full search for DDF headers */
 		ddffound = search_for_ddf_headers(fd, devname, &ddfpos);
 		if (ddffound != 0) {
