@@ -621,6 +621,19 @@ metadata.
 Available parameter
 .I "sata_opal".
 
+.TP
+.B PROBING
+The
+.B PROBING
+line provides options to configure device probing.
+.RS 4
+.TP
+.B ddf_extended
+Use extended algorithm to detect DDF headers on disks. Instead of looking for
+the DDF super block only in the last block of the device, scan the last 32
+MB. This allows detection of metadata created by some RAID controllers, at the
+cost of slower probing.
+.RE
 
 .SH FILES
 

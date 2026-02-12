@@ -1639,6 +1639,7 @@ extern char *conf_get_homehost(int *require_homehostp);
 extern char *conf_get_homecluster(void);
 extern int conf_get_monitor_delay(void);
 extern bool conf_get_sata_opal_encryption_no_verify(void);
+extern bool conf_get_probing_ddf_extended(void);
 extern char *conf_line(FILE *file);
 extern char *conf_word(FILE *file, int allow_key);
 extern void print_quoted(char *str);
