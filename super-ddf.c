@@ -33,6 +33,10 @@
 
 #include <values.h>
 #include <stddef.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 /* a non-official T10 name for creation GUIDs */
 static char T10[] = "Linux-MD";
@@ -273,7 +277,7 @@ struct phys_disk {
 #define	DDF_Missing			64
 
 
-#define SEARCH_BLOCK_SIZE  4096
+#define SEARCH_BLOCK_SIZE  (1024 * 1024)
 #define SEARCH_REGION_SIZE (32 * 1024 * 1024)
 
 /* The content of the virt_section global scope */
@@ -891,84 +895,79 @@ static void *load_section(int fd, struct ddf_super *super, void *buf,
  *
  */
 static int search_for_ddf_headers(int fd, char *devname,
-				  unsigned long long *out)
+				unsigned long long *out)
 {
-	unsigned long long search_start;
-	unsigned long long search_end;
-	size_t bytes_block_to_read;
 	unsigned long long dsize;
-	unsigned long long pos;
-	int bytes_current_read;
-	size_t offset;
+	unsigned long long search_start;
+	size_t map_len;		  /* real search（<= 32MB） */
 
-	void *buffer = NULL;
-	be32 *magic_ptr = NULL;
+	long pagesz_l;
+	size_t pagesz;
 
+	unsigned long long map_off;   /* mmap offset，align to page */
+	size_t delta;				/*  search_start - map_off */
+	size_t map_len_adj;		  /* mmaplength = delta + map_len */
+
+	void *map = MAP_FAILED;
+	unsigned char *p;
 	int result = 0;
 
+	pagesz_l = sysconf(_SC_PAGESIZE);
+	pagesz = (pagesz_l > 0) ? (size_t)pagesz_l : 4096;
+
 	get_dev_size(fd, NULL, &dsize);
-
-
-	/* Determine the search range */
-	if (dsize > SEARCH_REGION_SIZE)
-		search_start = dsize - SEARCH_REGION_SIZE;
-	else
-		search_start = 0;
-
-	search_end = dsize;
-	pos = search_start;
-
-
-	buffer = xmemalign(SEARCH_BLOCK_SIZE, SEARCH_BLOCK_SIZE);
-
-	if (buffer == NULL) {
-		result = 1;
-		goto cleanup;
+	if (dsize == 0) {
+		pr_err("Device %s has size 0\n",
+			devname ? devname : "unknown");
+		return -ENODEV; /* empty device / unknown size */
 	}
 
-	while (pos < search_end) {
-		/* Calculate the number of bytes to read in the current block */
-		bytes_block_to_read = SEARCH_BLOCK_SIZE;
-		if (search_end - pos < SEARCH_BLOCK_SIZE)
-			bytes_block_to_read = search_end - pos;
+	/* search for min(32MB, dsize) */
+	map_len = (dsize > SEARCH_REGION_SIZE) ? (size_t)SEARCH_REGION_SIZE
+					  : (size_t)dsize;
+	search_start = dsize - (unsigned long long)map_len;
 
-		if (lseek(fd, pos, SEEK_SET) < 0) {
-			pr_err("lseek for %s failed %d:%s\n",
-				fd2devnm(fd), errno, strerror(errno));
-			result = 2;
+	/* mmap offset align to page */
+	map_off = search_start & ~((unsigned long long)pagesz - 1ULL);
+	delta = (size_t)(search_start - map_off);
+
+	/* [search_start, search_start + map_len) */
+	map_len_adj = delta + map_len;
+
+	map = mmap(NULL, map_len_adj, PROT_READ, MAP_SHARED, fd, (off_t)map_off);
+	if (map == MAP_FAILED) {
+		pr_err("mmap for %s failed %d:%s\n",
+		   fd2devnm(fd), errno, strerror(errno));
+		return -ENOMEM;
+	}
+
+	/* Suggest sequential access */
+#ifdef MADV_SEQUENTIAL
+	(void)madvise(map, map_len_adj, MADV_SEQUENTIAL);
+#endif
+#ifdef MADV_WILLNEED
+	(void)madvise(map, map_len_adj, MADV_WILLNEED);
+#endif
+
+	p = (unsigned char *)map + delta;
+
+	for (size_t i = 0; i + sizeof(be32) <= map_len; i += sizeof(be32)) {
+		be32 v;
+
+		memcpy(&v, p + i, sizeof(v));   /* avoid unaligned access. */
+		if (be32_eq(v, DDF_HEADER_MAGIC)) {
+			*out = search_start + (unsigned long long)i;
+			result = 0;
 			goto cleanup;
 		}
-
-		/*Read data from the device */
-		bytes_current_read = read(fd, buffer, bytes_block_to_read);
-
-		if (bytes_current_read <= 0) {
-			pr_err("Failed to read %s. %d:%s, Position=%llu, Bytes to read=%zu. Skipping.\n",
-			       fd2devnm(fd), errno, strerror(errno), pos, bytes_block_to_read);
-			pos += SEARCH_BLOCK_SIZE;	/* Skip to the next block */
-			continue;
-		}
-
-		/* Search for the magic value within the read block */
-		for (offset = 0;
-		    offset + sizeof(be32) <= (size_t)bytes_current_read;
-		    offset += sizeof(be32)) {
-
-			magic_ptr = (be32 *) ((char *)buffer + offset);
-			if (be32_eq(*magic_ptr, DDF_HEADER_MAGIC)) {
-				*out = pos + offset;
-				result = 0;
-				goto cleanup;
-			}
-		}
-
-		pos += SEARCH_BLOCK_SIZE;
 	}
 
+	result = -ENOENT;
 cleanup:
-	free(buffer);
+	munmap(map, map_len_adj);
 	return result;
 }
+
 
 static int load_ddf_headers(int fd, struct ddf_super *super, char *devname)
 {
