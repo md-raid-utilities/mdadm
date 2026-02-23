@@ -233,6 +233,13 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		if (type == SYS_DEV_NVME) {
 			struct sys_dev *dev;
 			char *rp = realpath(path, NULL);
+			if (!rp) {
+				/* Device may have been hot-unplugged */
+				if (errno != ENOENT)
+					pr_err("Unable to get real path for '%s', err = %d\n",
+					       path, errno);
+				continue;
+			}
 			for (dev = vmd; dev; dev = dev->next) {
 				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0))
 					skip = 1;
@@ -244,6 +251,13 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		if (type == SYS_DEV_SATA) {
 			struct sys_dev *dev;
 			char *rp = realpath(path, NULL);
+			if (!rp) {
+				/* Device may have been hot-unplugged */
+				if (errno != ENOENT)
+					pr_err("Unable to get real path for '%s', err = %d\n",
+					       path, errno);
+				continue;
+			}
 			for (dev = vmd; dev; dev = dev->next) {
 				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0))
 					type = SYS_DEV_SATA_VMD;
