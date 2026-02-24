@@ -120,8 +120,8 @@ FAILED_SLOTS_DIR = $(RUN_DIR)/failed-slots
 SYSTEMD_DIR=/lib/systemd/system
 LIB_DIR=/usr/libexec/mdadm
 
-COROSYNC:=$(shell [ -d /usr/include/corosync ] || echo -DNO_COROSYNC)
-DLM:=$(shell [ -f /usr/include/libdlm.h ] || echo -DNO_DLM)
+COROSYNC:=$(shell $(PKG_CONFIG) --exists corosync || echo -DNO_COROSYNC)
+DLM:=$(shell $(PKG_CONFIG) --exists libdlm || echo -DNO_DLM)
 
 DIRFLAGS = -DMAP_DIR=\"$(MAP_DIR)\" -DMAP_FILE=\"$(MAP_FILE)\"
 DIRFLAGS += -DMDMON_DIR=\"$(MDMON_DIR)\"
