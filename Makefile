@@ -327,6 +327,7 @@ install-systemd: systemd/mdmon@.service
 install-bin: mdadm mdmon
 	$(INSTALL) -D $(STRIP) -m 755 mdadm $(DESTDIR)$(BINDIR)/mdadm
 	$(INSTALL) -D $(STRIP) -m 755 mdmon $(DESTDIR)$(BINDIR)/mdmon
+	$(INSTALL) -D -m 755 misc/mdcheck $(DESTDIR)$(MISCDIR)/mdcheck
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/mdadm $(DESTDIR)$(BINDIR)/mdmon
