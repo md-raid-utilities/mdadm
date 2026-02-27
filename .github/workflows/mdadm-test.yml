@@ -61,7 +61,7 @@ jobs:
         continue-on-error: true
 
       - name: Collect logs of failed tests
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "mdadm-failed-test-logs"
           path: /mnt/tmp/*.log
