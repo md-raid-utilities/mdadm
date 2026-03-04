@@ -243,7 +243,6 @@ do
 	# When the check action can be finished in mdcheck_start.service,
 	# it doesn't need mdcheck_continue anymore.
 	if [ -z "$any" ]; then
-		systemctl stop mdcheck_continue.timer
 		exit 0;
 	fi
 	sleep 220 &
