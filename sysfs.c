@@ -1139,10 +1139,14 @@ void sysfs_rules_apply(char *devnm, struct mdinfo *dev)
 			if (rules->devname)
 				match = strcmp(devnm, rules->devname) == 0;
 		} else {
-			match = memcmp(dev->uuid, rules->uuid,
-				       sizeof(int[4])) == 0;
-		}
+                        int r_uuid[4];
+                        /* v0 superblocks store UUIDs in native byte order, no swap needed */
+                        bool swapuuid = (BYTE_ORDER == LITTLE_ENDIAN) &&
+                                        (dev->array.major_version != 0);
 
+                        copy_uuid(r_uuid, rules->uuid, swapuuid);
+                        match = memcmp(dev->uuid, r_uuid, sizeof(int[4])) == 0;
+                }
 		while (match && ent) {
 			if (sysfs_rules_apply_check(dev, ent) < 0)
 				pr_err("SYSFS: failed to write '%s' to '%s'\n",
