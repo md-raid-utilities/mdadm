@@ -1104,7 +1104,7 @@ static int start_array(int mdfd,
 	}
 
 	if (is_container(content->array.level)) {
-		sysfs_rules_apply(mddev, content);
+		sysfs_rules_apply(mddev, content, st);
 		if (c->verbose >= 0) {
 			pr_err("Container %s has been assembled with %d drive%s",
 			       mddev, okcnt + sparecnt + journalcnt,
@@ -1184,7 +1184,7 @@ static int start_array(int mdfd,
 			rv = ioctl(mdfd, RUN_ARRAY, NULL);
 		reopen_mddev(mdfd); /* drop O_EXCL */
 		if (rv == 0) {
-			sysfs_rules_apply(mddev, content);
+			sysfs_rules_apply(mddev, content, st);
 			if (c->verbose >= 0) {
 				pr_info("%s has been started with %d drive%s",
 				       mddev, okcnt, okcnt==1?"":"s");
@@ -2222,7 +2222,7 @@ int assemble_container_content(struct supertype *st, int mdfd,
 	else {
 		set_array_assembly_status(c, result, INCR_YES, &array);
 		wait_for(chosen_name, mdfd);
-		sysfs_rules_apply(chosen_name, content);
+		sysfs_rules_apply(chosen_name, content, st);
 	}
 
 	return err;

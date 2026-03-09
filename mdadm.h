@@ -1484,7 +1484,7 @@ void domain_add(struct domainlist **domp, char *domain);
 extern void policy_save_path(char *id_path, struct map_ent *array);
 extern int policy_check_path(struct mdinfo *disk, struct map_ent *array);
 
-extern void sysfs_rules_apply(char *devnm, struct mdinfo *dev);
+extern void sysfs_rules_apply(char *devnm, struct mdinfo *dev, const struct supertype *st);
 extern void sysfsline(char *line);
 
 #if __GNUC__ < 3
