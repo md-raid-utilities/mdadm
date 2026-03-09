@@ -1127,7 +1127,7 @@ int sysfs_rules_apply_check(const struct mdinfo *sra,
 
 static struct dev_sysfs_rule *sysfs_rules;
 
-void sysfs_rules_apply(char *devnm, struct mdinfo *dev)
+void sysfs_rules_apply(char *devnm, struct mdinfo *dev, const struct supertype *st)
 {
 	struct dev_sysfs_rule *rules = sysfs_rules;
 
@@ -1139,10 +1139,8 @@ void sysfs_rules_apply(char *devnm, struct mdinfo *dev)
 			if (rules->devname)
 				match = strcmp(devnm, rules->devname) == 0;
 		} else {
-			match = memcmp(dev->uuid, rules->uuid,
-				       sizeof(int[4])) == 0;
+			match = same_uuid(dev->uuid, rules->uuid, st->ss->swapuuid);
 		}
-
 		while (match && ent) {
 			if (sysfs_rules_apply_check(dev, ent) < 0)
 				pr_err("SYSFS: failed to write '%s' to '%s'\n",
