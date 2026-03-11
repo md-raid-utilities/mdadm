@@ -705,7 +705,7 @@ get_ata_encryption_information(int disk_fd, struct encryption_information *infor
 		if (!sysfs_is_libata_allow_tpm_enabled(verbose)) {
 			pr_vrb("Detected SATA drive /dev/%s with Trusted Computing support.\n",
 			       fd2kname(disk_fd));
-			pr_vrb("Cannot verify encryption state. Requires libata.tpm_enabled=1.\n");
+			pr_vrb("Cannot verify encryption state. Requires libata.allow_tpm=1.\n");
 			return MDADM_STATUS_ERROR;
 		}
 	}
