@@ -178,6 +178,8 @@ struct option long_options[] = {
 	{"wait-clean", 0, 0, Waitclean},
 	{"action", 1, 0, Action},
 	{"cluster-confirm", 0, 0, ClusterConfirm},
+	{"trigger-check", 0, 0, TriggerCheck},
+	{"trigger-repair", 0, 0, TriggerRepair},
 
 	/* For Detail/Examine */
 	{"brief", 0, 0, Brief},
@@ -445,6 +447,8 @@ char Help_manage[] =
 "  --stop        -S   : deactivate array, releasing all resources\n"
 "  --readonly    -o   : mark array as readonly\n"
 "  --readwrite   -w   : mark array as readwrite\n"
+"  --trigger-check    : trigger a check operation on the array\n"
+"  --trigger-repair   : trigger a repair operation on the array\n"
 ;
 
 char Help_misc[] =
