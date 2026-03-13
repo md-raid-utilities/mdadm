@@ -1856,3 +1856,27 @@ int move_spare(char *from_devname, char *to_devname, dev_t devid)
 	close_fd(&fd2);
 	return 0;
 }
+
+int Manage_trigger_check_repair(char *devname, int fd, int flag, int verbose)
+{
+	struct mdinfo info;
+	int rv = 0;
+
+	if (sysfs_init(&info, fd, NULL)) {
+		pr_err("sysfs not available for %s\n", devname);
+		return 1;
+	}
+
+	char *action = (flag == 0) ? "check" : "repair";
+
+	if (verbose > 0)
+		pr_info("Triggering %s on %s\n", action, devname);
+
+	if (sysfs_set_str(&info, NULL, "sync_action", action) < 0) {
+		pr_err("Failed to trigger %s on %s\n", action, devname);
+		rv = 1;
+	}
+
+	return rv;
+}
+

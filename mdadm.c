@@ -142,6 +142,8 @@ int main(int argc, char *argv[])
 	struct context c = {
 		.require_homehost = 1,
 		.metadata = NULL,
+		.trigger_check = 0,
+		.trigger_repair = 0,
 	};
 	struct shape s = {
 		.journaldisks	= 0,
@@ -1005,6 +1007,12 @@ int main(int argc, char *argv[])
 			}
 			devmode = 'W';
 			continue;
+		case O(MANAGE, TriggerCheck):
+			c.trigger_check = 1;
+			continue;
+		case O(MANAGE, TriggerRepair):
+			c.trigger_repair = 1;
+			continue;
 		case O(INCREMENTAL,'R'):
 		case O(MANAGE,'R'):
 		case O(ASSEMBLE,'R'):
@@ -1462,6 +1470,10 @@ int main(int argc, char *argv[])
 			rv = Manage_run(ident.devname, mdfd, &c);
 		if (!rv && c.runstop < 0)
 			rv = Manage_stop(ident.devname, mdfd, c.verbose, 0);
+		if (!rv && c.trigger_check)
+			rv = Manage_trigger_check_repair (ident.devname, mdfd, 0,  c.verbose);
+		if (!rv && c.trigger_repair)
+			rv = Manage_trigger_check_repair(ident.devname, mdfd, 1, c.verbose);
 		break;
 	case ASSEMBLE:
 		if (!c.scan && c.runstop == -1) {
