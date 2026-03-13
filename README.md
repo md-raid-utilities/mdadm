@@ -8,9 +8,10 @@
 
 * Matrix Storage Manager Support (no reference, metadata format documentation is proprietary).
 
-  Known as **IMSM**. Metadata format developed and maintained by **Intel®** as a part of **VROC**
-  solution. There are some functional differences between **native** and **imsm**. The most
-  important difference is that the metadata is managed from userspace.
+  Known as **IMSM**. Metadata format developed by**Intel®**. Currently, maintained
+  by **Graid Technology Inc.** as a part of **VROC** solution. There are some functional differences
+  between **native** and **imsm**.
+  The most important difference is that the metadata is managed from userspace.
 
   **CAUTION:** **imsm** is compatible with **Intel RST**, however it is not officially supported.
   You are using it on your own risk.
