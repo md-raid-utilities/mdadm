@@ -365,7 +365,7 @@ Use the Intel(R) Matrix Storage Manager metadata format.  This creates a
 which is managed in a similar manner to DDF, and is supported by an
 option-rom on some platforms:
 .IP
-.B https://www.intel.com/content/www/us/en/support/products/122484
+.B https://docs.graidtech.com/vroc/
 .PP
 .RE
 

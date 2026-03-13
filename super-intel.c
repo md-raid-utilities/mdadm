@@ -2726,16 +2726,17 @@ static void print_imsm_chunk_size_capability(const struct imsm_orom *orom)
 
 static void print_imsm_capability(const struct orom_entry *entry)
 {
+	static const char intel_platform_str[] = "       Platform : Intel(R)";
 	const struct imsm_orom *orom = &entry->orom;
 
-	printf("       Platform : Intel(R) ");
-
-	if (orom->capabilities == 0 && orom->driver_features == 0)
-		printf("Matrix Storage Manager\n");
+	if (imsm_orom_is_enterprise(orom) && orom->major_ver >= 26)
+		printf("       Platform : VROC(TM) by Graid Technology Inc.\n");
+	else if (orom->capabilities == 0 && orom->driver_features == 0)
+		printf("%s Matrix Storage Manager\n", intel_platform_str);
 	else if (imsm_orom_is_enterprise(orom) && orom->major_ver >= 6)
-		printf("Virtual RAID on CPU\n");
+		printf("%s Virtual RAID on CPU\n", intel_platform_str);
 	else
-		printf("Rapid Storage Technology%s\n",
+		printf("%s Rapid Storage Technology%s\n", intel_platform_str,
 			imsm_orom_is_enterprise(orom) ? " enterprise" : "");
 
 	if (orom->major_ver || orom->minor_ver || orom->hotfix_ver || orom->build) {
@@ -6146,13 +6147,12 @@ static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
 		}
 
 		if (is_multipath_nvme(fd))
-			pr_err("%s controller supports Multi-Path I/O, Intel (R) VROC does not support multipathing\n",
+			pr_err("%s controller supports Multi-Path I/O, VROC does not support multipathing\n",
 			       basename(cntrl_path));
 
 		if (super->orom && devpath_to_vendor(pci_dev_path) != 0x8086 &&
 		    !imsm_orom_has_tpv_support(super->orom)) {
-			pr_err("\tPlatform configuration does not support non-Intel NVMe drives.\n"
-			       "\tPlease refer to Intel(R) RSTe/VROC user guide.\n");
+			pr_err("\tPlatform configuration does not support non-Intel NVMe drives.\n");
 			goto error;
 		}
 	}
