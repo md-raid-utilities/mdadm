@@ -1471,7 +1471,7 @@ int main(int argc, char *argv[])
 		if (!rv && c.runstop < 0)
 			rv = Manage_stop(ident.devname, mdfd, c.verbose, 0);
 		if (!rv && c.trigger_check)
-			rv = Manage_trigger_check_repair (ident.devname, mdfd, 0,  c.verbose);
+			rv = Manage_trigger_check_repair(ident.devname, mdfd, 0,  c.verbose);
 		if (!rv && c.trigger_repair)
 			rv = Manage_trigger_check_repair(ident.devname, mdfd, 1, c.verbose);
 		break;

@@ -1451,11 +1451,11 @@ Subsequent devices that are added or re\-added will have the 'write-mostly'
 flag cleared.
 .TP
 .B \-\-trigger\-check
-Trigger a check operation on the array. This will start a read-only check 
+Trigger a check operation on the array. This will start a read-only check
 process to ensure all data is consistent across the devices.
 .TP
 .B \-\-trigger\-repair
-Trigger a repair operation on the array. This will start a repair 
+Trigger a repair operation on the array. This will start a repair
 process to ensure all data is consistent across the devices.
 .TP
 .BR \-\-cluster\-confirm
