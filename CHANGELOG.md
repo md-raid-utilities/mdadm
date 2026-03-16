@@ -1,3 +1,30 @@
+# Release [mdadm-4.6](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.6)
+
+Features:
+- Add support for new lockless bitmap from Yu Kuai
+- Add "PROBING ddf_extended" option in mdadm.conf from Martin Wilck
+- Add --detail to usage in ReadMe from Brian Matheson
+
+Fixes:
+- Fix uuid endianness mismatch issue in sysfs_rules_apply() from Abirami0904
+- Fix mdcheck: don't stop mdcheck_continue.timer from Martin Wilck
+- Deal with hot-unplugged devices in platform-intel from Jean Delvare
+- Detect corosync and libdlm via pkg-config in Makefile from Maxin John
+- Fix UEFI backward compatibility for RAID10D4 in imsm from Blazej Kucman
+- Optimize DDF header search using mmap for better performance from lilinzhe
+- Set sysfs name after assembling imsm array in incremental from Xiao Ni
+- Use creation_time for ctime in imsm container info from Xiao Ni
+- Fix sigterm variable to be volatile sig_atomic_t from Cristian Rodríguez
+- Use 64-bit off_t across both musl and glibc from Ankur Tyagi
+- Fix format overflow error in super-intel.c from Martin Wilck
+- Fix compilation errors for unused variables with GCC 16 from Martin Wilck
+- Load md_mod first to avoid module loading issues from Xiao Ni
+
+There are some important issues which led to boot failure. These issues
+have been fixed recently. It's better to make a new release. So users
+can choose a version without these problems.
+https://github.com/md-raid-utilities/mdadm/issues/249 has the details.
+
 # Release [mdadm-4.5](https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/log/?h=mdadm-4.5)
 
 Features:
