@@ -1470,10 +1470,8 @@ int main(int argc, char *argv[])
 			rv = Manage_run(ident.devname, mdfd, &c);
 		if (!rv && c.runstop < 0)
 			rv = Manage_stop(ident.devname, mdfd, c.verbose, 0);
-		if (!rv && c.trigger_check)
-			rv = Manage_trigger_check_repair(ident.devname, mdfd, 0,  c.verbose);
-		if (!rv && c.trigger_repair)
-			rv = Manage_trigger_check_repair(ident.devname, mdfd, 1, c.verbose);
+		if ((!rv && c.trigger_check) || (!rv && c.trigger_repair))
+			rv = Manage_trigger_check_repair(ident.devname, mdfd, &c);
 		break;
 	case ASSEMBLE:
 		if (!c.scan && c.runstop == -1) {

@@ -1857,7 +1857,7 @@ int move_spare(char *from_devname, char *to_devname, dev_t devid)
 	return 0;
 }
 
-int Manage_trigger_check_repair(char *devname, int fd, int flag, int verbose)
+int Manage_trigger_check_repair(char *devname, int fd, struct context *c)
 {
 	struct mdinfo info;
 	int rv = 0;
@@ -1867,9 +1867,14 @@ int Manage_trigger_check_repair(char *devname, int fd, int flag, int verbose)
 		return 1;
 	}
 
-	char *action = (flag == 0) ? "check" : "repair";
+	if ((c && c->trigger_check == 1) && (c && c->trigger_repair == 1)) {
+		pr_err("trigger_check and trigger_repair are mutually exclusive\n");
+		return rv;
+	}
 
-	if (verbose > 0)
+	char *action = (c && c->trigger_check == 1) ? "check" : "repair";
+
+	if (c && c->verbose > 0)
 		pr_info("Triggering %s on %s\n", action, devname);
 
 	if (sysfs_set_str(&info, NULL, "sync_action", action) < 0) {

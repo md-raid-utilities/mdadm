@@ -1501,7 +1501,7 @@ extern int Manage_ro(char *devname, int fd, int readonly);
 extern int Manage_run(char *devname, int fd, struct context *c);
 extern int Manage_stop(char *devname, int fd, int quiet,
 		       int will_retry);
-extern int Manage_trigger_check_repair(char *devname, int fd, int flag, int verbose);
+extern int Manage_trigger_check_repair(char *devname, int fd, struct context *c);
 extern int Manage_subdevs(char *devname, int fd,
 			  struct mddev_dev *devlist, int verbose, int test,
 			  enum update_opt update, int force);
