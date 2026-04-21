@@ -59,7 +59,7 @@ static mdadm_status_t set_bitmap_value(struct shape *s, struct context *c, char 
 
 	if (strcmp(val, "lockless") == 0) {
 		s->btype = BitmapLockless;
-		pr_info("Experimental lockless bitmap, use at your own disk!\n");
+		pr_info("Experimental lockless bitmap, use at your own risk!\n");
 		return MDADM_STATUS_SUCCESS;
 	}
 
