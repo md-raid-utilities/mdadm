@@ -1575,8 +1575,10 @@ int main(int argc, char *argv[])
 		}
 
 		if (s.btype == BitmapUnknown) {
-			if (c.runstop != 1 && s.level >= 1 &&
-			    ask("To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now?"))
+			if (s.level == UnSet)
+				s.btype = BitmapNone;
+			else if (c.runstop != 1 && s.level >= 1 &&
+				 ask("To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now?"))
 				s.btype = BitmapInternal;
 			else
 				s.btype = BitmapNone;
