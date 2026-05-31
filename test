@@ -6,10 +6,20 @@ targetdir="/var/tmp"
 logdir="$targetdir"
 config=/tmp/mdadm.conf
 testdir=$PWD/tests
+
+# used by tests
 system_speed_limit_max=0
 system_speed_limit_min=0
 test_speed_limit_min=100
 test_speed_limit_max=500
+
+# used by clustermd_tests
+nodes_system_speed_limit_min=()
+nodes_system_speed_limit_max=()
+# NODE1, NODE2
+nodes_test_speed_limit_min=(100 1000)
+nodes_test_speed_limit_max=(500 100000)
+
 devlist=
 # If super1 metadata name doesn't have the same hostname with machine,
 # it's treated as foreign.
