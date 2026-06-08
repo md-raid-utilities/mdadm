@@ -107,6 +107,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	int have_target;
 	char *devname = devlist->devname;
 	int journal_device_missing = 0;
+	bool array_started = false;
 
 	if (!stat_is_blkdev(devname, &rdev))
 		return rv;
@@ -604,8 +605,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			} else if (c->verbose >= 0)
 				pr_err("%s attached to %s, which has been started.\n",
 				       devname, chosen_name);
-			rv = 0;
-			wait_for(chosen_name, mdfd);
+			array_started = true;
 			/* We just started the array, so some devices
 			 * might have been evicted from the array
 			 * because their event counts were too old.
@@ -638,8 +638,6 @@ out:
 	free(avail);
 	if (dfd >= 0)
 		close(dfd);
-	if (mdfd >= 0)
-		close(mdfd);
 	if (policy)
 		dev_policy_free(policy);
 	udev_unblock();
@@ -647,6 +645,10 @@ out:
 		sysfs_uevent(sra, "change");
 		sysfs_free(sra);
 	}
+	if (array_started)
+		wait_for(chosen_name, mdfd);
+	if (mdfd >= 0)
+		close(mdfd);
 	return rv;
 out_unlock:
 	map_unlock(&map);
