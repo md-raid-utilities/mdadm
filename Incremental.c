@@ -479,13 +479,10 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			       chosen_name, info.array.working_disks,
 			       info.array.working_disks == 1?"":"s");
 		sysfs_rules_apply(chosen_name, &info, st);
-		wait_for(chosen_name, mdfd);
 		if (st->ss->external)
 			strcpy(devnm, fd2devnm(mdfd));
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
-		close(mdfd);
-		mdfd = -1;
 		udev_unblock();
 		sysfs_uevent(sra, "change");
 		sysfs_free(sra);
@@ -497,6 +494,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		 * so that it can eg. try to rebuild degraded array */
 		if (st->ss->external)
 			ping_monitor(devnm);
+		wait_for(chosen_name, mdfd);
 		goto out;
 	}
 
