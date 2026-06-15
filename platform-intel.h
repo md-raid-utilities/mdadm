@@ -216,6 +216,7 @@ enum sys_dev_type {
 struct sys_dev {
 	enum sys_dev_type type;
 	char *path;
+	char *path_pch;
 	char *pci_id;
 	__u16  dev_id;
 	__u32  class;

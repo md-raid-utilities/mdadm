@@ -2591,7 +2591,8 @@ static int print_nvme_info(struct sys_dev *hba)
 		    !diskfd_to_devpath(fd, 1, cntrl_path))
 			goto skip;
 
-		if (!is_path_attached_to_hba(cntrl_path, hba->path))
+		if (!(is_path_attached_to_hba(cntrl_path, hba->path) ||
+			  is_path_attached_to_hba(cntrl_path, hba->path_pch)))
 			goto skip;
 
 		if (!imsm_is_nvme_namespace_supported(fd, 0))
