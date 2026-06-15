@@ -18,6 +18,7 @@
  */
 #include <asm/types.h>
 #include <strings.h>
+#include "list.h"
 
 /* according to GUID format: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" */
 #define GUID_STR_MAX	37
@@ -213,9 +214,14 @@ enum sys_dev_type {
 	SYS_DEV_MAX
 };
 
+enum vmd_domains {
+	DOMAIN = 0,
+	DOMAIN_COUNT
+};
+
 struct sys_dev {
 	enum sys_dev_type type;
-	char *path;
+	struct list *paths;
 	char *pci_id;
 	__u16  dev_id;
 	__u32  class;
