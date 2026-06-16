@@ -799,8 +799,6 @@ skip_devices_state:
 		printf(" spares=%d", spares);
 	if (c->brief && st && st->sb)
 		st->ss->brief_detail_super(st, subarray);
-	if (st)
-		st->ss->free_super(st);
 
 	if (c->brief && c->verbose > 0 && devices) {
 		qsort(devices, n_devices, sizeof(*devices), cmpstringp);
@@ -825,6 +823,8 @@ out:
 			free(devices[d]);
 	free(devices);
 	sysfs_free(sra);
+	if (st)
+		st->ss->free_super(st);
 	free(st);
 	return rv;
 }
