@@ -134,7 +134,7 @@ int Query(char *dev)
 		if (st->ss == &super0)
 			put_md_name(mddev);
 	}
-	free(sra);
+	sysfs_free(sra);
 
 	return 0;
 }
