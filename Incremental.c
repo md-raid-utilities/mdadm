@@ -1653,7 +1653,6 @@ static int Incremental_container(struct supertype *st, char *devname,
 release:
 	map_free(map);
 	sysfs_free(list);
-	sysfs_uevent(&info, "change");
 	return rv;
 }
 
