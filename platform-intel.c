@@ -623,6 +623,9 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 {
 	unsigned long align;
 
+	if (conf_get_imsm_disable_orom())
+		return NULL;
+
 	if (check_env("IMSM_TEST_OROM"))
 		return imsm_platform_test(hba);
 

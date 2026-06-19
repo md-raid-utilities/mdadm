@@ -83,7 +83,7 @@ char DefaultAltConfDir[] = CONFFILE2 ".d";
 
 enum linetype { Devices, Array, Mailaddr, Mailfrom, Program, CreateDev,
 		Homehost, HomeCluster, AutoMode, Policy, PartPolicy, Sysfs,
-		MonitorDelay, EncryptionNoVerify, Probing, LTEnd };
+		MonitorDelay, EncryptionNoVerify, Probing, ImsmDisableOrom, LTEnd };
 char *keywords[] = {
 	[Devices]  = "devices",
 	[Array]    = "array",
@@ -100,6 +100,7 @@ char *keywords[] = {
 	[MonitorDelay] = "monitordelay",
 	[EncryptionNoVerify] = "ENCRYPTION_NO_VERIFY",
 	[Probing] = "probing",
+	[ImsmDisableOrom] = "IMSM_DISABLE_OROM",
 	[LTEnd]    = NULL
 };
 
@@ -703,6 +704,21 @@ void probing_line(char *line)
 	}
 }
 
+static bool imsm_disable_orom;
+void imsm_disable_orom_line(char *line)
+{
+	char *word;
+
+	for (word = dl_next(line); word != line; word = dl_next(word)) {
+		if (strcmp(word, "1") == 0)
+			imsm_disable_orom = true;
+		else if (strcmp(word, "0") == 0)
+			imsm_disable_orom = false;
+		else
+			pr_err("unrecognised value on IMSM_DISABLE_OROM line: %s\n", word);
+	}
+}
+
 char auto_yes[] = "yes";
 char auto_no[] = "no";
 char auto_homehost[] = "homehost";
@@ -893,6 +909,9 @@ void conf_file(FILE *f)
 		case Probing:
 			probing_line(line);
 			break;
+		case ImsmDisableOrom:
+			imsm_disable_orom_line(line);
+			break;
 		default:
 			pr_err("Unknown keyword %s\n", line);
 		}
@@ -1066,6 +1085,12 @@ bool conf_get_probing_ddf_extended(void)
 {
 	load_conffile();
 	return probing_ddf_extended;
+}
+
+bool conf_get_imsm_disable_orom(void)
+{
+	load_conffile();
+	return imsm_disable_orom;
 }
 
 struct createinfo *conf_get_create_info(void)

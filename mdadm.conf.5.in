@@ -635,6 +635,27 @@ MB. This allows detection of metadata created by some RAID controllers, at the
 cost of slower probing.
 .RE
 
+.TP
+.B IMSM_DISABLE_OROM
+The
+.B IMSM_DISABLE_OROM
+option controls whether
+.I mdadm
+scans option-ROM (OROM) memory to detect IMSM capabilities.
+By default, when neither EFI nor ACPI capabilities are found,
+.I mdadm
+falls back to scanning option-ROM memory.
+When set to
+.IR 1 ,
+the OROM scan is skipped.
+When set to
+.I 0
+(the default), the scan proceeds normally.
+
+This option is useful on systems with kernel lockdown enabled to avoid log flooding.
+The OROM scan is a legacy method of detecting IMSM capabilities, superseded by EFI variables,
+and can usually be disabled safely on modern UEFI systems.
+
 .SH FILES
 
 .SS {CONFFILE}
