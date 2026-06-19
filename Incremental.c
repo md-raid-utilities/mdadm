@@ -1614,6 +1614,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		}
 
 		if (only && (!mp || strcmp(mp->devnm, only) != 0)) {
+			udev_unblock();
 			close_fd(&mdfd);
 			continue;
 		}
