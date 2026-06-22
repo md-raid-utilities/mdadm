@@ -329,14 +329,14 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			    stb.st_rdev != devnm2devid(devnm)) {
 				pr_err("%s exists but looks wrong, please fix\n",
 					devname);
-				return -1;
+				goto error;
 			}
 		} else {
 			if (mknod(devname, S_IFBLK|0600,
 				  devnm2devid(devnm)) != 0) {
 				pr_err("failed to create %s\n",
 					devname);
-				return -1;
+				goto error;
 			}
 			if (chown(devname, ci->uid, ci->gid))
 				perror("chown");
@@ -345,7 +345,7 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			if (stat(devname, &stb) < 0) {
 				pr_err("failed to stat %s\n",
 						devname);
-				return -1;
+				goto error;
 			}
 			add_dev(devname, &stb, 0, NULL);
 		}
@@ -381,10 +381,16 @@ int create_mddev(char *dev, char *name, int trustworthy,
 		}
 	}
 	mdfd = open_dev_excl(devnm);
-	if (mdfd < 0)
+	if (mdfd < 0) {
 		pr_err("unexpected failure opening %s\n",
 			devname);
+		goto error;
+	}
 	return mdfd;
+
+error:
+	udev_unblock();
+	return -1;
 }
 
 /* Open this and check that it is an md device.
