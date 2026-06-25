@@ -135,9 +135,6 @@ int create_mddev(char *dev, char *name, int trustworthy,
 		return -1;
 	}
 
-	if (!udev_is_available())
-		block_udev = 0;
-
 	if (chosen == NULL)
 		chosen = cbuf;
 
@@ -273,7 +270,8 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			return -1;
 		if (!create_named_array(devnm)) {
 			devnm[0] = 0;
-			udev_unblock();
+			if (block_udev)
+				udev_unblock();
 		}
 	}
 	if (num >= 0) {
@@ -282,7 +280,8 @@ int create_mddev(char *dev, char *name, int trustworthy,
 			return -1;
 		if (!create_named_array(devnm)) {
 			devnm[0] = 0;
-			udev_unblock();
+			if (block_udev)
+				udev_unblock();
 		}
 	}
 	if (devnm[0] == 0) {

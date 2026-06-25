@@ -108,6 +108,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	char *devname = devlist->devname;
 	int journal_device_missing = 0;
 	bool array_started = false;
+	bool udev_blocked = false;
 
 	if (!stat_is_blkdev(devname, &rdev))
 		return rv;
@@ -287,8 +288,9 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			goto out_unlock;
 
 		/* Couldn't find an existing array, maybe make a new one */
+		udev_blocked = udev_is_available();
 		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
-				    chosen_name, 1);
+				    chosen_name, udev_blocked);
 
 		if (mdfd < 0)
 			goto out_unlock;
@@ -474,7 +476,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			strcpy(devnm, fd2devnm(mdfd));
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
-		udev_ready(sra);
+		if (udev_blocked)
+			udev_ready(sra);
 		sysfs_free(sra);
 		if (!rv)
 			rv = Incremental_container(st, chosen_name, c, NULL);
@@ -638,12 +641,13 @@ out:
 		close(dfd);
 	if (policy)
 		dev_policy_free(policy);
-	if (sra) {
-		udev_ready(sra);
-		sysfs_free(sra);
-	} else {
-		udev_unblock();
+	if (udev_blocked) {
+		if (sra)
+			udev_ready(sra);
+		else
+			udev_unblock();
 	}
+	sysfs_free(sra);
 	if (array_started)
 		wait_for(chosen_name, mdfd);
 	if (mdfd >= 0)
@@ -1532,6 +1536,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		char *sysname;
 		struct map_ent *mp;
 		struct mddev_ident *match = NULL;
+		bool udev_blocked = false;
 
 		/* do not activate arrays blocked by metadata handler */
 		if (ra->array.state & (1 << MD_SB_BLOCK_VOLUME)) {
@@ -1602,8 +1607,9 @@ static int Incremental_container(struct supertype *st, char *devname,
 			if (match)
 				trustworthy = LOCAL;
 
+			udev_blocked = udev_is_available();
 			mdfd = create_mddev(match ? match->devname : NULL, ra->name, trustworthy,
-					    chosen_name, 1);
+					    chosen_name, udev_blocked);
 
 			if (!is_fd_valid(mdfd)) {
 				pr_err("create_mddev failed with chosen name %s: %s.\n",
@@ -1614,7 +1620,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		}
 
 		if (only && (!mp || strcmp(mp->devnm, only) != 0)) {
-			udev_unblock();
+			if (udev_blocked)
+				udev_unblock();
 			close_fd(&mdfd);
 			continue;
 		}
@@ -1626,7 +1633,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		sysname = fd2devnm(mdfd);
 		strncpy(info.sys_name, sysname, sizeof(sysname) - 1);
 		close_fd(&mdfd);
-		udev_ready(&info);
+		if (udev_blocked)
+			udev_ready(&info);
 	}
 	if (c->export && result) {
 		char sep = '=';
