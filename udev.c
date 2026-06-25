@@ -202,3 +202,15 @@ void udev_unblock(void)
 	free(unblock_path);
 	unblock_path = NULL;
 }
+
+/*
+ * udev_ready() - Unblock udev and signal that the device is ready.
+ *
+ * Removes the blocking file and sends a synthetic change uevent
+ * so udev re-evaluates the device in its final state.
+ */
+void udev_ready(struct mdinfo *sra)
+{
+	udev_unblock();
+	sysfs_uevent(sra, "change");
+}

@@ -474,8 +474,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			strcpy(devnm, fd2devnm(mdfd));
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
-		udev_unblock();
-		sysfs_uevent(sra, "change");
+		udev_ready(sra);
 		sysfs_free(sra);
 		if (!rv)
 			rv = Incremental_container(st, chosen_name, c, NULL);
@@ -639,10 +638,11 @@ out:
 		close(dfd);
 	if (policy)
 		dev_policy_free(policy);
-	udev_unblock();
 	if (sra) {
-		sysfs_uevent(sra, "change");
+		udev_ready(sra);
 		sysfs_free(sra);
+	} else {
+		udev_unblock();
 	}
 	if (array_started)
 		wait_for(chosen_name, mdfd);
@@ -1626,8 +1626,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		sysname = fd2devnm(mdfd);
 		strncpy(info.sys_name, sysname, sizeof(sysname) - 1);
 		close_fd(&mdfd);
-		udev_unblock();
-		sysfs_uevent(&info, "change");
+		udev_ready(&info);
 	}
 	if (c->export && result) {
 		char sep = '=';
