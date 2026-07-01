@@ -523,6 +523,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	int container_fd = -1;
 	int need_mdmon = 0;
 	unsigned long long bitmapsize;
+	bool udev_blocked;
 	struct mdinfo info;
 	int did_default = 0;
 	int do_default_layout = 0;
@@ -1029,7 +1030,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 
 	/* We need to create the device */
 	map_lock(&map);
-	mdfd = create_mddev(ident->devname, ident->name, LOCAL, chosen_name, 1);
+	udev_blocked = udev_is_available();
+	mdfd = create_mddev(ident->devname, ident->name, LOCAL, chosen_name, udev_blocked);
 	if (mdfd < 0) {
 		map_unlock(&map);
 		return 1;
@@ -1043,7 +1045,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		pr_err("Array name %s is in use already.\n", chosen_name);
 		close(mdfd);
 		map_unlock(&map);
-		udev_unblock();
+		if (udev_blocked)
+			udev_unblock();
 		return 1;
 	}
 
@@ -1331,14 +1334,15 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		pr_err("not starting array - not enough devices.\n");
 	}
 	close(mdfd);
-	udev_unblock();
-	sysfs_uevent(&info, "change");
+	if (udev_blocked)
+		udev_ready(&info);
 	dev_policy_free(custom_pols);
 
 	return 0;
 
  abort:
-	udev_unblock();
+	if (udev_blocked)
+		udev_unblock();
 	map_lock(&map);
  abort_locked:
 	map_remove(&map, fd2devnm(mdfd));

@@ -197,8 +197,24 @@ enum udev_status udev_block(char *devnm)
  */
 void udev_unblock(void)
 {
-	if (unblock_path)
-		unlink(unblock_path);
+	if (!unblock_path) {
+		pr_err("Called without prior udev block.\n");
+		return;
+	}
+
+	unlink(unblock_path);
 	free(unblock_path);
 	unblock_path = NULL;
+}
+
+/*
+ * udev_ready() - Unblock udev and signal that the device is ready.
+ *
+ * Removes the blocking file and sends a synthetic change uevent
+ * so udev re-evaluates the device in its final state.
+ */
+void udev_ready(struct mdinfo *sra)
+{
+	udev_unblock();
+	sysfs_uevent(sra, "change");
 }

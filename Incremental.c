@@ -107,6 +107,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 	int have_target;
 	char *devname = devlist->devname;
 	int journal_device_missing = 0;
+	bool array_started = false;
+	bool udev_blocked = false;
 
 	if (!stat_is_blkdev(devname, &rdev))
 		return rv;
@@ -286,8 +288,9 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			goto out_unlock;
 
 		/* Couldn't find an existing array, maybe make a new one */
+		udev_blocked = udev_is_available();
 		mdfd = create_mddev(match ? match->devname : NULL, name_to_use, trustworthy,
-				    chosen_name, 1);
+				    chosen_name, udev_blocked);
 
 		if (mdfd < 0)
 			goto out_unlock;
@@ -469,14 +472,12 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			       chosen_name, info.array.working_disks,
 			       info.array.working_disks == 1?"":"s");
 		sysfs_rules_apply(chosen_name, &info, st);
-		wait_for(chosen_name, mdfd);
 		if (st->ss->external)
 			strcpy(devnm, fd2devnm(mdfd));
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
-		close(mdfd);
-		udev_unblock();
-		sysfs_uevent(sra, "change");
+		if (udev_blocked)
+			udev_ready(sra);
 		sysfs_free(sra);
 		if (!rv)
 			rv = Incremental_container(st, chosen_name, c, NULL);
@@ -485,7 +486,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		 * so that it can eg. try to rebuild degraded array */
 		if (st->ss->external)
 			ping_monitor(devnm);
-		udev_unblock();
+		wait_for(chosen_name, mdfd);
+		close(mdfd);
 		return rv;
 	}
 
@@ -604,8 +606,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 			} else if (c->verbose >= 0)
 				pr_err("%s attached to %s, which has been started.\n",
 				       devname, chosen_name);
-			rv = 0;
-			wait_for(chosen_name, mdfd);
+			array_started = true;
 			/* We just started the array, so some devices
 			 * might have been evicted from the array
 			 * because their event counts were too old.
@@ -638,15 +639,19 @@ out:
 	free(avail);
 	if (dfd >= 0)
 		close(dfd);
-	if (mdfd >= 0)
-		close(mdfd);
 	if (policy)
 		dev_policy_free(policy);
-	udev_unblock();
-	if (sra) {
-		sysfs_uevent(sra, "change");
-		sysfs_free(sra);
+	if (udev_blocked) {
+		if (sra)
+			udev_ready(sra);
+		else
+			udev_unblock();
 	}
+	sysfs_free(sra);
+	if (array_started)
+		wait_for(chosen_name, mdfd);
+	if (mdfd >= 0)
+		close(mdfd);
 	return rv;
 out_unlock:
 	map_unlock(&map);
@@ -1531,6 +1536,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		char *sysname;
 		struct map_ent *mp;
 		struct mddev_ident *match = NULL;
+		bool udev_blocked = false;
 
 		/* do not activate arrays blocked by metadata handler */
 		if (ra->array.state & (1 << MD_SB_BLOCK_VOLUME)) {
@@ -1601,8 +1607,9 @@ static int Incremental_container(struct supertype *st, char *devname,
 			if (match)
 				trustworthy = LOCAL;
 
+			udev_blocked = udev_is_available();
 			mdfd = create_mddev(match ? match->devname : NULL, ra->name, trustworthy,
-					    chosen_name, 1);
+					    chosen_name, udev_blocked);
 
 			if (!is_fd_valid(mdfd)) {
 				pr_err("create_mddev failed with chosen name %s: %s.\n",
@@ -1613,6 +1620,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		}
 
 		if (only && (!mp || strcmp(mp->devnm, only) != 0)) {
+			if (udev_blocked)
+				udev_unblock();
 			close_fd(&mdfd);
 			continue;
 		}
@@ -1624,8 +1633,8 @@ static int Incremental_container(struct supertype *st, char *devname,
 		sysname = fd2devnm(mdfd);
 		strncpy(info.sys_name, sysname, sizeof(sysname) - 1);
 		close_fd(&mdfd);
-		udev_unblock();
-		sysfs_uevent(&info, "change");
+		if (udev_blocked)
+			udev_ready(&info);
 	}
 	if (c->export && result) {
 		char sep = '=';
@@ -1652,8 +1661,6 @@ static int Incremental_container(struct supertype *st, char *devname,
 release:
 	map_free(map);
 	sysfs_free(list);
-	udev_unblock();
-	sysfs_uevent(&info, "change");
 	return rv;
 }
 

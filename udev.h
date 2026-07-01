@@ -36,5 +36,6 @@ enum udev_status udev_wait_for_events(int seconds);
 
 enum udev_status udev_block(char *devnm);
 void udev_unblock(void);
+void udev_ready(struct mdinfo *sra);
 
 #endif
