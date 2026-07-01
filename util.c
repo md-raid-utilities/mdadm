@@ -634,7 +634,7 @@ int check_ext2(int fd, char *name)
 	if (sb[56] != 0x53 || sb[57] != 0xef)
 		return 0;
 
-	mtime = sb[44]|(sb[45]|(sb[46]|sb[47]<<8)<<8)<<8;
+	mtime = sb[44]|(sb[45]|(sb[46]|(unsigned int)sb[47]<<8)<<8)<<8;
 	bsize = sb[24]|(sb[25]|(sb[26]|sb[27]<<8)<<8)<<8;
 	size = sb[4]|(sb[5]|(sb[6]|sb[7]<<8)<<8)<<8;
 	size <<= bsize;
