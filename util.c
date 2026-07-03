@@ -23,6 +23,7 @@
  */
 
 #include	"mdadm.h"
+#include	"md_common.h"
 #include	"md_p.h"
 #include	"xmalloc.h"
 
@@ -1559,7 +1560,7 @@ int open_container(int fd)
 		if (n <= 0 || (unsigned)n >= sizeof(buf))
 			continue;
 		buf[n] = 0;
-		if (strncmp(buf, "external", 8) != 0 ||
+		if (strncmp(buf, MD_EXT, strlen(MD_EXT)) != 0 ||
 		    n < 10 ||
 		    buf[9] == '/')
 			continue;

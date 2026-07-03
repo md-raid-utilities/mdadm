@@ -252,7 +252,7 @@ int unblock_subarray(struct mdinfo *sra, const int unfreeze)
 	int rc = 0;
 
 	if (sra) {
-		sprintf(buf, "external:%s\n", sra->text_version);
+		sprintf(buf, MD_VER_EXT "%s\n", sra->text_version);
 		buf[9] = '/';
 	} else
 		buf[9] = '-';
@@ -271,7 +271,7 @@ int block_subarray(struct mdinfo *sra)
 	char buf[64];
 	int rc = 0;
 
-	sprintf(buf, "external:%s\n", sra->text_version);
+	sprintf(buf, MD_VER_EXT "%s\n", sra->text_version);
 	buf[9] = '-';
 	if (sysfs_set_str(sra, NULL, "metadata_version", buf))
 		rc = -1;

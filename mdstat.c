@@ -156,14 +156,14 @@ bool is_mdstat_ent_external(struct mdstat_ent *ent)
 	if (!ent->metadata_version)
 		return false;
 
-	if (strncmp(ent->metadata_version, "external:", 9) == 0)
+	if (strncmp(ent->metadata_version, MD_VER_EXT, MD_VER_EXT_LEN) == 0)
 		return true;
 	return false;
 }
 
 bool is_mdstat_ent_subarray(struct mdstat_ent *ent)
 {
-	if (is_mdstat_ent_external(ent) && is_subarray(ent->metadata_version + 9))
+	if (is_mdstat_ent_external(ent) && is_subarray(ent->metadata_version + MD_VER_EXT_LEN))
 		return true;
 	return false;
 }
@@ -171,7 +171,7 @@ bool is_mdstat_ent_subarray(struct mdstat_ent *ent)
 bool is_container_member(struct mdstat_ent *mdstat, char *container)
 {
 	if (is_mdstat_ent_external(mdstat) &&
-	    metadata_container_matches(mdstat->metadata_version + 9, container))
+	    metadata_container_matches(mdstat->metadata_version + MD_VER_EXT_LEN, container))
 		return true;
 
 	return false;
@@ -509,9 +509,9 @@ struct mdstat_ent *mdstat_by_subdev(char *subdev, char *container)
 		if (!is_mdstat_ent_external(ent))
 			continue;
 
-		if (!metadata_container_matches(ent->metadata_version + 9, container))
+		if (!metadata_container_matches(ent->metadata_version + MD_VER_EXT_LEN, container))
 			continue;
-		if (!metadata_subdev_matches(ent->metadata_version + 9, subdev))
+		if (!metadata_subdev_matches(ent->metadata_version + MD_VER_EXT_LEN, subdev))
 			continue;
 
 		break;
