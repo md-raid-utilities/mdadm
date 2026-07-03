@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "mdadm.h"
+#include "mdstat.h"
 #include "mdmon.h"
 #include "xmalloc.h"
 

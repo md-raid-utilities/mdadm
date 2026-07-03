@@ -79,6 +79,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mdstat.h"
 #include	"dlink.h"
 #include	"xmalloc.h"
 
@@ -174,6 +175,21 @@ bool is_container_member(struct mdstat_ent *mdstat, char *container)
 		return true;
 
 	return false;
+}
+
+int is_subarray_active(char *subarray, char *container)
+{
+	struct mdstat_ent *mdstat = mdstat_read(0, 0);
+	struct mdstat_ent *ent;
+
+	for (ent = mdstat; ent; ent = ent->next)
+		if (is_container_member(ent, container))
+			if (strcmp(to_subarray(ent, container), subarray) == 0)
+				break;
+
+	free_mdstat(mdstat);
+
+	return ent != NULL;
 }
 
 static int mdstat_fd = -1;

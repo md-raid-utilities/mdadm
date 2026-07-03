@@ -29,6 +29,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mdstat.h"
 #include	"xmalloc.h"
 #include	"udev.h"
 

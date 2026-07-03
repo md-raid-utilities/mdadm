@@ -103,6 +103,7 @@
 #define _GNU_SOURCE
 #endif
 #include	"mdadm.h"
+#include	"mdstat.h"
 #include	"mdmon.h"
 #include	"xmalloc.h"
 

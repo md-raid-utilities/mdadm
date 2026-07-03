@@ -1635,21 +1635,6 @@ int metadata_subdev_matches(char *metadata, char *devnm)
 	return 0;
 }
 
-int is_subarray_active(char *subarray, char *container)
-{
-	struct mdstat_ent *mdstat = mdstat_read(0, 0);
-	struct mdstat_ent *ent;
-
-	for (ent = mdstat; ent; ent = ent->next)
-		if (is_container_member(ent, container))
-			if (strcmp(to_subarray(ent, container), subarray) == 0)
-				break;
-
-	free_mdstat(mdstat);
-
-	return ent != NULL;
-}
-
 /* open_subarray - opens a subarray in a container
  * @dev: container device name
  * @st: empty supertype
