@@ -684,36 +684,6 @@ typedef struct mapping {
 	int num;
 } mapping_t;
 
-struct mdstat_ent {
-	char		devnm[32];
-	int		active;
-	char		*level;
-	char		*pattern; /* U for up, _ for down */
-	int		percent; /* -1 if no resync */
-	int		resync; /* 3 if check, 2 if reshape, 1 if resync, 0 if recovery */
-	int		devcnt;
-	int		raid_disks;
-	char *		metadata_version;
-	struct dev_member {
-		char			*name;
-		struct dev_member	*next;
-	}		*members;
-	struct mdstat_ent *next;
-};
-
-extern struct mdstat_ent *mdstat_read(int hold, int start);
-extern void mdstat_close(void);
-extern void free_mdstat(struct mdstat_ent *ms);
-extern int mdstat_wait(int seconds);
-extern void mdstat_wait_fd(int fd, const sigset_t *sigmask);
-extern int mddev_busy(char *devnm);
-extern struct mdstat_ent *mdstat_by_component(char *name);
-extern struct mdstat_ent *mdstat_find_by_member_name(struct mdstat_ent *mdstat, char *member_devnm);
-extern struct mdstat_ent *mdstat_by_subdev(char *subdev, char *container);
-
-extern bool is_mdstat_ent_external(struct mdstat_ent *ent);
-extern bool is_mdstat_ent_subarray(struct mdstat_ent *ent);
-
 struct map_ent {
 	struct map_ent *next;
 	char	devnm[32];
@@ -1728,8 +1698,6 @@ extern int is_mddev(char *dev);
 extern int open_container(int fd);
 extern int metadata_container_matches(char *metadata, char *devnm);
 extern int metadata_subdev_matches(char *metadata, char *devnm);
-extern bool is_container_member(struct mdstat_ent *ent, char *devname);
-extern int is_subarray_active(char *subarray, char *devname);
 extern int open_subarray(char *dev, char *subarray, struct supertype *st, int quiet);
 extern struct superswitch *version_to_superswitch(char *vers);
 
@@ -1822,11 +1790,6 @@ static inline int is_subarray(char *vers)
 	 * componentname is dependant on the metadata. e.g. '1' 'S1' ...
 	 */
 	return (*vers == '/' || *vers == '-');
-}
-
-static inline char *to_subarray(struct mdstat_ent *ent, char *container)
-{
-	return &ent->metadata_version[10+strlen(container)+1];
 }
 
 /**

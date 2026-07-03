@@ -84,9 +84,6 @@ void do_manager(struct supertype *container);
 extern volatile sig_atomic_t sigterm;
 
 int read_dev_state(int fd);
-bool is_container_member(struct mdstat_ent *mdstat, char *container);
-
-struct mdstat_ent *mdstat_read(int hold, int start);
 
 extern int exit_now, manager_ready;
 extern int mon_tid, mgr_tid;

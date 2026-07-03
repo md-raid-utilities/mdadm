@@ -26,6 +26,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mdstat.h"
 
 int Kill(char *dev, struct supertype *st, int force, int verbose, int noexcl)
 {

@@ -26,6 +26,7 @@
  */
 
 #include "mdadm.h"
+#include "mdstat.h"
 #include "md_p.h"
 #include "xmalloc.h"
 
