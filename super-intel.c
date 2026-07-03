@@ -7083,8 +7083,9 @@ active_arrays_by_format(char *name, char* hba, struct md_list **devlist,
 	int found;
 
 	for (memb = mdstat ; memb ; memb = memb->next) {
-		if (is_mdstat_ent_external(memb) && !is_subarray(memb->metadata_version + 9) &&
-		    strcmp(&memb->metadata_version[9], name) == 0 && memb->members) {
+		if (is_mdstat_ent_external(memb) &&
+		    !is_subarray(memb->metadata_version + MD_VER_EXT_LEN) &&
+		    strcmp(&memb->metadata_version[MD_VER_EXT_LEN], name) == 0 && memb->members) {
 			struct dev_member *dev = memb->members;
 			int fd = -1;
 
@@ -13191,7 +13192,7 @@ static int set_bitmap_sysfs(struct mdinfo *info, unsigned long long chunksize,
 	 * related to the device's first lba (in opposition to the "internal" case
 	 * when this value is related to the beginning of the superblock).
 	 */
-	if (sysfs_set_str(info, NULL, "bitmap/metadata", "external")) {
+	if (sysfs_set_str(info, NULL, "bitmap/metadata", MD_EXT)) {
 		dprintf("failed to set bitmap/metadata\n");
 		return -1;
 	}

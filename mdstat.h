@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "md_common.h"
+
 struct mdstat_ent {
 	char devnm[32];
 
@@ -46,7 +48,8 @@ int is_subarray_active(char *subarray, char *container);
 
 static inline char *to_subarray(struct mdstat_ent *ent, char *container)
 {
-	return &ent->metadata_version[10+strlen(container)+1];
+	/* Skip: "external:" prefix, [/-] separator, container name, '/'. */
+	return &ent->metadata_version[MD_VER_EXT_LEN + 1 + strlen(container) + 1];
 }
 
 #endif

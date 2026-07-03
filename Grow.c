@@ -697,7 +697,7 @@ static int check_idle(struct supertype *st)
 		if (!is_container_member(e, container))
 			continue;
 		/* frozen array is not idle*/
-		if (e->percent >= 0 || e->metadata_version[9] == '-') {
+		if (e->percent >= 0 || e->metadata_version[MD_VER_BLOCKED_IDX] == '-') {
 			is_idle = 0;
 			break;
 		}

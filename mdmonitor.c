@@ -893,7 +893,8 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 
 	if (is_mdstat_ent_subarray(mse)) {
 		char *sl;
-		snprintf(st->parent_devnm, MD_NAME_MAX, "%s", mse->metadata_version + 10);
+		snprintf(st->parent_devnm, MD_NAME_MAX, "%s",
+			 mse->metadata_version + MD_VER_EXT_LEN + 1);
 		sl = strchr(st->parent_devnm, '/');
 		if (sl)
 			*sl = 0;
@@ -1006,7 +1007,7 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 				char *sl;
 
 				snprintf(st->parent_devnm, MD_NAME_MAX, "%s",
-					 mse->metadata_version + 10);
+					 mse->metadata_version + MD_VER_EXT_LEN + 1);
 				sl = strchr(st->parent_devnm, '/');
 				if (sl)
 					*sl = 0;
@@ -1307,8 +1308,8 @@ int Wait(char *dev)
 		}
 		if (!e || e->percent == RESYNC_NONE) {
 			if (e && is_mdstat_ent_external(e)) {
-				if (is_subarray(&e->metadata_version[9]))
-					ping_monitor(&e->metadata_version[9]);
+				if (is_subarray(&e->metadata_version[MD_VER_EXT_LEN]))
+					ping_monitor(&e->metadata_version[MD_VER_EXT_LEN]);
 				else
 					ping_monitor(devnm);
 			}

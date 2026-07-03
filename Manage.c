@@ -49,12 +49,12 @@ int Manage_ro(char *devname, int fd, int readonly)
 	    mdi->array.major_version == -1 &&
 	    is_subarray(mdi->text_version)) {
 		char vers[64];
-		strcpy(vers, "external:");
+		strcpy(vers, MD_VER_EXT);
 		strcat(vers, mdi->text_version);
 		if (readonly > 0) {
 			int rv;
 			/* We set readonly ourselves. */
-			vers[9] = '-';
+			vers[MD_VER_BLOCKED_IDX] = '-';
 			sysfs_set_str(mdi, NULL, "metadata_version", vers);
 
 			close_fd(&fd);
@@ -64,7 +64,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 				pr_err("failed to set readonly for %s: %s\n",
 					devname, strerror(errno));
 
-				vers[9] = mdi->text_version[0];
+				vers[MD_VER_BLOCKED_IDX] = mdi->text_version[0];
 				sysfs_set_str(mdi, NULL, "metadata_version", vers);
 				rv = 1;
 				goto out;
@@ -72,13 +72,13 @@ int Manage_ro(char *devname, int fd, int readonly)
 		} else {
 			char *cp;
 			/* We cannot set read/write - must signal mdmon */
-			vers[9] = '/';
+			vers[MD_VER_BLOCKED_IDX] = '/';
 			sysfs_set_str(mdi, NULL, "metadata_version", vers);
 
-			cp = strchr(vers+10, '/');
+			cp = strchr(vers + MD_VER_BLOCKED_IDX + 1, '/');
 			if (cp)
 				*cp = 0;
-			ping_monitor(vers+10);
+			ping_monitor(vers + MD_VER_BLOCKED_IDX + 1);
 			if (mdi->array.level <= 0)
 				sysfs_set_str(mdi, NULL, "array_state", "active");
 		}
@@ -279,7 +279,8 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 		mds = mdstat_read(0, 0);
 		for (m = mds; m; m = m->next)
 			if (is_mdstat_ent_external(m) &&
-			    metadata_container_matches(m->metadata_version + 9, devnm)) {
+			    metadata_container_matches(m->metadata_version + MD_VER_EXT_LEN,
+			    devnm)) {
 				if (verbose >= 0)
 					pr_err("Cannot stop container %s: member %s still active\n",
 					       devname, m->devnm);

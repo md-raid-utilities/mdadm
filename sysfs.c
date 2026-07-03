@@ -24,6 +24,7 @@
  */
 
 #include	"mdadm.h"
+#include	"md_common.h"
 #include	"dlink.h"
 #include	"xmalloc.h"
 
@@ -293,10 +294,10 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 			sra->array.major_version =
 				sra->array.minor_version = -1;
 			strcpy(sra->text_version, "");
-		} else if (strncmp(buf, "external:", 9) == 0) {
+		} else if (strncmp(buf, MD_VER_EXT, MD_VER_EXT_LEN) == 0) {
 			sra->array.major_version = -1;
 			sra->array.minor_version = -2;
-			strcpy(sra->text_version, buf+9);
+			strcpy(sra->text_version, buf + MD_VER_EXT_LEN);
 			sra->text_version[sizeof(sra->text_version) - 1] = '\0';
 		} else {
 			sscanf(buf, "%d.%d",
@@ -809,7 +810,7 @@ int sysfs_set_array(struct mdinfo *info)
 	    info->array.minor_version == -2) {
 		char buf[SYSFS_MAX_BUF_SIZE];
 
-		strcat(strcpy(ver, "external:"), info->text_version);
+		strcat(strcpy(ver, MD_VER_EXT), info->text_version);
 
 		/* meta version might already be set if we are setting
 		 * new geometry for a reshape.  In that case we don't
@@ -819,8 +820,9 @@ int sysfs_set_array(struct mdinfo *info)
 		 */
 		if (sysfs_get_str(info, NULL, "metadata_version",
 				  buf, sizeof(buf)) > 0)
-			if (strlen(buf) >= 9 && buf[9] == '-')
-				ver[9] = '-';
+			if (strlen(buf) >= MD_VER_BLOCKED_IDX &&
+			    buf[MD_VER_BLOCKED_IDX] == '-')
+				ver[MD_VER_BLOCKED_IDX] = '-';
 
 		if (sysfs_set_str(info, NULL, "metadata_version", ver) < 0) {
 			pr_err("This kernel does not support external metadata.\n");

@@ -121,7 +121,7 @@ static int is_member_busy(char *metadata_version)
 			continue;
 
 		/* Skip first char - it can be '/' or '-' */
-		if (strcmp(&ent->metadata_version[10], metadata_version + 1) == 0) {
+		if (strcmp(&ent->metadata_version[MD_VER_EXT_LEN + 1], metadata_version + 1) == 0) {
 			busy = 1;
 			break;
 		}

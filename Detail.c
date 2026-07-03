@@ -684,10 +684,10 @@ int Detail(char *dev, struct context *c)
 					de->d_name);
 				if (load_sys(path, vbuf, sizeof(vbuf)) < 0)
 					continue;
-				if (strncmp(vbuf, "external:", 9) ||
-				    !is_subarray(vbuf + 9) ||
-				    strncmp(vbuf + 10, sra->sys_name, nlen) ||
-				    vbuf[10 + nlen] != '/')
+				if (strncmp(vbuf, MD_VER_EXT, MD_VER_EXT_LEN) ||
+				    !is_subarray(vbuf + MD_VER_EXT_LEN) ||
+				    strncmp(vbuf + MD_VER_EXT_LEN + 1, sra->sys_name, nlen) ||
+				    vbuf[MD_VER_EXT_LEN + 1 + nlen] != '/')
 					continue;
 				devid = devnm2devid(de->d_name);
 				printf(" %s",
