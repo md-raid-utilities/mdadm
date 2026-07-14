@@ -102,6 +102,8 @@ static void free_sys_dev(struct sys_dev **list)
 
 		if ((*list)->path)
 			free((*list)->path);
+		if ((*list)->path_pch)
+			free((*list)->path_pch);
 		free(*list);
 		*list = next;
 	}
@@ -116,14 +118,14 @@ static void free_sys_dev(struct sys_dev **list)
  * IMSM must know VMD domains, therefore it needs to determine and follow buses.
  *
  */
-mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf)
+mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, char *domain)
 {
 	char tmp[PATH_MAX];
 	struct dirent *ent;
 	DIR *vmd_dir;
 	char *rp_ret;
 
-	snprintf(tmp, PATH_MAX, "%s/domain/device", vmd_path);
+	snprintf(tmp, PATH_MAX, "%s/%s/device", vmd_path, domain);
 
 	rp_ret = realpath(tmp, buf);
 
@@ -175,6 +177,9 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 	/* search sysfs for devices driven by 'driver' */
 	char path[PATH_MAX];
 	char link[PATH_MAX];
+	char *domain_cpu = "domain";
+	char *domain_pch = "domain1";
+	bool domain_pch_exists = false;
 	char *c;
 	DIR *driver_dir;
 	struct dirent *de;
@@ -241,7 +246,8 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 				continue;
 			}
 			for (dev = vmd; dev; dev = dev->next) {
-				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0))
+				if ((strncmp(dev->path, rp, strlen(dev->path)) == 0) ||
+					(strncmp(dev->path_pch, rp, strlen(dev->path)) == 0))
 					skip = 1;
 			}
 			free(rp);
@@ -276,11 +282,16 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 			continue;
 
 		if (type == SYS_DEV_VMD) {
-			char vmd_path[PATH_MAX];
+			char vmd_path[PATH_MAX - 8];
+			char vmd_path_pch[PATH_MAX];
 
 			sprintf(vmd_path, "/sys/bus/%s/drivers/%s/%s", bus, driver, de->d_name);
 
-			if (vmd_find_pci_bus(vmd_path, path)) {
+			sprintf(vmd_path_pch, "%s/%s", vmd_path, domain_pch);
+			if (access(vmd_path_pch, F_OK) == 0)
+				domain_pch_exists = true;
+
+			if (vmd_find_pci_bus(vmd_path, path, domain_cpu)) {
 				pr_err("Cannot determine VMD bus for %s\n", vmd_path);
 				continue;
 			}
@@ -312,9 +323,32 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		list->type = type;
 		list->next = NULL;
 		list->path = p;
+		list->path_pch = NULL;
 
 		if ((list->pci_id = strrchr(list->path, '/')) != NULL)
 			list->pci_id++;
+
+		/* if its VMD device and path to PCH domain exists,
+		 * assign the pch path to the vmd node
+		 */
+		if (domain_pch_exists && type == SYS_DEV_VMD) {
+			char vmd_path[PATH_MAX];
+
+			sprintf(path, "/sys/bus/%s/drivers/%s/%s",
+					bus, driver, de->d_name);
+			sprintf(vmd_path, "/sys/bus/%s/drivers/%s/%s",
+					bus, driver, de->d_name);
+			if (vmd_find_pci_bus(vmd_path, path, domain_pch)) {
+				pr_err("Cannot determine VMD bus for %s\n", vmd_path);
+				continue;
+			}
+			p = realpath(path, NULL);
+			if (!p) {
+				pr_err("Unable to get real path for '%s'\n", path);
+				continue;
+			} else
+				list->path_pch = p;
+		}
 	}
 	closedir(driver_dir);
 
@@ -1396,6 +1430,8 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 	struct dirent *ent;
 	DIR *dir;
 	char path[PATH_MAX];
+	char *domain_cpu = "domain";
+	char *domain_pch = "domain1";
 
 	if (!hba)
 		return NULL;
@@ -1408,8 +1444,15 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 		return NULL;
 
 	for (ent = readdir(dir); ent; ent = readdir(dir)) {
-		sprintf(path, "/sys/bus/pci/drivers/vmd/%s/domain/device",
-			ent->d_name);
+		/* pci_id for cpu vmd is pci10000:e0 and its domain is 'domain'
+		 * while pch vmd is pci10000:e1 and its domain is 'domain1'
+		 */
+		if (hba->pci_id[strlen(hba->pci_id) - 1] == '0')
+			sprintf(path, "/sys/bus/pci/drivers/vmd/%s/%s/device",
+					ent->d_name, domain_cpu);
+		else
+			sprintf(path, "/sys/bus/pci/drivers/vmd/%s/%s/device",
+					ent->d_name, domain_pch);
 
 		if (!realpath(path, buf))
 			continue;
