@@ -2222,8 +2222,8 @@ int assemble_container_content(struct supertype *st, int mdfd,
 		set_array_assembly_status(c, result, INCR_NO, &array);
 	else {
 		set_array_assembly_status(c, result, INCR_YES, &array);
-		wait_for(chosen_name, mdfd);
 		sysfs_rules_apply(chosen_name, content, st);
+		wait_for(chosen_name, mdfd);
 	}
 
 	return err;
