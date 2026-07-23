@@ -23,6 +23,7 @@
  */
 
 #include "mdadm.h"
+#include "mapfile.h"
 #include "xmalloc.h"
 
 #include <dirent.h>

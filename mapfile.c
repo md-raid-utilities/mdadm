@@ -43,6 +43,7 @@
  * at compile time via MAP_DIR and MAP_FILE.
  */
 #include	"mdadm.h"
+#include	"mapfile.h"
 #include	"mdstat.h"
 #include	"xmalloc.h"
 
@@ -78,7 +79,7 @@ FILE *open_map(int modenum)
 	return NULL;
 }
 
-int map_write(struct map_ent *mel)
+int map_write(struct map_ent *map)
 {
 	FILE *f;
 	int err;
@@ -87,14 +88,14 @@ int map_write(struct map_ent *mel)
 
 	if (!f)
 		return 0;
-	for (; mel; mel = mel->next) {
-		if (mel->bad)
+	for (; map; map = map->next) {
+		if (map->bad)
 			continue;
-		fprintf(f, "%s ", mel->devnm);
-		fprintf(f, "%s ", mel->metadata);
-		fprintf(f, "%08x:%08x:%08x:%08x ", mel->uuid[0],
-			mel->uuid[1], mel->uuid[2], mel->uuid[3]);
-		fprintf(f, "%s\n", mel->path?:"");
+		fprintf(f, "%s ", map->devnm);
+		fprintf(f, "%s ", map->metadata);
+		fprintf(f, "%08x:%08x:%08x:%08x ", map->uuid[0],
+			map->uuid[1], map->uuid[2], map->uuid[3]);
+		fprintf(f, "%s\n", map->path?:"");
 	}
 	fflush(f);
 	err = ferror(f);
@@ -108,7 +109,7 @@ int map_write(struct map_ent *mel)
 }
 
 static FILE *lf = NULL;
-int map_lock(struct map_ent **melp)
+int map_lock(struct map_ent **mpp)
 {
 	while (lf == NULL) {
 		struct stat buf;
@@ -130,13 +131,13 @@ int map_lock(struct map_ent **melp)
 			lf = NULL;
 		}
 	}
-	if (*melp)
-		map_free(*melp);
-	map_read(melp);
+	if (*mpp)
+		map_free(*mpp);
+	map_read(mpp);
 	return 0;
 }
 
-void map_unlock(struct map_ent **melp)
+void map_unlock(struct map_ent **mpp)
 {
 	if (lf) {
 		/* must unlink before closing the file,
@@ -146,8 +147,8 @@ void map_unlock(struct map_ent **melp)
 		unlink(mapname[2]);
 		fclose(lf);
 	}
-	if (*melp)
-		map_free(*melp);
+	if (*mpp)
+		map_free(*mpp);
 	lf = NULL;
 }
 
@@ -163,7 +164,7 @@ void map_fork(void)
 	}
 }
 
-void map_add(struct map_ent **melp,
+void map_add(struct map_ent **mpp,
 	     char * devnm, char *metadata, int uuid[4], char *path)
 {
 	struct map_ent *me = xmalloc(sizeof(*me));
@@ -172,12 +173,12 @@ void map_add(struct map_ent **melp,
 	snprintf(me->metadata, sizeof(me->metadata), "%s", metadata);
 	memcpy(me->uuid, uuid, 16);
 	me->path = path ? xstrdup(path) : NULL;
-	me->next = *melp;
+	me->next = *mpp;
 	me->bad = 0;
-	*melp = me;
+	*mpp = me;
 }
 
-void map_read(struct map_ent **melp)
+void map_read(struct map_ent **mpp)
 {
 	FILE *f;
 	char buf[8192];
@@ -186,7 +187,7 @@ void map_read(struct map_ent **melp)
 	char devnm[32];
 	char metadata[30];
 
-	*melp = NULL;
+	*mpp = NULL;
 
 	f = open_map(MAP_READ);
 	if (!f) {
@@ -201,7 +202,7 @@ void map_read(struct map_ent **melp)
 		if (sscanf(buf, " %s %s %x:%x:%x:%x %200s",
 			   devnm, metadata, uuid, uuid+1,
 			   uuid+2, uuid+3, path) >= 7) {
-			map_add(melp, devnm, metadata, uuid, path);
+			map_add(mpp, devnm, metadata, uuid, path);
 		}
 	}
 	fclose(f);
@@ -246,41 +247,41 @@ int map_update(struct map_ent **mpp, char *devnm, char *metadata,
 	return rv;
 }
 
-void map_delete(struct map_ent **mapp, char *devnm)
+void map_delete(struct map_ent **mpp, char *devnm)
 {
 	struct map_ent *mp;
 
-	if (*mapp == NULL)
-		map_read(mapp);
+	if (*mpp == NULL)
+		map_read(mpp);
 
-	for (mp = *mapp; mp; mp = *mapp) {
+	for (mp = *mpp; mp; mp = *mpp) {
 		if (strcmp(mp->devnm, devnm) == 0) {
-			*mapp = mp->next;
+			*mpp = mp->next;
 			free(mp->path);
 			free(mp);
 		} else
-			mapp = & mp->next;
+			mpp = &mp->next;
 	}
 }
 
-void map_remove(struct map_ent **mapp, char *devnm)
+void map_remove(struct map_ent **mpp, char *devnm)
 {
 	if (devnm[0] == 0)
 		return;
 
-	map_delete(mapp, devnm);
-	map_write(*mapp);
-	map_free(*mapp);
-	*mapp = NULL;
+	map_delete(mpp, devnm);
+	map_write(*mpp);
+	map_free(*mpp);
+	*mpp = NULL;
 }
 
-struct map_ent *map_by_uuid(struct map_ent **map, int uuid[4])
+struct map_ent *map_by_uuid(struct map_ent **mpp, int uuid[4])
 {
 	struct map_ent *mp;
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (memcmp(uuid, mp->uuid, 16) != 0)
 			continue;
 		if (!mddev_busy(mp->devnm)) {
@@ -292,17 +293,17 @@ struct map_ent *map_by_uuid(struct map_ent **map, int uuid[4])
 	return NULL;
 }
 
-struct map_ent *map_by_devnm(struct map_ent **map, char *devnm)
+struct map_ent *map_by_devnm(struct map_ent **mpp, char *devnm)
 {
 	struct map_ent *mp;
 
 	if (!devnm)
 		return NULL;
 
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (strcmp(mp->devnm, devnm) != 0)
 			continue;
 		if (!mddev_busy(mp->devnm)) {
@@ -314,13 +315,13 @@ struct map_ent *map_by_devnm(struct map_ent **map, char *devnm)
 	return NULL;
 }
 
-struct map_ent *map_by_name(struct map_ent **map, char *name)
+struct map_ent *map_by_name(struct map_ent **mpp, char *name)
 {
 	struct map_ent *mp;
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (!mp->path)
 			continue;
 		if (strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) != 0)

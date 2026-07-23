@@ -23,6 +23,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mapfile.h"
 
 int Query(char *dev)
 {

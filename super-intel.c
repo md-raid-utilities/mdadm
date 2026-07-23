@@ -19,6 +19,7 @@
 
 #define HAVE_STDINT_H 1
 #include "mdadm.h"
+#include "mapfile.h"
 #include "mdstat.h"
 #include "mdmon.h"
 #include "dlink.h"

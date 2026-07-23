@@ -23,6 +23,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mapfile.h"
 #include	"mdstat.h"
 #include	"dlink.h"
 #include	"xmalloc.h"

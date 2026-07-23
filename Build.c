@@ -23,6 +23,7 @@
  */
 
 #include "mdadm.h"
+#include "mapfile.h"
 
 int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	  struct context *c)
