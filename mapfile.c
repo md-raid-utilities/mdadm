@@ -259,8 +259,9 @@ void map_delete(struct map_ent **mpp, char *devnm)
 			*mpp = mp->next;
 			free(mp->path);
 			free(mp);
-		} else
+		} else {
 			mpp = &mp->next;
+		}
 	}
 }
 
