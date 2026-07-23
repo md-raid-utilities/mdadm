@@ -23,6 +23,7 @@
  */
 
 #include	"mdadm.h"
+#include	"mapfile.h"
 #include	"udev.h"
 #include	"xmalloc.h"
 

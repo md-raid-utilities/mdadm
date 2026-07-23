@@ -43,42 +43,47 @@
  * at compile time via MAP_DIR and MAP_FILE.
  */
 #include	"mdadm.h"
+#include	"mapfile.h"
 #include	"mdstat.h"
 #include	"xmalloc.h"
 
 #include	<sys/file.h>
 #include	<ctype.h>
 
-#define MAP_READ 0
-#define MAP_NEW 1
-#define MAP_LOCK 2
-#define MAP_DIRNAME 3
-
-char *mapname[4] = {
-	MAP_DIR "/" MAP_FILE,
-	MAP_DIR "/" MAP_FILE ".new",
-	MAP_DIR "/" MAP_FILE ".lock",
-	MAP_DIR
+enum map_file_mode {
+	MAP_READ = 0,
+	MAP_NEW = 1,
+	MAP_LOCK = 2,
 };
 
-int mapmode[3] = { O_RDONLY, O_RDWR|O_CREAT, O_RDWR|O_CREAT|O_TRUNC };
-char *mapsmode[3] = { "r", "w", "w"};
+struct map_file_desc {
+	const char *name;
+	const char *fmode;
+	int mode;
+};
 
-FILE *open_map(int modenum)
+static const struct map_file_desc map_files[] = {
+	[MAP_READ] = { MAP_DIR "/" MAP_FILE,         "r", O_RDONLY},
+	[MAP_NEW]  = { MAP_DIR "/" MAP_FILE ".new",  "w", O_RDWR|O_CREAT},
+	[MAP_LOCK] = { MAP_DIR "/" MAP_FILE ".lock", "w", O_RDWR|O_CREAT|O_TRUNC},
+};
+
+static FILE *open_map(enum map_file_mode modenum)
 {
 	int fd;
-	if ((mapmode[modenum] & O_CREAT))
+
+	if (map_files[modenum].mode & O_CREAT)
 		/* Attempt to create directory, don't worry about
 		 * failure.
 		 */
-		(void)mkdir(mapname[MAP_DIRNAME], 0755);
-	fd = open(mapname[modenum], mapmode[modenum], 0600);
+		(void)mkdir(MAP_DIR, 0755);
+	fd = open(map_files[modenum].name, map_files[modenum].mode, 0600);
 	if (fd >= 0)
-		return fdopen(fd, mapsmode[modenum]);
+		return fdopen(fd, map_files[modenum].fmode);
 	return NULL;
 }
 
-int map_write(struct map_ent *mel)
+int map_write(struct map_ent *map)
 {
 	FILE *f;
 	int err;
@@ -87,28 +92,27 @@ int map_write(struct map_ent *mel)
 
 	if (!f)
 		return 0;
-	for (; mel; mel = mel->next) {
-		if (mel->bad)
+	for (; map; map = map->next) {
+		if (map->bad)
 			continue;
-		fprintf(f, "%s ", mel->devnm);
-		fprintf(f, "%s ", mel->metadata);
-		fprintf(f, "%08x:%08x:%08x:%08x ", mel->uuid[0],
-			mel->uuid[1], mel->uuid[2], mel->uuid[3]);
-		fprintf(f, "%s\n", mel->path?:"");
+		fprintf(f, "%s ", map->devnm);
+		fprintf(f, "%s ", map->metadata);
+		fprintf(f, "%08x:%08x:%08x:%08x ", map->uuid[0],
+			map->uuid[1], map->uuid[2], map->uuid[3]);
+		fprintf(f, "%s\n", map->path?:"");
 	}
 	fflush(f);
 	err = ferror(f);
 	fclose(f);
 	if (err) {
-		unlink(mapname[1]);
+		unlink(map_files[MAP_NEW].name);
 		return 0;
 	}
-	return rename(mapname[1],
-		      mapname[0]) == 0;
+	return rename(map_files[MAP_NEW].name, map_files[MAP_READ].name) == 0;
 }
 
 static FILE *lf = NULL;
-int map_lock(struct map_ent **melp)
+int map_lock(struct map_ent **mpp)
 {
 	while (lf == NULL) {
 		struct stat buf;
@@ -130,24 +134,24 @@ int map_lock(struct map_ent **melp)
 			lf = NULL;
 		}
 	}
-	if (*melp)
-		map_free(*melp);
-	map_read(melp);
+	if (*mpp)
+		map_free(*mpp);
+	map_read(mpp);
 	return 0;
 }
 
-void map_unlock(struct map_ent **melp)
+void map_unlock(struct map_ent **mpp)
 {
 	if (lf) {
 		/* must unlink before closing the file,
 		 * as only the owner of the lock may
 		 * unlink the file
 		 */
-		unlink(mapname[2]);
+		unlink(map_files[MAP_LOCK].name);
 		fclose(lf);
 	}
-	if (*melp)
-		map_free(*melp);
+	if (*mpp)
+		map_free(*mpp);
 	lf = NULL;
 }
 
@@ -163,7 +167,7 @@ void map_fork(void)
 	}
 }
 
-void map_add(struct map_ent **melp,
+void map_add(struct map_ent **mpp,
 	     char * devnm, char *metadata, int uuid[4], char *path)
 {
 	struct map_ent *me = xmalloc(sizeof(*me));
@@ -172,12 +176,12 @@ void map_add(struct map_ent **melp,
 	snprintf(me->metadata, sizeof(me->metadata), "%s", metadata);
 	memcpy(me->uuid, uuid, 16);
 	me->path = path ? xstrdup(path) : NULL;
-	me->next = *melp;
+	me->next = *mpp;
 	me->bad = 0;
-	*melp = me;
+	*mpp = me;
 }
 
-void map_read(struct map_ent **melp)
+void map_read(struct map_ent **mpp)
 {
 	FILE *f;
 	char buf[8192];
@@ -186,7 +190,7 @@ void map_read(struct map_ent **melp)
 	char devnm[32];
 	char metadata[30];
 
-	*melp = NULL;
+	*mpp = NULL;
 
 	f = open_map(MAP_READ);
 	if (!f) {
@@ -201,7 +205,7 @@ void map_read(struct map_ent **melp)
 		if (sscanf(buf, " %s %s %x:%x:%x:%x %200s",
 			   devnm, metadata, uuid, uuid+1,
 			   uuid+2, uuid+3, path) >= 7) {
-			map_add(melp, devnm, metadata, uuid, path);
+			map_add(mpp, devnm, metadata, uuid, path);
 		}
 	}
 	fclose(f);
@@ -246,41 +250,42 @@ int map_update(struct map_ent **mpp, char *devnm, char *metadata,
 	return rv;
 }
 
-void map_delete(struct map_ent **mapp, char *devnm)
+void map_delete(struct map_ent **mpp, char *devnm)
 {
 	struct map_ent *mp;
 
-	if (*mapp == NULL)
-		map_read(mapp);
+	if (*mpp == NULL)
+		map_read(mpp);
 
-	for (mp = *mapp; mp; mp = *mapp) {
+	for (mp = *mpp; mp; mp = *mpp) {
 		if (strcmp(mp->devnm, devnm) == 0) {
-			*mapp = mp->next;
+			*mpp = mp->next;
 			free(mp->path);
 			free(mp);
-		} else
-			mapp = & mp->next;
+		} else {
+			mpp = &mp->next;
+		}
 	}
 }
 
-void map_remove(struct map_ent **mapp, char *devnm)
+void map_remove(struct map_ent **mpp, char *devnm)
 {
 	if (devnm[0] == 0)
 		return;
 
-	map_delete(mapp, devnm);
-	map_write(*mapp);
-	map_free(*mapp);
-	*mapp = NULL;
+	map_delete(mpp, devnm);
+	map_write(*mpp);
+	map_free(*mpp);
+	*mpp = NULL;
 }
 
-struct map_ent *map_by_uuid(struct map_ent **map, int uuid[4])
+struct map_ent *map_by_uuid(struct map_ent **mpp, int uuid[4])
 {
 	struct map_ent *mp;
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (memcmp(uuid, mp->uuid, 16) != 0)
 			continue;
 		if (!mddev_busy(mp->devnm)) {
@@ -292,17 +297,17 @@ struct map_ent *map_by_uuid(struct map_ent **map, int uuid[4])
 	return NULL;
 }
 
-struct map_ent *map_by_devnm(struct map_ent **map, char *devnm)
+struct map_ent *map_by_devnm(struct map_ent **mpp, char *devnm)
 {
 	struct map_ent *mp;
 
 	if (!devnm)
 		return NULL;
 
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (strcmp(mp->devnm, devnm) != 0)
 			continue;
 		if (!mddev_busy(mp->devnm)) {
@@ -314,13 +319,13 @@ struct map_ent *map_by_devnm(struct map_ent **map, char *devnm)
 	return NULL;
 }
 
-struct map_ent *map_by_name(struct map_ent **map, char *name)
+struct map_ent *map_by_name(struct map_ent **mpp, char *name)
 {
 	struct map_ent *mp;
-	if (!*map)
-		map_read(map);
+	if (!*mpp)
+		map_read(mpp);
 
-	for (mp = *map ; mp ; mp = mp->next) {
+	for (mp = *mpp ; mp ; mp = mp->next) {
 		if (!mp->path)
 			continue;
 		if (strncmp(mp->path, DEV_MD_DIR, DEV_MD_DIR_LEN) != 0)
