@@ -50,32 +50,36 @@
 #include	<sys/file.h>
 #include	<ctype.h>
 
-#define MAP_READ 0
-#define MAP_NEW 1
-#define MAP_LOCK 2
-#define MAP_DIRNAME 3
-
-char *mapname[4] = {
-	MAP_DIR "/" MAP_FILE,
-	MAP_DIR "/" MAP_FILE ".new",
-	MAP_DIR "/" MAP_FILE ".lock",
-	MAP_DIR
+enum map_file_mode {
+	MAP_READ = 0,
+	MAP_NEW = 1,
+	MAP_LOCK = 2,
 };
 
-int mapmode[3] = { O_RDONLY, O_RDWR|O_CREAT, O_RDWR|O_CREAT|O_TRUNC };
-char *mapsmode[3] = { "r", "w", "w"};
+struct map_file_desc {
+	const char *name;
+	const char *fmode;
+	int mode;
+};
 
-FILE *open_map(int modenum)
+static const struct map_file_desc map_files[] = {
+	[MAP_READ] = { MAP_DIR "/" MAP_FILE,         "r", O_RDONLY},
+	[MAP_NEW]  = { MAP_DIR "/" MAP_FILE ".new",  "w", O_RDWR|O_CREAT},
+	[MAP_LOCK] = { MAP_DIR "/" MAP_FILE ".lock", "w", O_RDWR|O_CREAT|O_TRUNC},
+};
+
+static FILE *open_map(enum map_file_mode modenum)
 {
 	int fd;
-	if ((mapmode[modenum] & O_CREAT))
+
+	if (map_files[modenum].mode & O_CREAT)
 		/* Attempt to create directory, don't worry about
 		 * failure.
 		 */
-		(void)mkdir(mapname[MAP_DIRNAME], 0755);
-	fd = open(mapname[modenum], mapmode[modenum], 0600);
+		(void)mkdir(MAP_DIR, 0755);
+	fd = open(map_files[modenum].name, map_files[modenum].mode, 0600);
 	if (fd >= 0)
-		return fdopen(fd, mapsmode[modenum]);
+		return fdopen(fd, map_files[modenum].fmode);
 	return NULL;
 }
 
@@ -101,11 +105,10 @@ int map_write(struct map_ent *map)
 	err = ferror(f);
 	fclose(f);
 	if (err) {
-		unlink(mapname[1]);
+		unlink(map_files[MAP_NEW].name);
 		return 0;
 	}
-	return rename(mapname[1],
-		      mapname[0]) == 0;
+	return rename(map_files[MAP_NEW].name, map_files[MAP_READ].name) == 0;
 }
 
 static FILE *lf = NULL;
@@ -144,7 +147,7 @@ void map_unlock(struct map_ent **mpp)
 		 * as only the owner of the lock may
 		 * unlink the file
 		 */
-		unlink(mapname[2]);
+		unlink(map_files[MAP_LOCK].name);
 		fclose(lf);
 	}
 	if (*mpp)
