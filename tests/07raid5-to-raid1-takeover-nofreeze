@@ -1,0 +1,87 @@
+# RHEL-191802: a 2-disk array taken over raid1 -> raid5 -> raid1 must not
+# come out permanently frozen -- otherwise every later I/O (including
+# umount) stalls forever in raid1's _wait_barrier(). Reproduces the
+# reported scenario directly: I/O between/after each takeover, then
+# unmount. Only the raid5->raid1 leg (raid1_takeover()) is actually
+# affected -- raid1->raid5 is exercised first purely to get there.
+
+# TODO: Replace with a kernel-version gate once the raid1_takeover()
+# array_frozen fix lands upstream
+skip "kernel fix for RHEL-191802 is not upstream yet"
+
+# /var/tmp, not $PWD: $PWD is this NFS-mounted source checkout, which
+# root can't create directories on (confirmed live: "Permission denied").
+mdir=/var/tmp/mnt-raid5-to-raid1-takeover-nofreeze
+
+cleanup_r5tor1_nofreeze()
+{
+	# || true on both: this runs as an EXIT trap under the harness's own
+	# set -e, so a merely-redundant failure here (already unmounted by
+	# the test itself on the success path) would otherwise make the
+	# whole script report as failed despite every real assertion above
+	# having passed -- confirmed live.
+	umount "$mdir" 2>/dev/null || true
+	rmdir "$mdir" 2>/dev/null || true
+}
+trap cleanup_r5tor1_nofreeze EXIT
+
+mkdir -p "$mdir"
+
+mdadm -CR $md0 -l1 -n2 --assume-clean $dev0 $dev1
+mkfs.ext4 -F $md0
+mount $md0 "$mdir"
+
+# Real I/O before the first takeover -- small enough to fit
+dd if=/dev/urandom of="$mdir/data" bs=1M count=4 conv=fsync
+echo 3 > /proc/sys/vm/drop_caches
+[ "$(stat -c %s "$mdir/data" 2>/dev/null)" = "4194304" ] ||
+	die "test file wrong size before first takeover"
+md5sum_before=$(md5sum "$mdir/data" | awk '{print $1}')
+
+mdadm -G $md0 -l5
+
+echo 3 > /proc/sys/vm/drop_caches
+[ "$(md5sum "$mdir/data" | awk '{print $1}')" = "$md5sum_before" ] ||
+	die "data corrupted after raid1->raid5 takeover"
+
+mdadm -G $md0 -l1
+
+# The actual regression check: I/O right after raid5 -> raid1.
+timeout 30 sh -c "echo 3 > /proc/sys/vm/drop_caches; md5sum '$mdir/data' >/tmp/md5-after-$$"
+rv=$?
+if [ $rv -ne 0 ]; then
+	pid=$(pgrep -f "md5sum $mdir/data")
+	if [ -n "$pid" ] && [ -r "/proc/$pid/stack" ]; then
+		echo "Stuck task's kernel stack:"
+		cat "/proc/$pid/stack"
+	fi
+	die "I/O stalled after raid5->raid1 takeover -- RHEL-191802 array_frozen regression"
+fi
+[ "$(awk '{print $1}' /tmp/md5-after-$$)" = "$md5sum_before" ] ||
+	die "data corrupted after raid5->raid1 takeover"
+rm -f /tmp/md5-after-$$
+
+# umount must return promptly, not hang.
+umount "$mdir" &
+umount_pid=$!
+for i in $(seq 1 30); do
+	kill -0 $umount_pid 2>/dev/null || break
+	sleep 1
+done
+if kill -0 $umount_pid 2>/dev/null; then
+	if [ -r "/proc/$umount_pid/stack" ]; then
+		echo "umount's kernel stack after 30s:"
+		cat "/proc/$umount_pid/stack"
+	fi
+	kill -9 $umount_pid 2>/dev/null || true
+	die "umount did not complete within 30s -- RHEL-191802 array_frozen regression"
+fi
+# `|| umount_rv=$?`, not a bare `wait`: wait returns the waited-for job's
+# own exit status as its own, and a bare nonzero statement here would
+# trip the harness's set -e before reaching the die below with a useful
+# message.
+umount_rv=0
+wait $umount_pid || umount_rv=$?
+[ $umount_rv -eq 0 ] || die "umount exited $umount_rv"
+
+mdadm -Ss
