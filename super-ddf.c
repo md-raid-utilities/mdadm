@@ -1242,12 +1242,13 @@ static int load_ddf_local(int fd, struct ddf_super *super,
 			    0);
 	super->conf = conf;
 	vnum = 0;
-	unsigned int sec_len = be32_to_cpu(super->active->config_section_length);
+	unsigned int sec_len =
+	    be32_to_cpu(super->active->config_section_length);
 
 	if (super->conf_rec_len == 0 || super->conf_rec_len > sec_len) {
-	    pr_err("ddf: Invalid configuration record length in metadata\n");
-	    free(conf);
-	    return 1;
+		pr_err("ddf: Invalid configuration record length in metadata\n");
+		free(conf);
+		return 1;
 	}
 
 	for (confsec = 0;
