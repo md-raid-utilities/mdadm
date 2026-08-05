@@ -885,6 +885,18 @@ static void *load_section(int fd, struct ddf_super *super, void *buf,
 	return buf;
 }
 
+static unsigned int ddf_safe_entry_count(size_t section_size,
+			size_t header_size,
+			size_t entry_size,
+			unsigned int claimed_count)
+{
+	unsigned int max_entries;
+
+	if (section_size < header_size)
+		return 0;
+	max_entries = (section_size - header_size) / entry_size;
+	return claimed_count > max_entries ? max_entries : claimed_count;
+}
 
 /*
  * Search for DDF_HEADER_MAGIC in the last 32MB of the device
@@ -1564,6 +1576,7 @@ static void examine_vd(int n, struct ddf_super *sb, char *guid)
 	for (vcl = sb->conflist ; vcl ; vcl = vcl->next) {
 		unsigned int i;
 		struct vd_config *vc = &vcl->conf;
+		unsigned int max_pdes;
 
 		if (!be32_eq(calc_crc(vc, crl*512), vc->crc))
 			continue;
@@ -1573,15 +1586,19 @@ static void examine_vd(int n, struct ddf_super *sb, char *guid)
 		/* Ok, we know about this VD, let's give more details */
 		printf(" Raid Devices[%d] : %d (", n,
 		       be16_to_cpu(vc->prim_elmnt_count));
+		max_pdes = ddf_safe_entry_count(sb->pdsize,
+				offsetof(struct phys_disk, entries),
+				sizeof(sb->phys->entries[0]),
+				be16_to_cpu(sb->phys->max_pdes));
 		for (i = 0; i < be16_to_cpu(vc->prim_elmnt_count); i++) {
-			int j;
-			int cnt = be16_to_cpu(sb->phys->max_pdes);
-			for (j=0; j<cnt; j++)
+			unsigned int j;
+
+			for (j = 0; j < max_pdes; j++)
 				if (be32_eq(vc->phys_refnum[i],
 					    sb->phys->entries[j].refnum))
 					break;
 			if (i) printf(" ");
-			if (j < cnt)
+			if (j < max_pdes)
 				printf("%d", j);
 			else
 				printf("--");
@@ -1610,9 +1627,14 @@ static void examine_vds(struct ddf_super *sb)
 {
 	int cnt = be16_to_cpu(sb->virt->populated_vdes);
 	unsigned int i;
+	unsigned int max_vdes;
 	printf("  Virtual Disks : %d\n", cnt);
 
-	for (i = 0; i < be16_to_cpu(sb->virt->max_vdes); i++) {
+	max_vdes = ddf_safe_entry_count(sb->vdsize,
+			offsetof(struct virtual_disk, entries),
+			sizeof(sb->virt->entries[0]),
+			be16_to_cpu(sb->virt->max_vdes));
+	for (i = 0; i < max_vdes; i++) {
 		struct virtual_entry *ve = &sb->virt->entries[i];
 		if (all_ff(ve->guid))
 			continue;
@@ -1636,17 +1658,22 @@ static void examine_vds(struct ddf_super *sb)
 
 static void examine_pds(struct ddf_super *sb)
 {
-	int cnt = be16_to_cpu(sb->phys->max_pdes);
+	int claimed_cnt = be16_to_cpu(sb->phys->max_pdes);
 	int i;
+	unsigned int cnt;
 	struct dl *dl;
 	int unlisted = 0;
-	printf(" Physical Disks : %d\n", cnt);
+	printf(" Physical Disks : %d\n", claimed_cnt);
 	printf("      Number    RefNo      Size       Device      Type/State\n");
 
 	for (dl = sb->dlist; dl; dl = dl->next)
 		dl->displayed = 0;
 
-	for (i=0 ; i<cnt ; i++) {
+	cnt = ddf_safe_entry_count(sb->pdsize,
+		offsetof(struct phys_disk, entries),
+		sizeof(sb->phys->entries[0]),
+		claimed_cnt);
+	for (i = 0; i < (int)cnt ; i++) {
 		struct phys_disk_entry *pd = &sb->phys->entries[i];
 		int type = be16_to_cpu(pd->type);
 		int state = be16_to_cpu(pd->state);
