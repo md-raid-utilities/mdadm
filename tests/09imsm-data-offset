@@ -1,0 +1,139 @@
+. tests/env-imsm-template
+
+DEVS="$dev0 $dev1"
+DEVICE_SIZE="${dev_sizes[0]}s"
+
+DATA_OFFSET=1M
+DATA_OFFSET_SECTORS=2048
+IMSM_RESERVED_SECTORS=8192
+
+# Use one quarter of the test size and match IMSM's MiB alignment.
+VALID_SIZE=$((size / 4 / 1024 * 1024))
+DATA_OFFSET_SECOND_VOLUME_SECTORS=$((DATA_OFFSET_SECTORS + VALID_SIZE * 2 + IMSM_RESERVED_SECTORS))
+
+# Verify Sector Offset in mdadm -E output matches expected sectors.
+check_sector_offset() {
+	local dev="$1"
+	local expected="$2"
+	local match="$3"
+	local actual
+	actual=$(mdadm -E "$dev" | awk '/Sector Offset/ {print $NF}')
+	if [ "$match" == "last" ]; then
+		actual=$(echo "$actual" | tail -n 1)
+	fi
+	[ "$actual" == "$expected" ] ||
+		die "Sector Offset expected $expected, got $actual"
+}
+
+preconditioning() {
+
+	mdadm -Ss
+
+	mdadm -CR imsm -e imsm -n2 $DEVS ||
+		die "Failed to create imsm container"
+}
+
+preconditioning
+
+# Creating volume with variable offsets
+if mdadm -CR vol -l0 --run --data-offset=variable -z "$VALID_SIZE" -n 2 \
+	"$dev0:$DATA_OFFSET" "$dev1:$DATA_OFFSET"; then
+	die "mdadm should reject variable offsets"
+fi
+grep -q -- "imsm: --data-offset=variable is not supported" "$targetdir/stderr" ||
+	die "Expected variable data-offset error"
+
+# Creating volume with too large offset by devs
+if mdadm -CR vol -l0 --run --data-offset="$DEVICE_SIZE" -z 3M -n 2 $DEVS; then
+	die "mdadm should reject an offset larger than available space"
+fi
+
+# Creating volume with too large offset and max size
+if mdadm -CR vol -l0 --run --data-offset="$DEVICE_SIZE" -n 2 $DEVS; then
+	die "mdadm should reject an offset larger than available space with max size"
+fi
+
+# Creating volume with too large offset and autolayout
+if mdadm -CR vol -l0 --run --data-offset="$DEVICE_SIZE" -z 3M -n 2 "/dev/md/imsm"; then
+	die "mdadm should reject an offset larger than available space with autolayout"
+fi
+
+# Creating volume with too large offset, max size and autolayout
+if mdadm -CR vol -l0 --run --data-offset="$DEVICE_SIZE" -n 2 "/dev/md/imsm"; then
+	die "mdadm should reject an offset larger than available space with max size and autolayout"
+fi
+
+# Creating volume with too large size by devs
+if mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -z "$DEVICE_SIZE" -n 2 $DEVS; then
+	die "mdadm should reject a size larger than available space"
+fi
+
+# Creating volume with too large size by autolayout
+if mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -z "$DEVICE_SIZE" -n 2 "/dev/md/imsm"; then
+	die "mdadm should reject a size larger than available space with autolayout"
+fi
+
+
+# Creating volume with acceptable offset and size by devs
+mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -z "$VALID_SIZE" -n 2 $DEVS ||
+	die "mdadm should create volume with offset"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECTORS"
+
+# Check if offset for the second volume is rejected
+if mdadm -CR vol1 -l0 --run --data-offset="$DATA_OFFSET" -n 2 $DEVS; then
+	die "mdadm should reject data offset for the second volume"
+fi
+grep -q -- "--data-offset is supported only for the first volume" "$targetdir/stderr" ||
+	die "Expected second volume data-offset error"
+
+# Check if no offset for the second volume works correctly
+mdadm -CR vol1 -l0 --run -n 2 $DEVS ||
+	die "mdadm should create second volume"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECOND_VOLUME_SECTORS" last
+
+# Creating volume with acceptable offset and size by autolayout
+preconditioning
+mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -z "$VALID_SIZE" -n 2 "/dev/md/imsm" ||
+	die "mdadm should create volume with offset using autolayout"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECTORS"
+
+# Check if offset for the second volume and autolayout is rejected
+if mdadm -CR vol1 -l0 --run --data-offset="$DATA_OFFSET" -n 2 "/dev/md/imsm"; then
+	die "mdadm should reject data offset for the second volume using autolayout"
+fi
+grep -q -- "--data-offset is supported only for the first volume" "$targetdir/stderr" ||
+	die "Expected second volume data-offset error"
+
+# Check if no offset for the second volume works correctly
+mdadm -CR vol1 -l0 --run -n 2 "/dev/md/imsm" ||
+	die "mdadm should create second volume using autolayout"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECOND_VOLUME_SECTORS" last
+
+
+# Creating imsm volume with no offset by devs
+preconditioning
+mdadm -CR vol -l0 --run -n 2 $DEVS ||
+	die "mdadm should create volume with no offset"
+check_sector_offset "$dev0" 0
+
+
+# Creating imsm volume with no offset by autolayout
+preconditioning
+mdadm -CR vol -l0 --run -n 2 "/dev/md/imsm" ||
+	die "mdadm should create volume with no offset using autolayout"
+check_sector_offset "$dev0" 0
+
+
+# Creating imsm volume with offset and max size by devs
+preconditioning
+mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -n 2 $DEVS ||
+	die "mdadm should create volume with offset and max size"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECTORS"
+
+# Creating imsm volume with offset and max size by autolayout
+preconditioning
+mdadm -CR vol -l0 --run --data-offset="$DATA_OFFSET" -n 2 "/dev/md/imsm" ||
+	die "mdadm should create volume with offset and max size using autolayout"
+check_sector_offset "$dev0" "$DATA_OFFSET_SECTORS"
+
+echo "PASSED"
