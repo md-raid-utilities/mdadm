@@ -86,7 +86,8 @@ static bool imsm_orom_support_raid_disks_count_raid10(const int raid_disks)
 }
 
 static char *VMD_DOMAINS[DOMAIN_COUNT] = {
-	[DOMAIN] = "domain"
+	[DOMAIN] = "domain",
+	[DOMAIN1] = "domain1"
 };
 
 struct imsm_level_ops imsm_level_ops[] = {
@@ -344,6 +345,9 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		list->pci_id = strrchr((char *)(list_head(list->paths)->item), '/');
 		if (list->pci_id != NULL)
 			list->pci_id++;
+
+		if (type == SYS_DEV_VMD)
+			fill_additional_domains(list->paths, vmd_path, bus, driver, de->d_name);
 	}
 	closedir(driver_dir);
 
@@ -356,6 +360,23 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 	}
 
 	return head;
+}
+
+void fill_additional_domains(struct list *paths, char *vmd_path, const char *bus,
+			     const char *driver, char *d_name)
+{
+	char path[PATH_MAX];
+	char *p;
+
+	for (int i = 1; i < DOMAIN_COUNT; i++) {
+		if (vmd_find_pci_bus(vmd_path, path, i))
+			continue;
+		p = realpath(path, NULL);
+		if (!p)
+			continue;
+
+		list_append(paths, p);
+	}
 }
 
 static struct sys_dev *intel_devices=NULL;
@@ -1424,9 +1445,10 @@ int disk_attached_to_hba(int fd, const char *hba_path)
 
 char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 {
-	struct dirent *ent;
-	DIR *dir;
 	char path[PATH_MAX];
+	struct dirent *ent;
+	int domain = 0;
+	DIR *dir;
 
 	if (!hba)
 		return NULL;
@@ -1439,8 +1461,32 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 		return NULL;
 
 	for (ent = readdir(dir); ent; ent = readdir(dir)) {
+		/* Find which domain pci_id belongs to by
+		 * going over paths that domains link to
+		 */
+		for (int i = 0; i < DOMAIN_COUNT; i++) {
+			char dom_path[PATH_MAX];
+			char dom_link[PATH_MAX];
+
+			sprintf(dom_path, "/sys/bus/pci/drivers/vmd/%s/%s",
+					ent->d_name, VMD_DOMAINS[i]);
+			int len = readlink(dom_path, dom_link, sizeof(dom_link) - 1);
+
+			if (len != -1) {
+				char *pci;
+
+				dom_link[len] = '\0';
+				pci = strrchr(dom_link, '/') + 1;
+
+				if (strstr(hba->pci_id, pci) != NULL) {
+					domain = i;
+					break;
+				}
+			}
+		}
+
 		sprintf(path, "/sys/bus/pci/drivers/vmd/%s/%s/device",
-				ent->d_name, VMD_DOMAINS[0]);
+				ent->d_name, VMD_DOMAINS[domain]);
 
 		if (!realpath(path, buf))
 			continue;
