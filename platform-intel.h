@@ -216,6 +216,7 @@ enum sys_dev_type {
 
 enum vmd_domains {
 	DOMAIN = 0,
+	DOMAIN1,
 	DOMAIN_COUNT
 };
 
@@ -276,3 +277,5 @@ struct sys_dev *device_by_id_and_path(__u16 device_id, const char *path);
 int is_multipath_nvme(int disk_fd);
 int imsm_is_nvme_namespace_supported(int disk_fd, int verbose);
 char *vmd_domain_to_controller(struct sys_dev *hba, char *buf);
+void fill_additional_domains(struct list *paths, char *vmd_path, const char *bus,
+							  const char *driver, char *d_name);
