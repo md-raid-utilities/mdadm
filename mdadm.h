@@ -473,6 +473,7 @@ enum special_options {
 	UdevRules,
 	Continue,
 	OffRootOpt,
+	Udev,
 	Prefer,
 	KillOpt,
 	DataOffset,
@@ -1367,6 +1368,7 @@ extern void policyline(char *line, char *type);
 extern void policy_add(char *type, ...);
 extern void policy_free(void);
 
+extern void policy_use_udev(void);
 extern struct dev_policy *path_policy(char **paths, char *type);
 extern struct dev_policy *disk_policy(struct mdinfo *disk);
 extern struct dev_policy *devid_policy(int devid);

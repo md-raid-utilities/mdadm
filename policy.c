@@ -192,10 +192,35 @@ struct dev_policy *pol_find(struct dev_policy *pol, char *name)
 	return pol;
 }
 
+/* Set by --udev when mdadm is run from a udev rule.
+ * During a hot-plug event the persistent /dev/disk/by-path symlinks are not
+ * created until after the rules complete, so scanning that directory yields
+ * nothing.  When set, the by-path names are also taken from the DEVLINKS
+ * variable that udev exports for the event, in addition to scanning the
+ * directory, so device path policy can still be resolved during hot-plug.
+ */
+static int run_from_udev;
+
+void policy_use_udev(void)
+{
+	run_from_udev = 1;
+}
+
+/* Return true if 'name' is among the first 'cnt' entries of 'paths'. */
+static bool paths_contains(char **paths, int cnt, const char *name)
+{
+	int i;
+
+	for (i = 0; i < cnt; i++)
+		if (strcmp(paths[i], name) == 0)
+			return true;
+	return false;
+}
+
 static char **disk_paths(struct mdinfo *disk)
 {
 	struct stat stb;
-	int prefix_len;
+	int prefix_len = strlen("/dev/disk/by-path/");
 	DIR *by_path;
 	char symlink[PATH_MAX] = "/dev/disk/by-path/";
 	char **paths;
@@ -206,7 +231,6 @@ static char **disk_paths(struct mdinfo *disk)
 
 	by_path = opendir(symlink);
 	if (by_path) {
-		prefix_len = strlen(symlink);
 		while ((ent = readdir(by_path)) != NULL) {
 			if (ent->d_type != DT_LNK)
 				continue;
@@ -224,6 +248,36 @@ static char **disk_paths(struct mdinfo *disk)
 		}
 		closedir(by_path);
 	}
+
+	if (run_from_udev) {
+		/* Run from a udev rule: the by-path symlinks may not be created
+		 * on disk until the rules complete, so also take the names from
+		 * the DEVLINKS variable that udev exports for the event,
+		 * skipping any already found by the directory scan above.
+		 */
+		char *devlinks = getenv("DEVLINKS");
+
+		if (devlinks) {
+			char *dup = xstrdup(devlinks);
+			char *link, *save = NULL;
+
+			/* symlink[0..prefix_len] holds the by-path prefix */
+			for (link = strtok_r(dup, " ", &save); link;
+			     link = strtok_r(NULL, " ", &save)) {
+				char *name;
+
+				if (strncmp(link, symlink, prefix_len) != 0)
+					continue;
+				name = link + prefix_len;
+				if (paths_contains(paths, cnt, name))
+					continue;
+				paths[cnt++] = xstrdup(name);
+				paths = xrealloc(paths, sizeof(*paths) * (cnt+1));
+			}
+			free(dup);
+		}
+	}
+
 	paths[cnt] = NULL;
 	return paths;
 }

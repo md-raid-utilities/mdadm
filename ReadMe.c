@@ -109,6 +109,7 @@ struct option long_options[] = {
 	{"update-subarray", 1, 0, UpdateSubarray},
 	{"udev-rules", 2, 0, UdevRules},
 	{"offroot", 0, 0, OffRootOpt},
+	{"udev", 0, 0, Udev},
 	{"examine-badblocks", 0, 0, ExamineBB},
 
 	{"dump", 1, 0, Dump},
@@ -555,6 +556,8 @@ char Help_incr[] =
 "                   : required number of devices, but are not yet started.\n"
 "  --fail        -f : First fail (if needed) and then remove device from\n"
 "                   : any array that it is a member of.\n"
+"  --udev           : Indicate that mdadm is run from a udev rule, not intended\n"
+"                   : for command line use.\n"
 ;
 
 char Help_config[] =

@@ -239,6 +239,10 @@ int main(int argc, char *argv[])
 			/* Silently ignore old option */
 			continue;
 
+		case Udev:
+			policy_use_udev();
+			continue;
+
 		case Prefer:
 			if (c.prefer)
 				free(c.prefer);
