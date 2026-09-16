@@ -805,7 +805,10 @@ char *human_size(long long bytes)
 		snprintf(buf, sizeof(buf), " (%ld.%02ld GiB %ld.%02ld GB)",
 			cGiB/100, cGiB % 100, cGB/100, cGB % 100);
 	} else {
-		long cTiB = (bytes * 200LL / (1LL<<40) + 1) / 2;
+		/* Compute bytes/2^40 * 100 (rounded), avoiding overflow */
+		long long whole = bytes >> 40;
+		long long rem = bytes & ((1LL << 40) - 1);
+		long cTiB = whole * 100 + ((rem * 100LL + (1LL << 39)) >> 40);
 		long cTB  = (bytes / (1000000000000LL / 200LL) + 1) / 2;
 		snprintf(buf, sizeof(buf), " (%ld.%02ld TiB %ld.%02ld TB)",
 			cTiB/100, cTiB % 100, cTB/100, cTB % 100);
@@ -842,7 +845,11 @@ char *human_size_brief(long long bytes, int prefix)
 			snprintf(buf, sizeof(buf), "%ld.%02ldGiB",
 				 cGiB/100, cGiB % 100);
 		} else {
-			long cTiB = (bytes * 200LL / (1LL<<40) + 1) / 2;
+			/* Compute bytes/2^40 * 100 (rounded), w/o overflow */
+			long long whole = bytes >> 40;
+			long long rem = bytes & ((1LL << 40) - 1);
+			long cTiB = whole * 100 +
+				((rem * 100LL + (1LL << 39)) >> 40);
 			snprintf(buf, sizeof(buf), "%ld.%02ldTiB",
 				 cTiB/100, cTiB % 100);
 		}
