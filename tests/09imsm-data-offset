@@ -1,0 +1,92 @@
+DEVS="$dev0 $dev1"
+
+# Verify Sector Offset in mdadm -E output matches expected sectors.
+check_sector_offset() {
+	local dev="$1"
+	local expected="$2"
+	local actual
+	actual=$(./mdadm -E "$dev" | awk '/Sector Offset/ {print $NF}')
+	[[ "$actual" != "$expected" ]] && echo "Test failed: Sector Offset expected $expected, got $actual" && exit 1
+}
+
+mdadm -Ss
+
+mdadm -CR imsm -e imsm -n2 $DEVS
+[[ $? -ne 0 ]] && echo "Failed to create imsm container" && exit 1
+
+# Creating volume with offset by devs
+mdadm -CR vol -l0 --run --data-offset=2G -z 3M -n 2 $DEVS
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create volume with offset" && exit 1
+
+# Creating imsm container and volume with offset and autolayout
+mdadm -CR vol -l0 --run --data-offset=2G -z 3M -n 2 "/dev/md/imsm"
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create volume with offset" && exit 1
+
+# Creating volume with big size by devs
+mdadm -CR vol -l0 --run --data-offset=2M -z 2G -n 2 $DEVS
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create volume with offset" && exit 1
+
+# Creating volume with big size by autolayout
+mdadm -CR vol -l0 --run --data-offset=2M -z 2G -n 2 "/dev/md/imsm"
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create volume with offset" && exit 1
+
+
+# Creating volume with acceptable offset and size by devs
+mdadm -CR vol -l0 --run --data-offset=2M -z 800M -n 2 $DEVS
+[[ $? -ne 0 ]] && echo "Test failed: mdadm should create volume with offset" && exit 1
+check_sector_offset "$dev0" 4096
+
+mdadm -Ss
+
+mdadm -CR imsm -e imsm -n2 $DEVS
+[[ $? -ne 0 ]] && echo "Failed to create imsm container" && exit 1
+
+# Creating volume with acceptable offset and size by autolayout
+mdadm -CR vol -l0 --run --data-offset=2M -z 300M -n 2 "/dev/md/imsm"
+[[ $? -ne 0 ]] && echo "Test failed: mdadm should create volume with offset" && exit 1
+check_sector_offset "$dev0" 4096
+
+
+# Creating second volume with offset by devs
+mdadm -CR vol -l0 --run --data-offset=2M -z 300M -n 2 $DEVS
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create second volume with offset" && exit 1
+
+# Creating second volume with offset by autolayout
+mdadm -CR vol -l0 --run --data-offset=2M -z 300M -n 2 "/dev/md/imsm"
+[[ $? -eq 0 ]] && echo "Test failed: mdadm should have failed to create second volume with offset" && exit 1
+
+mdadm -Ss
+
+mdadm -CR imsm -e imsm -n2 $DEVS
+[[ $? -ne 0 ]] && echo "Failed to create imsm container" && exit 1
+
+# Check if no offset works correctly
+mdadm -CR vol -l0 --run -z 3M -n 2 $DEVS
+[[ $? -ne 0 ]] && echo "Test failed: mdadm should have failed to create volume with offset" && exit 1
+check_sector_offset "$dev0" 0
+
+
+mdadm -Ss
+
+mdadm -CR imsm -e imsm -n2 $DEVS
+[[ $? -ne 0 ]] && echo "Failed to create imsm container" && exit 1
+
+
+# Creating imsm container and volume with no offset by devs
+mdadm -CR vol -l0 --run -z 3M -n 2 $DEVS
+[[ $? -ne 0 ]] && echo "Test failed: mdadm should create volume with no offset" && exit 1
+check_sector_offset "$dev0" 0
+
+
+mdadm -Ss
+
+mdadm -CR imsm -e imsm -n2 $DEVS
+[[ $? -ne 0 ]] && echo "Failed to create imsm container" && exit 1
+
+# Creating imsm container and volume with no offset by autolayout
+mdadm -CR vol -l0 --run -z 3M -n 2 "/dev/md/imsm"
+[[ $? -ne 0 ]] && echo "Test failed: mdadm should create volume with no offset" && exit 1
+check_sector_offset "$dev0" 0
+
+
+echo "PASSED"
