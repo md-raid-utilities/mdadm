@@ -1339,9 +1339,9 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	return 0;
 
  abort:
-	udev_unblock();
 	map_lock(&map);
  abort_locked:
+	udev_unblock();
 	map_remove(&map, fd2devnm(mdfd));
 	map_unlock(&map);
 
