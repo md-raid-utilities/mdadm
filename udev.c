@@ -177,16 +177,21 @@ enum udev_status udev_wait_for_events(int seconds)
  *
  * When array is created, we don't want udev to examine it immediately.
  * Function creates /run/mdadm/creating-mdXXX and expects that udev rule
- * will notice it and act accordingly.
+ * will notice it and act accordingly. Nothing to block if udev is not running.
  *
  * Return:
- * UDEV_STATUS_SUCCESS when successfully blocked udev
+ * UDEV_STATUS_SUCCESS when udev blocked or not running
  * UDEV_STATUS_ERROR on error
  */
 enum udev_status udev_block(char *devnm)
 {
 	int fd;
-	char *path = xcalloc(1, BUFSIZ);
+	char *path;
+
+	if (!udev_is_available())
+		return UDEV_STATUS_SUCCESS;
+
+	path = xcalloc(1, BUFSIZ);
 
 	snprintf(path, BUFSIZ, "/run/mdadm/creating-%s", devnm);
 
@@ -205,11 +210,15 @@ enum udev_status udev_block(char *devnm)
 
 /*
  * udev_unblock() - Unblock udev.
+ *
+ * Does nothing if udev was not blocked, so it is safe on any cleanup path.
  */
 void udev_unblock(void)
 {
-	if (unblock_path)
-		unlink(unblock_path);
+	if (!unblock_path)
+		return;
+
+	unlink(unblock_path);
 	free(unblock_path);
 	unblock_path = NULL;
 }

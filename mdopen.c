@@ -137,9 +137,6 @@ int create_mddev(char *dev, char *name, int trustworthy,
 		return -1;
 	}
 
-	if (!udev_is_available())
-		block_udev = 0;
-
 	if (chosen == NULL)
 		chosen = cbuf;
 
