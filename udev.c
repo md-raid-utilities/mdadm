@@ -87,15 +87,9 @@ static void udev_release(void)
  * Return:
  * UDEV_STATUS_SUCCESS on success
  * UDEV_STATUS_ERROR on error
- * UDEV_STATUS_ERROR_NO_UDEV when udev not available
  */
 static enum udev_status udev_initialize(void)
 {
-	if (!udev_is_available()) {
-		pr_err("No udev.\n");
-		return UDEV_STATUS_ERROR_NO_UDEV;
-	}
-
 	udev = udev_new();
 	if (!udev) {
 		pr_err("Cannot initialize udev.\n");
@@ -133,6 +127,7 @@ static enum udev_status udev_initialize(void)
  * UDEV_STATUS_SUCCESS on detected event
  * UDEV_STATUS_TIMEOUT on timeout
  * UDEV_STATUS_ERROR on error
+ * UDEV_STATUS_ERROR_NO_UDEV when udev is not running, there are no events to wait for
  */
 enum udev_status udev_wait_for_events(int seconds)
 {
@@ -140,6 +135,9 @@ enum udev_status udev_wait_for_events(int seconds)
 	fd_set readfds;
 	struct timeval tv;
 	int ret;
+
+	if (!udev_is_available())
+		return UDEV_STATUS_ERROR_NO_UDEV;
 
 	if (!udev || !udev_monitor) {
 		ret = udev_initialize();

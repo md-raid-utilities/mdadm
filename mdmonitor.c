@@ -370,9 +370,14 @@ static void wait_for_events(int *delay_for_event, int c_delay)
 #ifndef NO_LIBUDEV
 	/* Monitor is long running, re-check on every pass. */
 	udev_detect();
-	if (udev_is_available()) {
-		if (udev_wait_for_events(*delay_for_event) == UDEV_STATUS_ERROR)
-			pr_err("Error while waiting for udev events.\n");
+
+	switch (udev_wait_for_events(*delay_for_event)) {
+	case UDEV_STATUS_ERROR_NO_UDEV:
+		break;
+	case UDEV_STATUS_ERROR:
+		pr_err("Error while waiting for udev events.\n");
+		return;
+	default:
 		return;
 	}
 #endif
