@@ -32,11 +32,29 @@
 #endif
 
 static char *unblock_path;
+static bool udev_running;
 
 /*
- * udev_is_available() - Checks for udev in the system.
+ * udev_detect() - Detects udev in the system and remembers the result.
  *
  * Function looks whether udev directories are available and MDADM_NO_UDEV env defined.
+ * Long running code, like Monitor, may call it again to refresh the result.
+ */
+void udev_detect(void)
+{
+	struct stat stb;
+
+	if (stat("/dev/.udev", &stb) != 0 &&
+	    stat("/run/udev", &stb) != 0) {
+		udev_running = false;
+		return;
+	}
+
+	udev_running = check_env("MDADM_NO_UDEV") != 1;
+}
+
+/*
+ * udev_is_available() - Tells whether udev was available on the last udev_detect().
  *
  * Return:
  * true if udev is available,
@@ -44,14 +62,7 @@ static char *unblock_path;
  */
 bool udev_is_available(void)
 {
-	struct stat stb;
-
-	if (stat("/dev/.udev", &stb) != 0 &&
-	    stat("/run/udev", &stb) != 0)
-		return false;
-	if (check_env("MDADM_NO_UDEV") == 1)
-		return false;
-	return true;
+	return udev_running;
 }
 
 #ifndef NO_LIBUDEV

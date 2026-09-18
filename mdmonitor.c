@@ -368,6 +368,8 @@ int Monitor(struct mddev_dev *devlist,
 static void wait_for_events(int *delay_for_event, int c_delay)
 {
 #ifndef NO_LIBUDEV
+	/* Monitor is long running, re-check on every pass. */
+	udev_detect();
 	if (udev_is_available()) {
 		if (udev_wait_for_events(*delay_for_event) == UDEV_STATUS_ERROR)
 			pr_err("Error while waiting for udev events.\n");
