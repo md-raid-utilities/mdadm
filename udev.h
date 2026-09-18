@@ -28,6 +28,7 @@ enum udev_status {
 	UDEV_STATUS_TIMEOUT
 };
 
+void udev_detect(void);
 bool udev_is_available(void);
 
 #ifndef NO_LIBUDEV
