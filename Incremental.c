@@ -1637,7 +1637,7 @@ static int Incremental_container(struct supertype *st, char *devname,
 		map_free(map);
 		map = NULL;
 		sysname = fd2devnm(mdfd);
-		strncpy(info.sys_name, sysname, sizeof(sysname) - 1);
+		snprintf(info.sys_name, sizeof(info.sys_name), "%s", sysname);
 		close_fd(&mdfd);
 		udev_ready(&info);
 	}
