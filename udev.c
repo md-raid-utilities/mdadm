@@ -210,22 +210,29 @@ enum udev_status udev_block(char *devnm)
  * udev_unblock() - Unblock udev.
  *
  * Does nothing if udev was not blocked, so it is safe on any cleanup path.
+ *
+ * Return: true if udev was blocked, false otherwise.
  */
-void udev_unblock(void)
+bool udev_unblock(void)
 {
 	if (!unblock_path)
-		return;
+		return false;
 
 	unlink(unblock_path);
 	free(unblock_path);
 	unblock_path = NULL;
+	return true;
 }
 
 /*
  * udev_ready() - Unblock udev and signal that the device is ready.
+ *
+ * The uevent belongs to the unblocking, it tells udev to look at the device
+ * it was kept away from. Call sysfs_uevent() directly to refresh udev state
+ * for any other reason.
  */
 void udev_ready(struct mdinfo *sra)
 {
-	udev_unblock();
-	sysfs_uevent(sra, "change");
+	if (udev_unblock())
+		sysfs_uevent(sra, "change");
 }
