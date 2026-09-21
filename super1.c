@@ -2210,6 +2210,14 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 		return 1;
 	}
 
+	if (__le32_to_cpu(super->max_dev) > MAX_DEVS) {
+		if (devname)
+		    pr_err("max_dev (%u) exceeds maximum allowed (%d) in superblock on %s\n",
+			__le32_to_cpu(super->max_dev), MAX_DEVS, devname);
+		free(super);
+		return 2;
+	}
+
 	if (__le32_to_cpu(super->magic) != MD_SB_MAGIC) {
 		if (devname)
 			pr_err("No super block found on %s (Expected magic %08x, got %08x)\n",
