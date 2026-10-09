@@ -1327,15 +1327,15 @@ abort:
  *
  * Return: True if array will be operational, false otherwise.
  */
-bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const int verbose)
+static bool is_remove_safe(mdu_array_info_t *array, const int fd, dev_t devid, const int verbose)
 {
-	dev_t devid = devnm2devid(devname + 5);
 	struct mdinfo *mdi = sysfs_read(fd, NULL, GET_DEVS | GET_DISKS | GET_STATE);
 	struct mdinfo *disk;
 
 	if (!mdi) {
 		if (verbose)
-			pr_err("Failed to read sysfs attributes for %s\n", devname);
+			pr_err("Failed to read sysfs attributes for removal of %d:%d\n",
+			       major(devid), minor(devid));
 		return false;
 	}
 
@@ -1667,7 +1667,7 @@ int Manage_subdevs(char *devname, int fd,
 			break;
 
 		case 'f': /* set faulty */
-			if (!is_remove_safe(&array, fd, dv->devname, verbose)) {
+			if (!is_remove_safe(&array, fd, rdev, verbose)) {
 				pr_err("Cannot remove %s from %s, array will be failed.\n",
 				       dv->devname, devname);
 				close_fd(&sysfd);

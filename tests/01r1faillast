@@ -1,0 +1,39 @@
+# create a RAID1 from partitions, try to fail both legs.
+# mdadm should refuse to fail the second one.
+
+if [[ $DEVTYPE = disk ]]; then
+    SEP=
+else
+    SEP=p
+fi
+
+mdadm -CR $md0 -l1 -n2 --assume-clean $dev2 $dev3
+mdadm $md0 --fail $dev2
+check state _U
+mdadm $md0 --fail $dev3
+[[ $? = 1 ]] || die "mdadm should return 1"
+check state _U
+read _st < /sys/block/md0/md/array_state
+[[ "$_st" = clean ]] || die "array state of $md0 is \"$_st\", should be \"clean\""
+
+mdadm -S $md0
+
+for d in $dev0 $dev1; do
+    sfdisk $d <<EOF
+label:gpt
+2048,,L
+EOF
+    partx -a $d
+done
+udevadm settle
+
+mdadm -CR $md0 -l1 -n2 --assume-clean ${dev0}${SEP}1 ${dev1}${SEP}1
+mdadm $md0 --fail ${dev0}${SEP}1
+check state _U
+mdadm $md0 --fail ${dev1}${SEP}1
+[[ $? = 1 ]] || die "mdadm should return 1"
+check state _U
+read _st < /sys/block/md0/md/array_state
+[[ "$_st" = clean ]] || die "array state of $md0 is \"$_st\", should be \"clean\""
+
+mdadm -S $md0
