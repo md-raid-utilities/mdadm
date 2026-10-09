@@ -18,6 +18,7 @@
  */
 #include <asm/types.h>
 #include <strings.h>
+#include "list.h"
 
 /* according to GUID format: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" */
 #define GUID_STR_MAX	37
@@ -213,9 +214,15 @@ enum sys_dev_type {
 	SYS_DEV_MAX
 };
 
+enum vmd_domains {
+	DOMAIN = 0,
+	DOMAIN1,
+	DOMAIN_COUNT
+};
+
 struct sys_dev {
 	enum sys_dev_type type;
-	char *path;
+	struct list *paths;
 	char *pci_id;
 	__u16  dev_id;
 	__u32  class;
@@ -270,3 +277,5 @@ struct sys_dev *device_by_id_and_path(__u16 device_id, const char *path);
 int is_multipath_nvme(int disk_fd);
 int imsm_is_nvme_namespace_supported(int disk_fd, int verbose);
 char *vmd_domain_to_controller(struct sys_dev *hba, char *buf);
+void fill_additional_domains(struct list *paths, char *vmd_path, const char *bus,
+							  const char *driver, char *d_name);
