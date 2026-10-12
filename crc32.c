@@ -126,7 +126,7 @@ local void make_crc_table OF((void));
   allow for word-at-a-time CRC calculation for both big-endian and little-
   endian machines, where a word is four bytes.
 */
-local void make_crc_table()
+local void make_crc_table(void)
 {
     unsigned long c;
     int n, k;

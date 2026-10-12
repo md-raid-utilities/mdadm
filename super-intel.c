@@ -135,7 +135,7 @@
  * changes the size of a struct
  */
 #define ASSERT_SIZE(_struct, size) \
-static inline void __assert_size_##_struct(void)	\
+static inline void __attribute__((unused)) __assert_size_##_struct(void)	\
 {							\
 	switch (0) {					\
 	case 0: break;					\

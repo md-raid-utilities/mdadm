@@ -11,7 +11,7 @@ char *strncpy(char *dest, const char *src, size_t n) __THROW;
 void *xcalloc(size_t num, size_t size);
 #include	"dlink.h"
 
-void *dl_head()
+void *dl_head(void)
 {
     void *h;
     h = dl_alloc(0);

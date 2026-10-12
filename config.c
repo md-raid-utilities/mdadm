@@ -1119,7 +1119,7 @@ static void append_dlist(struct mddev_dev **dlp, struct mddev_dev *list)
 	*dlp = list;
 }
 
-struct mddev_dev *conf_get_devs()
+struct mddev_dev *conf_get_devs(void)
 {
 	glob_t globbuf;
 	struct conf_dev *cd;

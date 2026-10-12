@@ -308,7 +308,7 @@ int md_get_disk_info(int fd, struct mdu_disk_info_s *disk)
 	return ioctl(fd, GET_DISK_INFO, disk);
 }
 
-int get_linux_version()
+int get_linux_version(void)
 {
 	struct utsname name;
 	char *cp;
