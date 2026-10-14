@@ -249,7 +249,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	    strncmp(sb->set_name, homehost, l) == 0)
 		printf("  (local to host %s)", homehost);
 	printf("\n");
-	if (bms->nodes > 0 &&
+	if (__le32_to_cpu(bms->nodes) > 0 &&
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("   Cluster Name : %-64s\n", bms->cluster_name);
 	atime = __le64_to_cpu(sb->ctime) & 0xFFFFFFFFFFULL;
@@ -330,7 +330,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	} else if (md_feature_any_ppl_on(sb->feature_map)) {
 		printf("            PPL : %u sectors at offset %d sectors from superblock\n",
 		       __le16_to_cpu(sb->ppl.size),
-		       __le16_to_cpu(sb->ppl.offset));
+		       (int16_t)__le16_to_cpu(sb->ppl.offset));
 	}
 	if (sb->feature_map & __cpu_to_le32(MD_FEATURE_RESHAPE_ACTIVE)) {
 		printf("  Reshape pos'n : %llu%s\n", (unsigned long long)
@@ -739,7 +739,7 @@ static void detail_super1(struct supertype *st, char *homehost, char *subarray)
 	if (l > 0 && l < 32 && sb->set_name[l] == ':' &&
 	    strncmp(sb->set_name, homehost, l) == 0)
 		printf("  (local to host %s)", homehost);
-	if (bms->nodes > 0 &&
+	if (__le32_to_cpu(bms->nodes) > 0 &&
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("\n      Cluster Name : %-64s", bms->cluster_name);
 	printf("\n              UUID : ");
@@ -804,7 +804,7 @@ static int examine_badblocks_super1(struct supertype *st, int fd, char *devname)
 		return 0;
 	}
 	offset = __le64_to_cpu(sb->super_offset) +
-		(int)__le32_to_cpu(sb->bblog_offset);
+		(int32_t)__le32_to_cpu(sb->bblog_offset);
 	offset <<= 9;
 	if (lseek(fd, offset, 0) < 0) {
 		pr_err("Cannot seek to bad-blocks list\n");
@@ -891,7 +891,7 @@ static void getinfo_super1(struct supertype *st, struct mdinfo *info, char *map)
 		if (__le32_to_cpu(bsb->nodes) > 1)
 			info->array.state |= (1 << MD_SB_CLUSTERED);
 	} else if (md_feature_any_ppl_on(sb->feature_map)) {
-		info->ppl_offset = __le16_to_cpu(sb->ppl.offset);
+		info->ppl_offset = (int16_t)__le16_to_cpu(sb->ppl.offset);
 		info->ppl_size = __le16_to_cpu(sb->ppl.size);
 		info->ppl_sector = super_offset + info->ppl_offset;
 	}
@@ -1007,7 +1007,7 @@ static void getinfo_super1(struct supertype *st, struct mdinfo *info, char *map)
 	}
 
 	if (sb->feature_map & __le32_to_cpu(MD_FEATURE_RECOVERY_OFFSET))
-		info->recovery_start = __le32_to_cpu(sb->recovery_offset);
+		info->recovery_start = __le64_to_cpu(sb->recovery_offset);
 	else
 		info->recovery_start = MaxSector;
 
@@ -1250,7 +1250,8 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 		break;
 	case UOPT_NO_BITMAP:
 		sb->feature_map &= ~__cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
-		if (bms->version == BITMAP_MAJOR_CLUSTERED && !IsBitmapDirty(devname))
+		if (__le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED &&
+		    !IsBitmapDirty(devname))
 			sb->resync_offset = MaxSector;
 		break;
 	case UOPT_BBL: {
@@ -1264,10 +1265,10 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 		long space;
 
 		if (sb->feature_map & __cpu_to_le32(MD_FEATURE_BITMAP_OFFSET)) {
-			bitmap_offset = (long)__le32_to_cpu(sb->bitmap_offset);
+			bitmap_offset = (int32_t)__le32_to_cpu(sb->bitmap_offset);
 			bm_sectors = calc_bitmap_size(bms, 4096) >> 9;
 		} else if (md_feature_any_ppl_on(sb->feature_map)) {
-			bitmap_offset = (long)__le16_to_cpu(sb->ppl.offset);
+			bitmap_offset = (int16_t)__le16_to_cpu(sb->ppl.offset);
 			bm_sectors = (long)__le16_to_cpu(sb->ppl.size);
 		}
 
@@ -1319,7 +1320,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 		unsigned long long sb_offset = __le64_to_cpu(sb->super_offset);
 		unsigned long long data_offset = __le64_to_cpu(sb->data_offset);
 		unsigned long long data_size = __le64_to_cpu(sb->data_size);
-		long bb_offset = __le32_to_cpu(sb->bblog_offset);
+		long bb_offset = (int32_t)__le32_to_cpu(sb->bblog_offset);
 		int space;
 		int offset;
 
@@ -1817,7 +1818,7 @@ static int write_empty_r5l_meta_block(struct supertype *st, int fd)
 
 	crc = crc32c_le(0xffffffff, sb->set_uuid, sizeof(sb->set_uuid));
 	crc = crc32c_le(crc, (void *)mb, META_BLOCK_SIZE);
-	mb->checksum = crc;
+	mb->checksum = __cpu_to_le32(crc);
 
 	if (lseek(fd, __le64_to_cpu(sb->data_offset) * 512, 0) < 0LL) {
 		pr_err("cannot seek to offset of the meta block\n");
@@ -1952,7 +1953,7 @@ static int write_init_super1(struct supertype *st)
 			bitmap_super_t *bms = (bitmap_super_t *)
 					(((char *)sb) + MAX_SB_SIZE);
 			bm_space = calc_bitmap_size(bms, 4096) >> 9;
-			bm_offset = (long)__le32_to_cpu(sb->bitmap_offset);
+			bm_offset = (int32_t)__le32_to_cpu(sb->bitmap_offset);
 		} else if (md_feature_any_ppl_on(sb->feature_map)) {
 			bm_space = MULTIPLE_PPL_AREA_SIZE_SUPER1 >> 9;
 			if (st->minor_version == 0)
@@ -2569,7 +2570,7 @@ add_internal_bitmap1(struct supertype *st,
 		bms->state = __cpu_to_le32(1 << BITMAP_FIRST_USE);
 		if (assume_clean)
 			bms->state |= __cpu_to_le32(1 << BITMAP_CLEAN);
-		bms->sectors_reserved = __le32_to_cpu(room);
+		bms->sectors_reserved = __cpu_to_le32(room);
 	}
 	*chunkp = chunk;
 	return 0;
@@ -2635,12 +2636,12 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 	case NodeNumUpdate:
 		/* cluster md only supports superblock 1.2 now */
 		if (st->minor_version != 2 &&
-		    bms->version == BITMAP_MAJOR_CLUSTERED) {
+		    __le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED) {
 			pr_err("Warning: cluster md only works with superblock 1.2\n");
 			return -EINVAL;
 		}
 
-		if (bms->version == BITMAP_MAJOR_CLUSTERED) {
+		if (__le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED) {
 			if (st->nodes == 1) {
 				/* the parameter for nodes is not valid */
 				pr_err("Warning: cluster-md at least needs two nodes\n");
@@ -2651,7 +2652,8 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 				 * clustered raid)
 				 */
 				break;
-			} else if (__cpu_to_le32(st->nodes) < bms->nodes) {
+			} else if ((unsigned int)st->nodes <
+				   __le32_to_cpu(bms->nodes)) {
 				/*
 				 * Since the nodes num is not increased, no
 				 * need to check the space enough or not,
@@ -2887,7 +2889,7 @@ void *super1_make_v0(struct supertype *st, struct mdinfo *info, mdp_super_t *sb0
 
 	copy_uuid(sb->set_uuid, info->uuid, super1.swapuuid);
 	sprintf(sb->set_name, "%d", sb0->md_minor);
-	sb->ctime = __cpu_to_le32(info->array.ctime + 1);
+	sb->ctime = __cpu_to_le64(info->array.ctime + 1);
 	sb->level = __cpu_to_le32(info->array.level);
 	sb->layout = __cpu_to_le32(info->array.layout);
 	sb->size = __cpu_to_le64(info->component_size);
@@ -2896,7 +2898,8 @@ void *super1_make_v0(struct supertype *st, struct mdinfo *info, mdp_super_t *sb0
 	if (info->array.level > 0)
 		sb->data_size = sb->size;
 	else
-		sb->data_size = st->ss->avail_size(st, st->devsize / 512, 0);
+		sb->data_size = __cpu_to_le64(st->ss->avail_size(st,
+								 st->devsize / 512, 0));
 	sb->resync_offset = MaxSector;
 	sb->max_dev = __cpu_to_le32(MD_SB_DISKS);
 	sb->dev_number = __cpu_to_le32(info->disk.number);
