@@ -110,6 +110,7 @@ int Detail(char *dev, struct context *c)
 	struct mdinfo *subdev;
 	int is_container = 0;
 	char *member = NULL;
+	char timebuf[32];
 	int avail_disks = 0;
 	char *avail = NULL;
 	struct stat stb;
@@ -484,7 +485,8 @@ int Detail(char *dev, struct context *c)
 
 		atime = array.ctime;
 		if (atime)
-			printf("     Creation Time : %.24s\n", ctime(&atime));
+			printf("     Creation Time : %.24s\n",
+			       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
 		if (is_container)
 			str = "container";
 		if (str)
@@ -536,7 +538,8 @@ int Detail(char *dev, struct context *c)
 			printf("     Intent Bitmap : Internal\n\n");
 		atime = array.utime;
 		if (atime)
-			printf("       Update Time : %.24s\n", ctime(&atime));
+			printf("       Update Time : %.24s\n",
+			       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
 		if (array.raid_disks) {
 			static char *sync_action[] = {
 				", recovering",  ", resyncing",

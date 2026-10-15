@@ -665,10 +665,11 @@ int check_reiser(int fd, char *name)
 
 int check_raid(int fd, char *name)
 {
+	struct supertype *st = guess_super(fd);
 	struct mdinfo info;
+	char timebuf[32];
 	time_t crtime;
 	char *level;
-	struct supertype *st = guess_super(fd);
 
 	if (!st)
 		return 0;
@@ -683,7 +684,8 @@ int check_raid(int fd, char *name)
 		if (!level)
 			level = "-unknown-";
 		cont_err("level=%s devices=%d ctime=%s",
-			level, info.array.raid_disks, ctime(&crtime));
+			level, info.array.raid_disks,
+			ctime_r(&crtime, timebuf) ? timebuf : "Unknown\n");
 	} else {
 		/* Looks like GPT or MBR */
 		pr_err("partition table exists on %s\n", name);

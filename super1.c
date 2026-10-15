@@ -211,18 +211,19 @@ static void examine_super1(struct supertype *st, char *homehost)
 {
 	struct mdp_superblock_1 *sb = st->sb;
 	bitmap_super_t *bms = (bitmap_super_t *)(((char *)sb) + MAX_SB_SIZE);
-	time_t atime;
-	unsigned int d;
-	int role;
-	int delta_extra = 0;
-	int i;
-	char *c;
 	int l = homehost ? strlen(homehost) : 0;
-	int layout;
-	unsigned long long sb_offset;
-	struct mdinfo info;
-	int inconsistent = 0;
 	unsigned int expected_csum = 0;
+	unsigned long long sb_offset;
+	int inconsistent = 0;
+	int delta_extra = 0;
+	struct mdinfo info;
+	char timebuf[32];
+	unsigned int d;
+	time_t atime;
+	int layout;
+	int role;
+	char *c;
+	int i;
 
 	expected_csum = calc_sb_1_csum(sb);
 
@@ -253,7 +254,8 @@ static void examine_super1(struct supertype *st, char *homehost)
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("   Cluster Name : %-64s\n", bms->cluster_name);
 	atime = __le64_to_cpu(sb->ctime) & 0xFFFFFFFFFFULL;
-	printf("  Creation Time : %.24s\n", ctime(&atime));
+	printf("  Creation Time : %.24s\n",
+	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
 	c=map_num(pers, __le32_to_cpu(sb->level));
 	printf("     Raid Level : %s\n", c?c:"-unknown-");
 	printf("   Raid Devices : %d\n", __le32_to_cpu(sb->raid_disks));
@@ -386,7 +388,8 @@ static void examine_super1(struct supertype *st, char *homehost)
 	}
 
 	atime = __le64_to_cpu(sb->utime) & 0xFFFFFFFFFFULL;
-	printf("    Update Time : %.24s\n", ctime(&atime));
+	printf("    Update Time : %.24s\n",
+	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
 
 	if (sb->bblog_size && sb->bblog_offset) {
 		printf("  Bad Block Log : %d entries available at offset %ld sectors",
