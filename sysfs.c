@@ -218,14 +218,21 @@ int sysfs_open_memb_attr(char *array_devnm, char *memb_devnm, char *attr, int of
 int sysfs_open(char *devnm, char *devname, char *attr)
 {
 	char fname[MAX_SYSFS_PATH_LEN];
-	int fd;
+	int fd, len;
 
-	snprintf(fname, MAX_SYSFS_PATH_LEN, "/sys/block/%s/md/", devnm);
-	if (devname) {
-		strncat(fname, devname, MAX_SYSFS_PATH_LEN - strlen(fname));
-		strncat(fname, "/", MAX_SYSFS_PATH_LEN - strlen(fname));
+	if (devname)
+		len = snprintf(fname, sizeof(fname), "/sys/block/%s/md/%s/%s",
+			       devnm, devname, attr);
+	else
+		len = snprintf(fname, sizeof(fname), "/sys/block/%s/md/%s", devnm, attr);
+
+	if (len < 0)
+		return -1;
+	if (len >= MAX_SYSFS_PATH_LEN) {
+		errno = ENAMETOOLONG;
+		return -1;
 	}
-	strncat(fname, attr, MAX_SYSFS_PATH_LEN - strlen(fname));
+
 	fd = open(fname, O_RDWR);
 	if (fd < 0 && errno == EACCES)
 		fd = open(fname, O_RDONLY);
