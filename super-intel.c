@@ -2211,15 +2211,17 @@ static void getinfo_super_imsm(struct supertype *st, struct mdinfo *info, char *
 static void examine_super_imsm(struct supertype *st, char *homehost)
 {
 	struct intel_super *super = st->sb;
+	__u32 reserved = imsm_reserved_sectors(super, super->disks);
+	const char *creation_time_str = "Unknown";
 	struct imsm_super *mpb = super->anchor;
 	char str[MAX_SIGNATURE_LENGTH];
-	int i;
+	time_t creation_time;
 	struct mdinfo info;
+	char timebuf[32];
+	struct dl *dl;
 	char nbuf[64];
 	__u32 sum;
-	__u32 reserved = imsm_reserved_sectors(super, super->disks);
-	struct dl *dl;
-	time_t creation_time;
+	int i;
 
 	strncpy(str, (char *)mpb->sig, MPB_SIG_LEN);
 	str[MPB_SIG_LEN-1] = '\0';
@@ -2229,8 +2231,9 @@ static void examine_super_imsm(struct supertype *st, char *homehost)
 	printf("         Family : %08x\n", __le32_to_cpu(mpb->family_num));
 	printf("     Generation : %08x\n", __le32_to_cpu(mpb->generation_num));
 	creation_time = __le64_to_cpu(mpb->creation_time);
-	printf("  Creation Time : %.24s\n",
-		creation_time ? ctime(&creation_time) : "Unknown");
+	if (creation_time && ctime_r(&creation_time, timebuf))
+		creation_time_str = timebuf;
+	printf("  Creation Time : %.24s\n", creation_time_str);
 
 	printf("     Attributes : %08x (%s)\n", mpb->attributes,
 	       imsm_check_attributes(mpb->attributes) ? "supported" : "not supported");
