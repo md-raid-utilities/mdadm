@@ -528,9 +528,9 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 			}
 		}
 		if (options & GET_ERROR) {
-			strcpy(buf, "errors");
 			if (load_sys(fname, buf, sizeof(buf)))
 				goto abort;
+			strcpy(dbase, "errors");
 			dev->errors = strtoul(buf, NULL, 0);
 		}
 	}
