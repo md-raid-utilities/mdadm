@@ -756,7 +756,6 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	 * '1' if the array is degraded, or '0' if it is optimal (or dead).
 	 */
 	struct { int state, major, minor; } disks_info[MAX_DISKS];
-	struct mdinfo *sra = NULL;
 	mdu_array_info_t array;
 	struct mdstat_ent *mse = NULL, *mse2;
 	char *dev = st->devname;
@@ -767,7 +766,6 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	int new_array = 0;
 	int retval;
 	int is_container = 0;
-	unsigned long redundancy_only_flags = 0;
 
 	if (info.test)
 		alert(EVENT_TEST_MESSAGE, NULL, 0, dev, NULL);
@@ -807,19 +805,10 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	if (md_get_array_info(fd, &array) < 0)
 		goto disappeared;
 
-	if (!is_container && map_name(pers, mse->level) > 0)
-		redundancy_only_flags |= GET_MISMATCH;
-
-	sra = sysfs_read(-1, st->devnm, GET_LEVEL | GET_DISKS | GET_DEVS |
-			GET_STATE | redundancy_only_flags);
-
-	if (!sra)
-		goto disappeared;
-
 	/* It's much easier to list what array levels can't
 	 * have a device disappear than all of them that can
 	 */
-	if (sra->array.level == 0 || sra->array.level == -1) {
+	if (array.level == 0 || array.level == -1) {
 		if (!st->err && !st->from_config)
 			alert(EVENT_DEVICE_DISAPPEARED, "Wrong-Level", 0, dev, NULL);
 		st->err++;
@@ -841,9 +830,9 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 			alert(EVENT_NEW_ARRAY, NULL, 0, st->devname, NULL);
 	}
 
-	if (st->utime == array.utime && st->failed == sra->array.failed_disks &&
-	    st->working == sra->array.working_disks &&
-	    st->spare == sra->array.spare_disks &&
+	if (st->utime == array.utime && st->failed == array.failed_disks &&
+	    st->working == array.working_disks &&
+	    st->spare == array.spare_disks &&
 	    (mse == NULL || (mse->percent == st->percent))) {
 		if ((st->active < st->raid) && st->spare == 0)
 			retval = 1;
@@ -854,7 +843,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 		alert(EVENT_DEGRADED_ARRAY, NULL, 0, dev, NULL);
 
 	if (st->utime == 0 && /* new array */ st->expected_spares > 0 &&
-	    sra->array.spare_disks < st->expected_spares)
+	    array.spare_disks < st->expected_spares)
 		alert(EVENT_SPARES_MISSING, NULL, 0, dev, NULL);
 	if (st->percent < 0 && st->percent != RESYNC_UNKNOWN &&
 	    mse->percent >= 0)
@@ -868,22 +857,29 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	}
 
 	if (mse->percent == RESYNC_NONE && st->percent >= 0) {
+		struct mdinfo *sra = NULL;
+
 		/* Rebuild/sync/whatever just finished.
 		 * If there is a number in /mismatch_cnt,
 		 * we should report that.
 		 */
+		if (!is_container && map_name(pers, mse->level) > 0)
+			sra = sysfs_read(-1, st->devnm, GET_MISMATCH);
 		if (sra && sra->mismatch_cnt > 0) {
 			char cnt[80];
 			snprintf(cnt, sizeof(cnt),
 				 " mismatches found: %d (on raid level %d)",
-				 sra->mismatch_cnt, sra->array.level);
+				 sra->mismatch_cnt, array.level);
 			alert(EVENT_REBUILD_FINISHED, NULL, 0, dev, cnt);
 		} else
 			alert(EVENT_REBUILD_FINISHED, NULL, 0, dev, NULL);
+		if (sra)
+			sysfs_free(sra);
+
 	}
 	st->percent = mse->percent;
 
-	remaining_disks = sra->array.nr_disks;
+	remaining_disks = array.nr_disks;
 	for (i = 0; i < MAX_DISKS && remaining_disks > 0; i++) {
 		mdu_disk_info_t disc;
 		disc.number = i;
@@ -944,19 +940,17 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 		st->devstate[i] = newstate;
 		st->devid[i] = makedev(disc.major, disc.minor);
 	}
-	st->active = sra->array.active_disks;
-	st->working = sra->array.working_disks;
-	st->spare = sra->array.spare_disks;
-	st->failed = sra->array.failed_disks;
+	st->active = array.active_disks;
+	st->working = array.working_disks;
+	st->spare = array.spare_disks;
+	st->failed = array.failed_disks;
 	st->utime = array.utime;
-	st->raid = sra->array.raid_disks;
+	st->raid = array.raid_disks;
 	st->err = 0;
 	if ((st->active < st->raid) && st->spare == 0)
 		retval = 1;
 
  out:
-	if (sra)
-		sysfs_free(sra);
 	if (fd >= 0)
 		close(fd);
 	return retval;
