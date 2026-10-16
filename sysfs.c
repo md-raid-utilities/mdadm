@@ -48,13 +48,17 @@ struct dev_sysfs_rule {
 int load_sys(char *path, char *buf, int len)
 {
 	int fd = open(path, O_RDONLY);
-	int n;
+	int n, err;
 	if (fd < 0)
-		return -1;
+		return -errno;
 	n = read(fd, buf, len);
+	if (n < 0)
+		err = -errno;
 	close(fd);
-	if (n <0 || n >= len)
-		return -1;
+	if (n < 0)
+		return err;
+	if (n >= len)
+		return -EOVERFLOW;
 	buf[n] = 0;
 	if (n && buf[n-1] == '\n')
 		buf[n-1] = 0;
