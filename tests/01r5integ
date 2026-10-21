@@ -27,7 +27,8 @@ do
      exit 1
     fi
     mdadm $md0 -a $i
-    while ! (check state 'U*'); do check wait; sleep 0.2; done
+    check wait
+    check state 'UUUU'
   done
   mdadm -S $md0
 done
