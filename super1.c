@@ -325,8 +325,10 @@ static void examine_super1(struct supertype *st, char *homehost)
 	printf("\n");
 	printf("\n");
 	if (sb->feature_map & __cpu_to_le32(MD_FEATURE_BITMAP_OFFSET)) {
-		printf("Internal Bitmap : %ld sectors from superblock\n",
-		       (long)(int32_t)__le32_to_cpu(sb->bitmap_offset));
+		printf("Internal Bitmap : %ld sectors from superblock%s\n",
+		       (long)(int32_t)__le32_to_cpu(sb->bitmap_offset),
+		       __le32_to_cpu(bms->version) == BITMAP_MAJOR_LOCKLESS ?
+		       " (lockless)" : "");
 	} else if (md_feature_any_ppl_on(sb->feature_map)) {
 		printf("            PPL : %u sectors at offset %d sectors from superblock\n",
 		       __le16_to_cpu(sb->ppl.size),

@@ -70,10 +70,26 @@ static const char *human_chunksize(unsigned long bytes)
 	return buf;
 }
 
+/*
+ * Lockless bitmap stores one byte per chunk, holding the chunk state,
+ * starting 1024 bytes after the bitmap superblock. Names follow
+ * enum llbitmap_state in drivers/md/md-llbitmap.c.
+ */
+#define LLBITMAP_DATA_OFFSET 1024
+
+static const char * const llbitmap_state_names[] = {
+	"Unwritten", "Clean", "Dirty", "NeedSync", "Syncing",
+	"NeedSyncUnwritten", "SyncingUnwritten", "CleanUnwritten",
+};
+
+#define LLBITMAP_NR_STATES ARRAY_SIZE(llbitmap_state_names)
+
 typedef struct bitmap_info_s {
 	bitmap_super_t sb;
 	unsigned long long total_bits;
 	unsigned long long dirty_bits;
+	/* lockless bitmap only, last slot counts unknown states */
+	unsigned long long llbitmap_states[LLBITMAP_NR_STATES + 1];
 } bitmap_info_t;
 
 /* count the dirty bits in the first num_bits of byte */
@@ -109,6 +125,57 @@ static int count_dirty_bits(char *buf, int num_bits)
 	return num;
 }
 
+/**
+ * llbitmap_count_states() - count lockless bitmap chunks per state.
+ * @fd: bitmap fd, positioned after the first read.
+ * @info: bitmap info, superblock already converted to CPU byte order.
+ * @buf: 8192 byte aligned buffer holding the first read.
+ * @n: number of bytes in @buf.
+ *
+ * Lockless bitmap chunksize is in sectors, not bytes.
+ */
+static void llbitmap_count_states(int fd, bitmap_info_t *info,
+				  unsigned char *buf, ssize_t n)
+{
+	unsigned long long chunks, read_chunks = 0;
+	ssize_t skip = LLBITMAP_DATA_OFFSET;
+
+	chunks = (info->sb.sync_size + info->sb.chunksize - 1) /
+		 info->sb.chunksize;
+
+	while (read_chunks < chunks) {
+		unsigned long long remaining = chunks - read_chunks;
+		unsigned long long i;
+
+		if (skip >= n) {
+			if (n < LLBITMAP_DATA_OFFSET)
+				break;
+			n = read(fd, buf, 8192);
+			skip = 0;
+			if (n <= 0)
+				break;
+		}
+		if (remaining > (unsigned long long)(n - skip))
+			remaining = n - skip;
+
+		for (i = 0; i < remaining; i++) {
+			unsigned char state = buf[skip + i];
+
+			if (state >= LLBITMAP_NR_STATES)
+				state = LLBITMAP_NR_STATES;
+			info->llbitmap_states[state]++;
+		}
+
+		read_chunks += remaining;
+		skip = n;
+	}
+
+	if (read_chunks < chunks)
+		pr_err("WARNING: bitmap file is not large enough for array size %llu!\n\n",
+			(unsigned long long)info->sb.sync_size);
+	info->total_bits = read_chunks;
+}
+
 static bitmap_info_t *bitmap_fd_read(int fd, int brief)
 {
 	/* Note: fd might be open O_DIRECT, so we must be
@@ -125,7 +192,7 @@ static bitmap_info_t *bitmap_fd_read(int fd, int brief)
 	}
 	n = read(fd, buf, 8192);
 
-	info = xmalloc(sizeof(*info));
+	info = xcalloc(1, sizeof(*info));
 
 	if (n < sizeof(info->sb)) {
 		pr_err("failed to read superblock of bitmap file: %s\n", strerror(errno));
@@ -140,6 +207,12 @@ static bitmap_info_t *bitmap_fd_read(int fd, int brief)
 
 	if (brief || info->sb.sync_size == 0 || info->sb.chunksize == 0)
 		goto out;
+
+	if (info->sb.version == BITMAP_MAJOR_LOCKLESS) {
+		llbitmap_count_states(fd, info, buf, n);
+		free(buf);
+		return info;
+	}
 
 	/* read the rest of the file counting total bits and dirty bits --
 	 * we stop when either:
@@ -281,7 +354,7 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 	}
 	printf("         Version : %d\n", sb->version);
 	if (sb->version < BITMAP_MAJOR_LO ||
-	    sb->version > BITMAP_MAJOR_CLUSTERED) {
+	    sb->version > BITMAP_MAJOR_LOCKLESS) {
 		pr_err("unknown bitmap version %d, either the bitmap file\n",
 		       sb->version);
 		pr_err("is corrupted or you need to upgrade your tools\n");
@@ -318,7 +391,11 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 
 	}
 
-	printf("       Chunksize : %s\n", human_chunksize(sb->chunksize));
+	if (sb->version == BITMAP_MAJOR_LOCKLESS)
+		printf("       Chunksize : %s\n",
+		       human_chunksize((unsigned long)sb->chunksize << 9));
+	else
+		printf("       Chunksize : %s\n", human_chunksize(sb->chunksize));
 	printf("          Daemon : %ds flush period\n", sb->daemon_sleep);
 	if (sb->write_behind)
 		sprintf(buf, "Allow write behind, max %d", sb->write_behind);
@@ -328,7 +405,23 @@ int ExamineBitmap(char *filename, int brief, struct supertype *st)
 	printf("       Sync Size : %llu%s\n", (unsigned long long)sb->sync_size/2,
 					human_size(sb->sync_size * 512));
 
-	if (sb->nodes == 0) {
+	if (sb->version == BITMAP_MAJOR_LOCKLESS) {
+		const char *sep = " (";
+
+		if (brief)
+			goto free_info;
+		printf("          Bitmap : %llu chunks", info->total_bits);
+		for (i = 0; i <= (int)LLBITMAP_NR_STATES; i++) {
+			if (!info->llbitmap_states[i])
+				continue;
+			printf("%s%s %llu", sep,
+			       i < (int)LLBITMAP_NR_STATES ?
+			       llbitmap_state_names[i] : "Unknown",
+			       info->llbitmap_states[i]);
+			sep = ", ";
+		}
+		printf("%s\n", info->total_bits ? ")" : "");
+	} else if (sb->nodes == 0) {
 		if (brief)
 			goto free_info;
 		printf("          Bitmap : %llu bits (chunks), %llu dirty (%2.1f%%)\n",
