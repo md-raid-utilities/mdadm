@@ -1,0 +1,71 @@
+# Assemble() must not free the configuration supertype: scan_assemble()
+# reuses it when retrying an active array after starting another array.
+
+scan_check_array()
+{
+	local array=$1 uuid=$2 actual_uuid member
+	shift 2
+
+	mdadm --detail --test "$array" > /dev/null ||
+		die "$array is not fully operational"
+	actual_uuid=$(mdadm --detail --export "$array" | sed -n 's/^MD_UUID=//p')
+	[ "$actual_uuid" = "$uuid" ] || die "$array has an unexpected UUID"
+
+	for member in "$@"; do
+		[ -e "/sys/block/${array##*/}/slaves/$(basename "$(readlink -f "$member")")" ] ||
+			die "$member is not a member of $array"
+	done
+}
+
+mdadm -CR "$md0" --metadata=1.2 --level=1 --raid-devices=2 \
+	--assume-clean "$dev0" "$dev1" || die "Cannot create $md0"
+mdadm -CR "$md1" --metadata=1.2 --level=1 --raid-devices=2 \
+	--assume-clean "$dev2" "$dev3" || die "Cannot create $md1"
+
+uuid0=$(mdadm --detail --export "$md0" | sed -n 's/^MD_UUID=//p')
+uuid1=$(mdadm --detail --export "$md1" | sed -n 's/^MD_UUID=//p')
+[ -n "$uuid0" ] && [ -n "$uuid1" ] || die "Cannot obtain array UUIDs"
+
+conf=$targetdir/assemble-scan-retry.conf
+scan_log=$targetdir/assemble-scan-retry.log
+{
+	echo "DEVICE $dev0 $dev1 $dev2 $dev3"
+	echo "ARRAY $md0 metadata=1.2 UUID=$uuid0"
+	echo "ARRAY $md1 metadata=1.2 UUID=$uuid1"
+} > "$conf"
+
+# Exercise both orders: the already active array may precede or follow
+# the array which needs assembly in the configuration file.
+for stopped in "$md1" "$md0"; do
+	if [ "$stopped" = "$md1" ]; then
+		active=$md0
+	else
+		active=$md1
+	fi
+
+	scan_check_array "$md0" "$uuid0" "$dev0" "$dev1"
+	scan_check_array "$md1" "$uuid1" "$dev2" "$dev3"
+	mdadm -S "$stopped" || die "Cannot stop $stopped"
+	if mdadm --detail "$stopped" > /dev/null 2>&1; then
+		die "$stopped was reassembled before the scan"
+	fi
+
+	# The already active array returns 2. Do not hide crashes or other
+	# unexpected failures by accepting every nonzero exit status.
+	scan_rc=0
+	mdadm --assemble --scan --verbose --config="$conf" > "$scan_log" 2>&1 || scan_rc=$?
+	cat "$scan_log"
+	[ "$scan_rc" -eq 2 ] || die "Expected scan status 2, got $scan_rc"
+
+	# Check that the same entry was actually retried within this process.
+	# This also catches udev assembling the stopped array ahead of us.
+	[ "$(grep -Fc "looking for devices for $active" "$scan_log")" -eq 2 ] ||
+		die "$active was not scanned twice"
+	[ "$(grep -Fc "looking for devices for $stopped" "$scan_log")" -eq 1 ] ||
+		die "$stopped was not assembled in the first pass"
+
+	scan_check_array "$md0" "$uuid0" "$dev0" "$dev1"
+	scan_check_array "$md1" "$uuid1" "$dev2" "$dev3"
+done
+
+mdadm -S "$md0" "$md1" || die "Cannot stop the test arrays"
