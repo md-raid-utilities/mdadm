@@ -257,7 +257,7 @@ int md_array_valid(int fd)
 int md_array_active(int fd)
 {
 	struct mdinfo *sra;
-	struct mdu_array_info_s array;
+	struct md_array_info array;
 	int ret = 0;
 
 	sra = sysfs_read(fd, NULL, GET_ARRAY_STATE);
@@ -288,17 +288,27 @@ int md_array_is_active(struct mdinfo *info)
  * Get array info from the kernel. Longer term we want to deprecate the
  * ioctl and get it from sysfs.
  */
-int md_get_array_info(int fd, struct mdu_array_info_s *array)
+int md_get_array_info(int fd, struct md_array_info *uarray)
 {
-	return ioctl(fd, GET_ARRAY_INFO, array);
+	int rv;
+	struct mdu_array_info64 karray;
+
+	rv = md_ioctl(fd, MD_CTL_GET_ARRAY_INFO, &karray);
+	if (!rv)
+		array_info_from_kernel(uarray, &karray);
+
+	return rv;
 }
 
 /*
  * Set array info
  */
-int md_set_array_info(int fd, struct mdu_array_info_s *array)
+int md_set_array_info(int fd, struct md_array_info *uarray)
 {
-	return ioctl(fd, SET_ARRAY_INFO, array);
+	struct mdu_array_info64 karray;
+
+	array_info_to_kernel(&karray, uarray);
+	return md_ioctl(fd, MD_CTL_SET_ARRAY_INFO, &karray);
 }
 
 /*
@@ -1174,7 +1184,7 @@ struct superswitch *superlist[] =
 
 struct supertype *super_by_fd(int fd, char **subarrayp)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	int vers;
 	int minor;
 	struct supertype *st = NULL;
@@ -1822,7 +1832,7 @@ int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
 	 * This varies between externally managed arrays
 	 * and older kernels
 	 */
-	mdu_array_info_t inf;
+	struct md_array_info inf;
 	int rv;
 
 	if (st->ss->external)

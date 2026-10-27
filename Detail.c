@@ -81,7 +81,7 @@ int Detail(char *dev, struct context *c)
 	 * Print out details for an md array
 	 */
 	int fd = open(dev, O_RDONLY);
-	mdu_array_info_t array;
+	struct md_array_info array;
 	mdu_disk_info_t *disks = NULL;
 	int next;
 	int d;

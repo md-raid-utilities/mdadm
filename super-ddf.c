@@ -533,7 +533,7 @@ static void uuid_from_super_ddf(struct supertype *st, int uuid[4]);
 static void _ddf_array_name(char *name, const struct ddf_super *ddf, int i);
 static void getinfo_super_ddf_bvd(struct supertype *st, struct mdinfo *info, char *map);
 static int init_super_ddf_bvd(struct supertype *st,
-			      mdu_array_info_t *info,
+			      struct md_array_info *info,
 			      unsigned long long size,
 			      char *name, char *homehost,
 			      int *uuid, unsigned long long data_offset);
@@ -590,14 +590,14 @@ static be32 calc_crc(void *buf, int len)
 
 #define DDF_INVALID_LEVEL 0xff
 #define DDF_NO_SECONDARY 0xff
-static int err_bad_md_layout(const mdu_array_info_t *array)
+static int err_bad_md_layout(const struct md_array_info *array)
 {
 	pr_err("RAID%d layout %x with %d disks is unsupported for DDF\n",
 	       array->level, array->layout, array->raid_disks);
 	return -1;
 }
 
-static int layout_md2ddf(const mdu_array_info_t *array,
+static int layout_md2ddf(const struct md_array_info *array,
 			 struct vd_config *conf)
 {
 	be16 prim_elmnt_count = cpu_to_be16(array->raid_disks);
@@ -708,7 +708,7 @@ static int err_bad_ddf_layout(const struct vd_config *conf)
 }
 
 static int layout_ddf2md(const struct vd_config *conf,
-			 mdu_array_info_t *array)
+			 struct md_array_info *array)
 {
 	int level = LEVEL_UNSUPPORTED;
 	int layout = 0;
@@ -2432,7 +2432,7 @@ static unsigned int find_vde_by_guid(const struct ddf_super *ddf,
 }
 
 static int init_super_ddf(struct supertype *st,
-			  mdu_array_info_t *info,
+			  struct md_array_info *info,
 			  struct shape *s, char *name, char *homehost,
 			  int *uuid, unsigned long long data_offset)
 {
@@ -2751,7 +2751,7 @@ static unsigned long long find_space(
 }
 
 static int init_super_ddf_bvd(struct supertype *st,
-			      mdu_array_info_t *info,
+			      struct md_array_info *info,
 			      unsigned long long size,
 			      char *name, char *homehost,
 			      int *uuid, unsigned long long data_offset)
@@ -3555,7 +3555,7 @@ static int validate_geometry_ddf(struct supertype *st,
 		*chunk = DEFAULT_CHUNK;
 
 	if (!dev) {
-		mdu_array_info_t array = {
+		struct md_array_info array = {
 			.level = level,
 			.layout = layout,
 			.raid_disks = raiddisks
@@ -4408,7 +4408,7 @@ static int get_bvd_state(const struct ddf_super *ddf,
 	unsigned int n_prim = be16_to_cpu(vc->prim_elmnt_count);
 	int pd, st, state;
 	char *avail = xcalloc(1, n_prim);
-	mdu_array_info_t array;
+	struct md_array_info array;
 
 	layout_ddf2md(vc, &array);
 

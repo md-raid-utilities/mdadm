@@ -750,7 +750,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 	 */
 	struct { int state, major, minor; } disks_info[MAX_DISKS];
 	struct mdinfo *sra = NULL;
-	mdu_array_info_t array;
+	struct md_array_info array;
 	struct mdstat_ent *mse = NULL, *mse2;
 	char *dev = st->devname;
 	int fd;
@@ -972,7 +972,7 @@ static int add_new_arrays(struct mdstat_ent *mdstat, struct state **statelist)
 				      (strcmp(mse->level, "raid0") != 0 &&
 				       strcmp(mse->level, "linear") != 0))) {
 			struct state *st = xcalloc(1, sizeof *st);
-			mdu_array_info_t array;
+			struct md_array_info array;
 			int fd;
 
 			name = get_md_name(mse->devnm);

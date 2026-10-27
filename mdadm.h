@@ -226,9 +226,9 @@ static inline void *u64_to_ptr(__u64 x)
 */
 
 #define time_after(a,b)	\
-        (typecheck(unsigned int, a) && \
-         typecheck(unsigned int, b) && \
-         ((int)((b) - (a)) < 0))
+	(typecheck(unsigned long long, a) && \
+	 typecheck(unsigned long long, b) && \
+	 ((long long)((b) - (a)) < 0))
 
 #define time_before(a,b)        time_after(b,a)
 
@@ -272,9 +272,31 @@ struct md_bb {
 	struct md_bb_entry *entries;
 };
 
+struct md_array_info {
+	int	major_version;
+	int	minor_version;
+	int	patch_version;
+	int	level;
+	__u64	ctime;
+	__s64	size;
+	int	nr_disks;
+	int	raid_disks;
+	int	md_minor;
+	int	not_persistent;
+	__u64	utime;
+	int	state;
+	int	active_disks;
+	int	working_disks;
+	int	failed_disks;
+	int	spare_disks;
+	int	journal_disks;
+	int	layout;
+	int	chunk_size;
+};
+
 /* general information that might be extracted from a superblock */
 struct mdinfo {
-	mdu_array_info_t	array;
+	struct md_array_info	array;
 	mdu_disk_info_t		disk;
 	__u64			events;
 	int			uuid[4];
@@ -1027,7 +1049,7 @@ extern struct superswitch {
 	 * Also used to zero metadata prior to writing it to invalidate old
 	 * metadata.
 	 */
-	int (*init_super)(struct supertype *st, mdu_array_info_t *info,
+	int (*init_super)(struct supertype *st, struct md_array_info *info,
 			  struct shape *s, char *name,
 			  char *homehost, int *uuid,
 			  unsigned long long data_offset);
@@ -1523,8 +1545,8 @@ extern int Restore_metadata(char *dev, char *dir, struct context *c,
 int md_array_valid(int fd);
 int md_array_active(int fd);
 int md_array_is_active(struct mdinfo *info);
-int md_get_array_info(int fd, struct mdu_array_info_s *array);
-int md_set_array_info(int fd, struct mdu_array_info_s *array);
+int md_get_array_info(int fd, struct md_array_info *array);
+int md_set_array_info(int fd, struct md_array_info *array);
 int md_get_disk_info(int fd, struct mdu_disk_info_s *disk);
 extern int get_linux_version(void);
 extern int mdadm_version(char *version);
@@ -1747,6 +1769,10 @@ extern bool is_directory(const char *path);
 extern bool is_file(const char *path);
 extern int s_gethostname(char *buf, int buf_len);
 
+extern void array_info_from_kernel(struct md_array_info *uarray,
+				   struct mdu_array_info64 *karray);
+extern void array_info_to_kernel(struct mdu_array_info64 *karray,
+				 struct md_array_info *uarray);
 extern int md_do_ioctl(int fd, char *uuid, dev_t dev, char *name,
 		       unsigned long cmd, __u64 arg, __u32 flags);
 extern bool is_mdctl_available(void);

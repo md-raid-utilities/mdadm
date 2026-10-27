@@ -45,7 +45,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	char chosen_name[1024];
 	int uuid[4] = {0,0,0,0};
 	struct map_ent *map = NULL;
-	mdu_array_info_t array;
+	struct md_array_info array = {0};
 	mdu_param_t param; /* not used by syscall */
 
 	if (s->level == UnSet) {

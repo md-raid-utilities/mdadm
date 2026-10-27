@@ -534,7 +534,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	char chosen_name[1024];
 	struct map_ent *map = NULL;
 	unsigned long long newsize;
-	mdu_array_info_t inf;
+	struct md_array_info inf;
 	int major_num = BITMAP_MAJOR_HI;
 
 	if (s->btype == BitmapCluster) {
@@ -580,7 +580,8 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		memset(&inf, 0, sizeof(inf));
 		fd = open(devlist->devname, O_RDONLY);
 		if (fd >= 0 &&
-		    md_get_array_info(fd, &inf) == 0 && inf.raid_disks == 0) {
+		    md_get_array_info(fd, &inf) == 0 &&
+		    inf.raid_disks == 0) {
 			/* yep, looks like a container */
 			if (st) {
 				rv = st->ss->load_container(st, fd,

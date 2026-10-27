@@ -505,9 +505,9 @@ static struct mddev_dev *add_one(struct mddev_dev *dv, char *name, char disp)
 	return new;
 }
 
-static void add_faulty(struct mddev_dev *dv, int fd, char disp)
+static void add_faulty(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	mdu_disk_info_t disk;
 	int remaining_disks;
 	int i;
@@ -531,9 +531,9 @@ static void add_faulty(struct mddev_dev *dv, int fd, char disp)
 	}
 }
 
-static void add_detached(struct mddev_dev *dv, int fd, char disp)
+static void add_detached(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	mdu_disk_info_t disk;
 	int remaining_disks;
 	int i;
@@ -567,9 +567,9 @@ static void add_detached(struct mddev_dev *dv, int fd, char disp)
 	}
 }
 
-static void add_set(struct mddev_dev *dv, int fd, char set_char)
+static void add_set(char *devname, struct mddev_dev *dv, int fd, char set_char)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	mdu_disk_info_t disk;
 	int remaining_disks;
 	int copies, set;
@@ -604,7 +604,7 @@ static void add_set(struct mddev_dev *dv, int fd, char set_char)
 int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		   struct supertype *dev_st, struct supertype *tst,
 		   unsigned long rdev, enum update_opt update,
-		   char *devname, int verbose, mdu_array_info_t *array)
+		   char *devname, int verbose, struct md_array_info *array)
 {
 	struct mdinfo mdi;
 	int duuid[4];
@@ -803,7 +803,7 @@ out:
 }
 
 int Manage_add(int fd, int tfd, struct mddev_dev *dv,
-	       struct supertype *tst, mdu_array_info_t *array,
+	       struct supertype *tst, struct md_array_info *array,
 	       int force, int verbose, char *devname,
 	       enum update_opt update, unsigned long rdev,
 	       unsigned long long array_size, int raid_slot)
@@ -1345,7 +1345,8 @@ abort:
  *
  * Return: True if array will be operational, false otherwise.
  */
-bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const int verbose)
+bool is_remove_safe(struct md_array_info *array, const int fd, char *devname,
+		    const int verbose)
 {
 	dev_t devid = devnm2devid(devname + 5);
 	struct mdinfo *mdi = sysfs_read(fd, NULL, GET_DEVS | GET_DISKS | GET_STATE);
@@ -1423,7 +1424,7 @@ int Manage_subdevs(char *devname, int fd,
 		   struct mddev_dev *devlist, int verbose, int test,
 		   enum update_opt update, int force)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	unsigned long long array_size;
 	struct mddev_dev *dv;
 	int tfd = -1;
@@ -1493,7 +1494,7 @@ int Manage_subdevs(char *devname, int fd,
 					dv->devname, dv->disposition);
 				goto abort;
 			}
-			add_faulty(dv, fd, (dv->disposition == 'A' ? 'F' : 'r'));
+			add_faulty(devname, dv, fd, (dv->disposition == 'A' ? 'F' : 'r'));
 			continue;
 		}
 		if (strcmp(dv->devname, "detached") == 0) {
@@ -1502,7 +1503,7 @@ int Manage_subdevs(char *devname, int fd,
 					dv->devname, dv->disposition);
 				goto abort;
 			}
-			add_detached(dv, fd, dv->disposition);
+			add_detached(devname, dv, fd, dv->disposition);
 			continue;
 		}
 
@@ -1552,7 +1553,7 @@ int Manage_subdevs(char *devname, int fd,
 				pr_err("'%s' not meaningful with this array\n", dv->devname);
 				goto abort;
 			}
-			add_set(dv, fd, dv->devname[4]);
+			add_set(devname, dv, fd, dv->devname[4]);
 			continue;
 		}
 

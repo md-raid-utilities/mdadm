@@ -143,6 +143,20 @@ static bool array_info_from64(mdu_array_info_t *info,
 	return convert_array_info(info, info64, check);
 }
 
+void array_info_from_kernel(struct md_array_info *uarray,
+			    struct mdu_array_info64 *karray)
+{
+	convert_array_info(uarray, karray, nocheck);
+	assign_field_nocheck(uarray, karray, journal_disks, 0);
+}
+
+void array_info_to_kernel(struct mdu_array_info64 *karray,
+			  struct md_array_info *uarray)
+{
+	convert_array_info(karray, uarray, nocheck);
+	assign_field_nocheck(karray, uarray, journal_disks, 0);
+}
+
 static int handle_old_ioctl(int fd, unsigned long cmd, __u64 arg, __u32 flags)
 {
 	int rv = -1;

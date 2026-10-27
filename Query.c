@@ -63,7 +63,7 @@ int Query(char *dev)
 		raid_disks = sra->array.raid_disks;
 		spare_disks = sra->array.spare_disks;
 	} else {
-		mdu_array_info_t array;
+		struct md_array_info array;
 
 		if (md_get_array_info(fd, &array) < 0) {
 			ioctlerr = errno;

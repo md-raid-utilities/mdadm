@@ -1503,7 +1503,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 	return rv;
 }
 
-static int init_super1(struct supertype *st, mdu_array_info_t *info,
+static int init_super1(struct supertype *st, struct md_array_info *info,
 		       struct shape *s, char *name, char *homehost,
 		       int *uuid, unsigned long long data_offset)
 {
