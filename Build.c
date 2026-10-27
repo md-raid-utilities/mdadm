@@ -162,7 +162,13 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	return 0;
 
  abort:
-	ioctl(mdfd, STOP_ARRAY, 0);
-	close(mdfd);
+	rdev = 0;
+	if (is_mdctl_available()) {
+		rdev = fd2devid(mdfd);
+		close_fd(&mdfd);
+	}
+
+	md_ioctl_devid(mdfd, rdev, MD_CTL_STOP_ARRAY);
+	close_fd(&mdfd);
 	return 1;
 }

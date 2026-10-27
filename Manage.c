@@ -101,7 +101,14 @@ int Manage_ro(char *devname, int *fd, int readonly)
 	}
 
 	if (readonly > 0) {
-		if (ioctl(*fd, STOP_ARRAY_RO, NULL)) {
+		dev_t rdev = 0;
+
+		if (is_mdctl_available()) {
+			rdev = fd2devid(*fd);
+			close_fd(fd);
+		}
+
+		if (md_ioctl_devid(*fd, rdev, MD_CTL_STOP_ARRAY, 0, MD_CTL_RO_FLAG)) {
 			pr_err("failed to set readonly for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
@@ -454,18 +461,24 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	}
 done:
 
+	/*
+	 * The control node requires no openers
+	 */
+	if (is_mdctl_available())
+		close_fd(&fd);
+
 	/* As we have an O_EXCL open, any use of the device
 	 * which blocks STOP_ARRAY is probably a transient use,
 	 * so it is reasonable to retry for a while - 5 seconds.
 	 */
 	count = 25; err = 0;
-	while (count && fd >= 0 &&
-	       (err = ioctl(fd, STOP_ARRAY, NULL)) < 0 && errno == EBUSY) {
+	while (count && (is_mdctl_available() || fd >= 0) &&
+	       (err = md_ioctl_devnm(fd, devnm, MD_CTL_STOP_ARRAY)) < 0 && errno == EBUSY) {
 		err = errno;
 		sleep_for(0, MSEC_TO_NSEC(200), true);
 		count --;
 	}
-	if (fd >= 0 && err) {
+	if (err) {
 		if (verbose >= 0) {
 			pr_err("failed to stop array %s: %s\n",
 			       devname, strerror(err));

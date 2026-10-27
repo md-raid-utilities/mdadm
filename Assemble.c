@@ -1909,8 +1909,16 @@ try_again:
 			 clean, avail, start_partial_ok,
 			 pre_exist != NULL,
 			 was_forced);
-	if (rv == 1 && !pre_exist)
-		ioctl(mdfd, STOP_ARRAY, NULL);
+	if (rv == 1 && !pre_exist) {
+		dev_t rd = 0;
+
+		if (is_mdctl_available()) {
+			rd = fd2devid(mdfd);
+			close_fd(&mdfd);
+		}
+
+		md_ioctl_devid(mdfd, rd, MD_CTL_STOP_ARRAY);
+	}
 	free(devices);
 	free(avail);
 out:

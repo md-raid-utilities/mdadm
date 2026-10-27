@@ -37,6 +37,18 @@
 #define FALLOC_FL_ZERO_RANGE 16
 #endif
 
+static int error_stop_array(int *fd)
+{
+	dev_t rdev = 0;
+
+	if (is_mdctl_available()) {
+		rdev = fd2devid(*fd);
+		close_fd(fd);
+	}
+
+	return md_ioctl_devid(*fd, rdev, MD_CTL_STOP_ARRAY);
+}
+
 static int round_size_and_verify(unsigned long long *size, int chunk)
 {
 	if (*size == 0)
@@ -242,10 +254,10 @@ static int wait_for_zero_forks(int *zero_pids, int count)
 	return ret;
 }
 
-static int add_disk_to_super(int mdfd, struct shape *s, struct context *c,
+static int add_disk_to_super(struct shape *s, struct context *c,
 		struct supertype *st, struct mddev_dev *dv,
 		struct mdinfo *info, int have_container, int major_num,
-		int *zero_pid)
+		int *zero_pid, bool *stop_array)
 {
 	dev_t rdev;
 	int fd;
@@ -297,7 +309,7 @@ static int add_disk_to_super(int mdfd, struct shape *s, struct context *c,
 		remove_partitions(fd);
 	if (st->ss->add_to_super(st, &info->disk, fd, dv->devname,
 				 dv->data_offset)) {
-		ioctl(mdfd, STOP_ARRAY, NULL);
+		*stop_array = true;
 		close_fd(&fd);
 		return 1;
 	}
@@ -308,7 +320,7 @@ static int add_disk_to_super(int mdfd, struct shape *s, struct context *c,
 
 		pid = write_zeroes_fork(fd, s, st, dv);
 		if (pid <= 0) {
-			ioctl(mdfd, STOP_ARRAY, NULL);
+			*stop_array = true;
 			close(fd);
 			return 1;
 		}
@@ -383,7 +395,7 @@ static int update_metadata(int mdfd, struct shape *s, struct supertype *st,
 	return 0;
 }
 
-static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
+static int add_disks(int *mdfd, struct mdinfo *info, struct shape *s,
 		     struct context *c, struct supertype *st,
 		     struct map_ent **map, struct mddev_dev *devlist,
 		     int total_slots, int have_container, int insert_point,
@@ -396,6 +408,7 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 	struct mdinfo *infos;
 	sigset_t sigset, orig_sigset;
 	int ret = 0;
+	bool stop_array = false;
 
 	/*
 	 * Block SIGINT so the main thread will always wait for the
@@ -440,9 +453,9 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 				if (dv->disposition == 'j')
 					raid_disk_num--;
 
-				ret = add_disk_to_super(mdfd, s, c, st, dv,
-						&infos[dnum], have_container,
-						major_num, &zero_pids[dnum]);
+				ret = add_disk_to_super(s, c, st, dv,
+							&infos[dnum], have_container,
+							major_num, &zero_pids[dnum], &stop_array);
 				if (ret)
 					goto out;
 
@@ -450,7 +463,7 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 			case 2:
 				infos[dnum].errors = 0;
 
-				ret = add_disk(mdfd, st, info, &infos[dnum]);
+				ret = add_disk(*mdfd, st, info, &infos[dnum]);
 				if (ret) {
 					pr_err("ADD_NEW_DISK for %s failed: %s\n",
 					       dv->devname, strerror(errno));
@@ -472,7 +485,7 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 			if (ret)
 				goto out;
 
-			ret = update_metadata(mdfd, s, st, map, info,
+			ret = update_metadata(*mdfd, s, st, map, info,
 					      chosen_name);
 			if (ret)
 				goto out;
@@ -482,6 +495,14 @@ static int add_disks(int mdfd, struct mdinfo *info, struct shape *s,
 out:
 	if (ret)
 		wait_for_zero_forks(zero_pids, total_slots);
+
+	/*
+	 * Stop only after the zeroing children have exited: each child
+	 * holds a copy of *mdfd, and the control node needs zero openers.
+	 */
+	if (stop_array)
+		error_stop_array(mdfd);
+
 	free(infos);
 	sigprocmask(SIG_SETMASK, &orig_sigset, NULL);
 	return ret;
@@ -1244,7 +1265,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		goto abort_locked;
 	}
 
-	if (add_disks(mdfd, &info, s, c, st, &map, devlist, total_slots,
+	if (add_disks(&mdfd, &info, s, c, st, &map, devlist, total_slots,
 		      have_container, insert_point, major_num, chosen_name))
 		goto abort_locked;
 
@@ -1278,7 +1299,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			sysfs_set_safemode(&info, info.safe_mode_delay);
 			if (err) {
 				pr_err("failed to activate array.\n");
-				ioctl(mdfd, STOP_ARRAY, NULL);
+				error_stop_array(&mdfd);
 				goto abort;
 			}
 		} else if (c->readonly &&
@@ -1288,7 +1309,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 					  "array_state", "readonly") < 0) {
 				pr_err("Failed to start array: %s\n",
 				       strerror(errno));
-				ioctl(mdfd, STOP_ARRAY, NULL);
+				error_stop_array(&mdfd);
 				goto abort;
 			}
 		} else {
@@ -1311,7 +1332,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 				if (info.array.chunk_size & (info.array.chunk_size-1)) {
 					cont_err("Problem may be that chunk size is not a power of 2\n");
 				}
-				ioctl(mdfd, STOP_ARRAY, NULL);
+				error_stop_array(&mdfd);
 				goto abort;
 			}
 			/* if start_ro module parameter is set, array is
@@ -1346,7 +1367,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	udev_unblock();
 	map_lock(&map);
  abort_locked:
-	map_remove(&map, fd2devnm(mdfd));
+	map_remove(&map, info.sys_name);
 	map_unlock(&map);
 
 	close_fd(&mdfd);
