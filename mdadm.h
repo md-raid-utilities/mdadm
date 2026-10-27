@@ -202,6 +202,11 @@ static inline void __put_unaligned32(__u32 val, void *p)
 	ptr->x = val;
 }
 
+static inline void *u64_to_ptr(__u64 x)
+{
+	return (void *)(uintptr_t)(x);
+}
+
 /*
   * Check at compile time that something is of a particular type.
   * Always evaluates to 1 so you may use it easily in comparisons.
@@ -1741,6 +1746,38 @@ extern void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt);
 extern bool is_directory(const char *path);
 extern bool is_file(const char *path);
 extern int s_gethostname(char *buf, int buf_len);
+
+extern int md_do_ioctl(int fd, char *uuid, dev_t dev, char *name,
+		       unsigned long cmd, __u64 arg, __u32 flags);
+extern bool is_mdctl_available(void);
+extern void close_mdctl(void);
+extern int open_mdctl(void);
+
+#define __md_ioctl2(fd, uuid, devid, dnm, cmd, arg, flag)		\
+	md_do_ioctl(fd, uuid, devid, dnm, cmd, (uintptr_t)(arg), flag)
+
+#define __md_ioctl1(fd, uuid, devid, dnm, cmd, arg)	\
+	__md_ioctl2(fd, uuid, devid, dnm, cmd, arg, 0)
+
+#define __md_ioctl0(fd, uuid, devid, dnm, cmd)		\
+	__md_ioctl2(fd, uuid, devid, dnm, cmd, 0, 0)
+
+#define __md_ioctl(a, b, c, d, ...) __md_ioctl ## d
+
+#define _md_ioctl(fd, uuid, devid, dnm, cmd, params...)			\
+	__md_ioctl(0, ##params, 2, 1, 0)(fd, uuid, devid, dnm, cmd, ##params)
+
+#define md_ioctl_devid(fd, devid, cmd, params...)	\
+	_md_ioctl(fd, NULL, devid, NULL, cmd, ##params)
+
+#define md_ioctl_uuid(fd, uuid, cmd, params...)		\
+	_md_ioctl(fd, uuid, 0, NULL, cmd, ##params)
+
+#define md_ioctl_devnm(fd, dnm, cmd, params...)		\
+	_md_ioctl(fd, NULL, 0, dnm, cmd, ##params)
+
+#define md_ioctl(fd, cmd, params...)			\
+	md_ioctl_devid(fd, fd2devid(fd), cmd, ##params)
 
 #define _ROUND_UP(val, base)	(((val) + (base) - 1) & ~(base - 1))
 #define ROUND_UP(val, base)	_ROUND_UP(val, (typeof(val))(base))

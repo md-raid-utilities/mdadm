@@ -1766,6 +1766,7 @@ int main(int argc, char *argv[])
 	if (locked)
 		cluster_release_dlmlock();
 	close_fd(&mdfd);
+	close_mdctl();
 	exit(rv);
 }
 
