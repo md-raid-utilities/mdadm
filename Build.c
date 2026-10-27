@@ -115,7 +115,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 
 	/* now add the devices */
 	for ((i=0), (dv = devlist) ; dv ; i++, dv=dv->next) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		unsigned long long dsize;
 		int fd;
 
@@ -140,7 +140,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 			disk.state |= 1<<MD_DISK_WRITEMOSTLY;
 		disk.major = major(rdev);
 		disk.minor = minor(rdev);
-		if (ioctl(mdfd, ADD_NEW_DISK, &disk)) {
+		if (md_add_new_disk(mdfd, &disk)) {
 			pr_err("ADD_NEW_DISK failed for %s: %s\n",
 			       dv->devname, strerror(errno));
 			goto abort;

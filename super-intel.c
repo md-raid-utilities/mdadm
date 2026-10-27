@@ -5935,7 +5935,7 @@ static int drive_validate_sector_size(struct intel_super *super, struct dl *dl)
 	return 1;
 }
 
-static int add_to_super_imsm_volume(struct supertype *st, mdu_disk_info_t *dk,
+static int add_to_super_imsm_volume(struct supertype *st, struct md_disk_info *dk,
 				     int fd, char *devname)
 {
 	struct intel_super *super = st->sb;
@@ -6109,7 +6109,7 @@ int mark_spare(struct dl *disk)
 
 static int write_super_imsm_spare(struct intel_super *super, struct dl *d);
 
-static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
+static int add_to_super_imsm(struct supertype *st, struct md_disk_info *dk,
 			     int fd, char *devname,
 			     unsigned long long data_offset)
 {
@@ -6229,7 +6229,7 @@ error:
 	return MDADM_STATUS_ERROR;
 }
 
-static int remove_from_super_imsm(struct supertype *st, mdu_disk_info_t *dk)
+static int remove_from_super_imsm(struct supertype *st, struct md_disk_info *dk)
 {
 	struct intel_super *super = st->sb;
 	struct dl *dd;

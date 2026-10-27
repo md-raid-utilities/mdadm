@@ -41,7 +41,7 @@ int Query(char *dev)
 	unsigned long long larray_size = 0;
 	struct stat stb;
 	char *mddev;
-	mdu_disk_info_t disc;
+	struct md_disk_info disc;
 	char *activity;
 
 	fd = open(dev, O_RDONLY);

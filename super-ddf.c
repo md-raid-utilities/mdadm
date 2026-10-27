@@ -2870,7 +2870,7 @@ static int init_super_ddf_bvd(struct supertype *st,
 }
 
 static void add_to_super_ddf_bvd(struct supertype *st,
-				 mdu_disk_info_t *dk, int fd, char *devname,
+				 struct md_disk_info *dk, int fd, char *devname,
 				 unsigned long long data_offset)
 {
 	/* fd and devname identify a device within the ddf container (st).
@@ -2992,7 +2992,7 @@ static void _set_config_size(struct phys_disk_entry *pde, const struct dl *dl)
  * expanding a pre-existing container
  */
 static int add_to_super_ddf(struct supertype *st,
-			    mdu_disk_info_t *dk, int fd, char *devname,
+			    struct md_disk_info *dk, int fd, char *devname,
 			    unsigned long long data_offset)
 {
 	struct ddf_super *ddf = st->sb;
@@ -3126,7 +3126,7 @@ static int add_to_super_ddf(struct supertype *st,
 	return 0;
 }
 
-static int remove_from_super_ddf(struct supertype *st, mdu_disk_info_t *dk)
+static int remove_from_super_ddf(struct supertype *st, struct md_disk_info *dk)
 {
 	struct ddf_super *ddf = st->sb;
 	struct dl *dl;

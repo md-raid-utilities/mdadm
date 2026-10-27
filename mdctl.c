@@ -157,6 +157,18 @@ void array_info_to_kernel(struct mdu_array_info64 *karray,
 	assign_field_nocheck(karray, uarray, journal_disks, 0);
 }
 
+void disk_info_from_kernel(struct md_disk_info *udisk,
+			   struct mdu_disk_info64 *kdisk)
+{
+	convert_disk_info(udisk, kdisk, nocheck);
+}
+
+void disk_info_to_kernel(struct mdu_disk_info64 *kdisk,
+			  struct md_disk_info *udisk)
+{
+	convert_disk_info(kdisk, udisk, nocheck);
+}
+
 static int handle_old_ioctl(int fd, unsigned long cmd, __u64 arg, __u32 flags)
 {
 	int rv = -1;

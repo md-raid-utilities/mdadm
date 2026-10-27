@@ -878,7 +878,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 
 	remaining_disks = sra->array.nr_disks;
 	for (i = 0; i < MAX_DISKS && remaining_disks > 0; i++) {
-		mdu_disk_info_t disc;
+		struct md_disk_info disc;
 		disc.number = i;
 		if (md_get_disk_info(fd, &disc) >= 0) {
 			disks_info[i].state = disc.state;
@@ -904,7 +904,7 @@ static int check_array(struct state *st, struct mdstat_ent *mdstat,
 		st->metadata = super_by_fd(fd, NULL);
 
 	for (i = 0; i < MAX_DISKS; i++) {
-		mdu_disk_info_t disc = {0, 0, 0, 0, 0};
+		struct md_disk_info disc = {0, 0, 0, 0, 0};
 		int newstate = 0;
 		int change;
 		char *dv = NULL;

@@ -82,7 +82,7 @@ int Detail(char *dev, struct context *c)
 	 */
 	int fd = open(dev, O_RDONLY);
 	struct md_array_info array;
-	mdu_disk_info_t *disks = NULL;
+	struct md_disk_info *disks = NULL;
 	int next;
 	int d;
 	time_t atime;
@@ -175,7 +175,7 @@ int Detail(char *dev, struct context *c)
 		for (d = 0, subdev = sra ? sra->devs : NULL;
 		     d < max_disks || subdev;
 		     subdev ? (void)(subdev = subdev->next) : (void)(d++)){
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 		int fd2;
 		int err;
@@ -324,7 +324,7 @@ int Detail(char *dev, struct context *c)
 		goto out;
 	}
 
-	disks = xmalloc(max_disks * 2 * sizeof(mdu_disk_info_t));
+	disks = xmalloc(max_disks * 2 * sizeof(struct md_disk_info));
 	for (d = 0; d < max_disks * 2; d++) {
 		disks[d].state = (1 << MD_DISK_REMOVED);
 		disks[d].major = disks[d].minor = 0;
@@ -340,7 +340,7 @@ int Detail(char *dev, struct context *c)
 			disks[next - 1].number = -1;
 		}
 	} else for (d = 0; d < max_disks; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		disk.number = d;
 		if (md_get_disk_info(fd, &disk) < 0) {
 			if (d < array.raid_disks)
@@ -520,7 +520,7 @@ int Detail(char *dev, struct context *c)
 				if (array.state & (1<<MD_SB_CLUSTERED)) {
 					for (d = 0; d < max_disks * 2; d++) {
 						char *dv;
-						mdu_disk_info_t disk = disks[d];
+						struct md_disk_info disk = disks[d];
 
 						/* only check first valid disk in cluster env */
 						if ((disk.state & (MD_DISK_SYNC | MD_DISK_ACTIVE))
@@ -715,7 +715,7 @@ int Detail(char *dev, struct context *c)
 
 	for (d = 0; d < max_disks * 2; d++) {
 		char *dv;
-		mdu_disk_info_t disk = disks[d];
+		struct md_disk_info disk = disks[d];
 
 		if (d >= array.raid_disks * 2 &&
 		    disk.major == 0 && disk.minor == 0)

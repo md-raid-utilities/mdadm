@@ -294,10 +294,18 @@ struct md_array_info {
 	int	chunk_size;
 };
 
+struct md_disk_info {
+	int	number;
+	int	major;
+	int	minor;
+	int	raid_disk;
+	int	state;
+};
+
 /* general information that might be extracted from a superblock */
 struct mdinfo {
 	struct md_array_info	array;
-	mdu_disk_info_t		disk;
+	struct md_disk_info	disk;
 	__u64			events;
 	int			uuid[4];
 	char			name[33];
@@ -1057,13 +1065,13 @@ extern struct superswitch {
 	/* update the metadata to include new device, either at create or
 	 * when hot-adding a spare.
 	 */
-	int (*add_to_super)(struct supertype *st, mdu_disk_info_t *dinfo,
+	int (*add_to_super)(struct supertype *st, struct md_disk_info *dinfo,
 			    int fd, char *devname,
 			    unsigned long long data_offset);
 	/* update the metadata to delete a device,
 	 * when hot-removing.
 	 */
-	int (*remove_from_super)(struct supertype *st, mdu_disk_info_t *dinfo);
+	int (*remove_from_super)(struct supertype *st, struct md_disk_info *dinfo);
 
 	/* Write metadata to one device when fixing problems or adding
 	 * a new device.
@@ -1547,7 +1555,8 @@ int md_array_active(int fd);
 int md_array_is_active(struct mdinfo *info);
 int md_get_array_info(int fd, struct md_array_info *array);
 int md_set_array_info(int fd, struct md_array_info *array);
-int md_get_disk_info(int fd, struct mdu_disk_info_s *disk);
+int md_get_disk_info(int fd, struct md_disk_info *udisk);
+int md_add_new_disk(int fd, struct md_disk_info *udisk);
 extern int get_linux_version(void);
 extern int mdadm_version(char *version);
 extern unsigned long long parse_size(char *size);
@@ -1773,6 +1782,10 @@ extern void array_info_from_kernel(struct md_array_info *uarray,
 				   struct mdu_array_info64 *karray);
 extern void array_info_to_kernel(struct mdu_array_info64 *karray,
 				 struct md_array_info *uarray);
+extern void disk_info_from_kernel(struct md_disk_info *udisk,
+				  struct mdu_disk_info64 *kdisk);
+extern void disk_info_to_kernel(struct mdu_disk_info64 *kdisk,
+				struct md_disk_info *udisk);
 extern int md_do_ioctl(int fd, char *uuid, dev_t dev, char *name,
 		       unsigned long cmd, __u64 arg, __u32 flags);
 extern bool is_mdctl_available(void);

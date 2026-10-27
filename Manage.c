@@ -508,7 +508,7 @@ static struct mddev_dev *add_one(struct mddev_dev *dv, char *name, char disp)
 static void add_faulty(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
 	struct md_array_info array;
-	mdu_disk_info_t disk;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int i;
 
@@ -534,7 +534,7 @@ static void add_faulty(char *devname, struct mddev_dev *dv, int fd, char disp)
 static void add_detached(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
 	struct md_array_info array;
-	mdu_disk_info_t disk;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int i;
 
@@ -570,7 +570,7 @@ static void add_detached(char *devname, struct mddev_dev *dv, int fd, char disp)
 static void add_set(char *devname, struct mddev_dev *dv, int fd, char set_char)
 {
 	struct md_array_info array;
-	mdu_disk_info_t disk;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int copies, set;
 	int i;
@@ -625,7 +625,7 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		 * kernel will accept it
 		 * though.
 		 */
-		mdu_disk_info_t disc;
+		struct md_disk_info disc;
 		disc.number = mdi.disk.number;
 		if (md_get_disk_info(fd, &disc) != 0 ||
 		    disc.major != 0 || disc.minor != 0)
@@ -692,7 +692,7 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		}
 		/* don't even try if disk is marked as faulty */
 		errno = 0;
-		if (ioctl(fd, ADD_NEW_DISK, &disc) == 0) {
+		if (md_add_new_disk(fd, &disc) == 0) {
 			if (verbose >= 0)
 				pr_err("re-added %s\n", dv->devname);
 			return 1;
@@ -720,7 +720,7 @@ skip_re_add:
  * Superblock is released here because any open fd with O_EXCL will block sysfs_add_disk().
  */
 mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name,
-				   mdu_disk_info_t *disc)
+				   struct md_disk_info *disc)
 {
 	mdadm_status_t rv = MDADM_STATUS_ERROR;
 	char container_devpath[MD_NAME_MAX];
@@ -811,7 +811,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	unsigned long long ldsize;
 	struct supertype *dev_st;
 	int j;
-	mdu_disk_info_t disc;
+	struct md_disk_info disc = {0};
 	struct map_ent *map = NULL;
 	bool add_new_super = false;
 
@@ -1040,7 +1040,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 		 */
 		char *used = xcalloc(array->raid_disks, 1);
 		for (j = 0; j < tst->max_devs; j++) {
-			mdu_disk_info_t disc2;
+			struct md_disk_info disc2;
 			disc2.number = j;
 			if (md_get_disk_info(fd, &disc2))
 				continue;
@@ -1079,7 +1079,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 			goto unlock;
 	} else {
 		tst->ss->free_super(tst);
-		if (ioctl(fd, ADD_NEW_DISK, &disc)) {
+		if (md_add_new_disk(fd, &disc)) {
 			if (dv->disposition == 'j')
 				pr_err("Failed to hot add %s as journal, "
 				       "please try restart %s.\n", dv->devname, devname);

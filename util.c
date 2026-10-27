@@ -314,9 +314,27 @@ int md_set_array_info(int fd, struct md_array_info *uarray)
 /*
  * Get disk info from the kernel.
  */
-int md_get_disk_info(int fd, struct mdu_disk_info_s *disk)
+int md_get_disk_info(int fd, struct md_disk_info *udisk)
 {
-	return ioctl(fd, GET_DISK_INFO, disk);
+	int rv;
+	struct mdu_disk_info64 kdisk = {.number = udisk->number};
+
+	rv = md_ioctl(fd, MD_CTL_GET_DISK_INFO, &kdisk);
+	if (!rv)
+		disk_info_from_kernel(udisk, &kdisk);
+
+	return rv;
+}
+
+/*
+ * Add a disk to the array.
+ */
+int md_add_new_disk(int fd, struct md_disk_info *udisk)
+{
+	struct mdu_disk_info64 kdisk;
+
+	disk_info_to_kernel(&kdisk, udisk);
+	return md_ioctl(fd, MD_CTL_ADD_NEW_DISK, &kdisk);
 }
 
 int get_linux_version(void)
@@ -1770,7 +1788,7 @@ int add_disk(int mdfd, struct supertype *st,
 			}
 		}
 	} else
-		rv = ioctl(mdfd, ADD_NEW_DISK, &info->disk);
+		rv = md_add_new_disk(mdfd, &info->disk);
 	return rv;
 }
 

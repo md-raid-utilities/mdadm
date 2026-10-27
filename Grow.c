@@ -149,7 +149,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	/* now check out all the devices and make sure we can read the
 	 * superblock */
 	for (d=0 ; d < info.array.raid_disks ; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 
 		st->ss->free_super(st);
@@ -208,7 +208,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	}
 	close(nfd);
 
-	if (ioctl(fd, ADD_NEW_DISK, &info.disk) != 0) {
+	if (md_add_new_disk(fd, &info.disk) != 0) {
 		pr_err("Cannot add new disk to this array\n");
 		return 1;
 	}
@@ -223,7 +223,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 
 	nd = d;
 	for (d=0 ; d < info.array.raid_disks ; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 
 		disk.number = d;
@@ -396,7 +396,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		if (mdi)
 			offset_setable = 1;
 		for (d = 0; d < st->max_devs; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			char *dv;
 			int fd2;
 
@@ -2980,7 +2980,7 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 		/* First remove any spares so no recovery starts */
 		for (d = 0, found = 0;
 		     d < MAX_DISKS && found < array.nr_disks; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			disk.number = d;
 			if (md_get_disk_info(fd, &disk) < 0)
 				continue;
@@ -2998,7 +2998,7 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 		md_get_array_info(fd, &array);
 		for (d = 0, found = 0;
 		     d < MAX_DISKS && found < array.nr_disks; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			disk.number = d;
 			if (md_get_disk_info(fd, &disk) < 0)
 				continue;
@@ -5175,7 +5175,7 @@ int Grow_continue_command(char *devname, int fd, struct context *c)
 		 */
 		do {
 			for (d = 0; d < MAX_DISKS; d++) {
-				mdu_disk_info_t disk;
+				struct md_disk_info disk;
 				char *dv;
 				int err;
 				disk.number = d;
