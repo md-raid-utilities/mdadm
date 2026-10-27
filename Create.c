@@ -304,12 +304,15 @@ static int add_disk_to_super(int mdfd, struct shape *s, struct context *c,
 	st->ss->getinfo_super(st, info, NULL);
 
 	if (fd >= 0 && s->write_zeroes) {
-		*zero_pid = write_zeroes_fork(fd, s, st, dv);
-		if (*zero_pid <= 0) {
+		pid_t pid;
+
+		pid = write_zeroes_fork(fd, s, st, dv);
+		if (pid <= 0) {
 			ioctl(mdfd, STOP_ARRAY, NULL);
 			close(fd);
 			return 1;
 		}
+		*zero_pid = pid;
 	}
 
 	if (have_container && c->verbose > 0)
