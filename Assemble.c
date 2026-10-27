@@ -1183,7 +1183,7 @@ static int start_array(int mdfd,
 			rv = sysfs_set_str(content, NULL,
 					   "array_state", "readonly");
 		} else
-			rv = ioctl(mdfd, RUN_ARRAY, NULL);
+			rv = md_ioctl(mdfd, MD_CTL_RUN_ARRAY);
 		reopen_mddev(mdfd); /* drop O_EXCL */
 		if (rv == 0) {
 			sysfs_rules_apply(mddev, content, st);
@@ -1258,7 +1258,8 @@ static int start_array(int mdfd,
 			}
 			return 0;
 		}
-		pr_err("failed to RUN_ARRAY %s: %s\n", mddev, strerror(errno));
+		pr_err("failed to MD_CTL_RUN_ARRAY %s: %s\n",
+		       mddev, strerror(errno));
 		if (errno == 524 /* ENOTSUP */ &&
 		    content->array.level == 0 && content->array.layout == 0)
 			cont_err("Please use --update=layout-original or --update=layout-alternate\n");

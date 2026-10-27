@@ -1322,9 +1322,10 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			}
 
 			/* param is not actually used */
-			mdu_param_t param;
-			if (ioctl(mdfd, RUN_ARRAY, &param)) {
-				pr_err("RUN_ARRAY failed: %s\n",
+			struct mdu_param64 param = {0};
+
+			if (md_ioctl(mdfd, MD_CTL_RUN_ARRAY, &param)) {
+				pr_err("MD_CTL_RUN_ARRAY failed: %s\n",
 				       strerror(errno));
 				if (errno == 524 /* ENOTSUP */ &&
 				    info.array.level == 0)
@@ -1339,7 +1340,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			 * auto-read-only, which is bad as the resync won't
 			 * start.  So lets make it read-write now.
 			 */
-			ioctl(mdfd, RESTART_ARRAY_RW, NULL);
+			md_ioctl(mdfd, MD_CTL_RESTART_ARRAY_RW);
 		}
 		if (c->verbose >= 0)
 			pr_info("array %s started.\n", chosen_name);

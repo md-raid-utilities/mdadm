@@ -115,7 +115,7 @@ int Manage_ro(char *devname, int *fd, int readonly)
 			goto out;
 		}
 	} else if (readonly < 0) {
-		if (ioctl(*fd, RESTART_ARRAY_RW, NULL)) {
+		if (md_ioctl(*fd, MD_CTL_RESTART_ARRAY_RW)) {
 			pr_err("failed to set writable for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
@@ -1525,7 +1525,7 @@ int Manage_subdevs(char *devname, int fd,
 			struct mddev_dev **dp;
 
 			if (dv->disposition == 'c') {
-				rv = ioctl(fd, CLUSTERED_DISK_NACK, NULL);
+				rv = md_ioctl(fd, MD_CTL_CLUSTERED_DISK_NACK);
 				break;
 			}
 
@@ -1709,7 +1709,7 @@ int Manage_subdevs(char *devname, int fd,
 			if (is_fd_valid(sysfd)) {
 				rv = sysfs_set_memb_state_fd(sysfd, MEMB_STATE_FAULTY, &err);
 			} else {
-				rv = ioctl(fd, SET_DISK_FAULTY, rdev);
+				rv = md_ioctl(fd, MD_CTL_SET_DISK_FAULTY, rdev);
 				if (rv)
 					err = errno;
 			}

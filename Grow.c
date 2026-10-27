@@ -2991,8 +2991,8 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 			    disk.raid_disk < data_disks)
 				/* keep this */
 				continue;
-			ioctl(fd, HOT_REMOVE_DISK,
-			      makedev(disk.major, disk.minor));
+			md_ioctl(fd, MD_CTL_HOT_REMOVE_DISK,
+				 makedev(disk.major, disk.minor));
 		}
 		/* Now fail anything left */
 		md_get_array_info(fd, &array);
@@ -3009,8 +3009,8 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 			    disk.raid_disk < data_disks)
 				/* keep this */
 				continue;
-			ioctl(fd, SET_DISK_FAULTY,
-			      makedev(disk.major, disk.minor));
+			md_ioctl(fd, MD_CTL_SET_DISK_FAULTY,
+				 makedev(disk.major, disk.minor));
 			hot_remove_disk(fd, makedev(disk.major, disk.minor), 1);
 		}
 		/*
@@ -3147,7 +3147,7 @@ static int reshape_array(char *container, int fd, char *devname,
 			info->array.raid_disks += info->delta_disks;
 		if (!restart)
 			/* Make sure the array isn't read-only */
-			ioctl(fd, RESTART_ARRAY_RW, 0);
+			md_ioctl(fd, MD_CTL_RESTART_ARRAY_RW);
 	} else
 		msg = analyse_change(devname, info, &reshape);
 	if (msg) {

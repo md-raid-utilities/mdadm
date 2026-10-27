@@ -1801,8 +1801,8 @@ int remove_disk(int mdfd, struct supertype *st,
 	if (st->ss->external)
 		rv = sysfs_set_str(sra, info, "slot", STR_COMMON_NONE);
 	else
-		rv = ioctl(mdfd, HOT_REMOVE_DISK, makedev(info->disk.major,
-							  info->disk.minor));
+		rv = md_ioctl(mdfd, MD_CTL_HOT_REMOVE_DISK,
+			      makedev(info->disk.major, info->disk.minor));
 	return rv;
 }
 
@@ -1816,7 +1816,7 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 	 * In this case, it can be helpful to wait a little while,
 	 * up to 5 seconds if 'force' is set, or 50 msec if not.
 	 */
-	while ((ret = ioctl(mdfd, HOT_REMOVE_DISK, dev)) == -1 &&
+	while ((ret = md_ioctl(mdfd, MD_CTL_HOT_REMOVE_DISK, dev)) == -1 &&
 	       errno == EBUSY &&
 	       cnt-- > 0)
 		sleep_for(0, MSEC_TO_NSEC(10), true);

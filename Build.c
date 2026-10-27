@@ -46,7 +46,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	int uuid[4] = {0,0,0,0};
 	struct map_ent *map = NULL;
 	struct md_array_info array = {0};
-	mdu_param_t param; /* not used by syscall */
+	struct mdu_param64 param = {0}; /* not used by syscall */
 
 	if (s->level == UnSet) {
 		pr_err("a RAID level is needed to Build an array.\n");
@@ -147,8 +147,8 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 		}
 	}
 
-	if (ioctl(mdfd, RUN_ARRAY, &param)) {
-		pr_err("RUN_ARRAY failed: %s\n", strerror(errno));
+	if (md_ioctl(mdfd, MD_CTL_RUN_ARRAY, &param)) {
+		pr_err("MD_CTL_RUN_ARRAY failed: %s\n", strerror(errno));
 		if (s->chunk & (s->chunk - 1)) {
 			cont_err("Problem may be that chunk size is not a power of 2\n");
 		}

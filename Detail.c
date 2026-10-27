@@ -410,7 +410,7 @@ int Detail(char *dev, struct context *c)
 		}
 
 		/* Only try GET_BITMAP_FILE for 0.90.01 and later */
-		if (ioctl(fd, GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
+		if (md_ioctl(fd, MD_CTL_GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
 			printf(" bitmap=%s", bmf.pathname);
 		}
 	} else {
@@ -485,7 +485,7 @@ int Detail(char *dev, struct context *c)
 			       array.not_persistent ? "not " : "");
 		printf("\n");
 		/* Only try GET_BITMAP_FILE for 0.90.01 and later */
-		if (ioctl(fd, GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
+		if (md_ioctl(fd, MD_CTL_GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
 			printf("     Intent Bitmap : %s\n", bmf.pathname);
 			printf("\n");
 		} else if (array.state & (1<<MD_SB_CLUSTERED))

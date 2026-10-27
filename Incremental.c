@@ -607,7 +607,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 
 		if ((sra == NULL || active_disks >= info.array.working_disks) &&
 		    trustworthy != FOREIGN)
-			rv = ioctl(mdfd, RUN_ARRAY, NULL);
+			rv = md_ioctl(mdfd, MD_CTL_RUN_ARRAY);
 		else
 			rv = sysfs_set_str(sra, NULL,
 					   "array_state", "read-auto");
