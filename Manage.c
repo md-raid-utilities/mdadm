@@ -30,7 +30,15 @@
 
 #include <ctype.h>
 
-int Manage_ro(char *devname, int fd, int readonly)
+/*
+ * Switch the array to read-only (readonly > 0) or read-write (readonly < 0).
+ *
+ * Switching to read-only may close *fd: writing "readonly" to array_state
+ * and the control node both need zero openers. *fd is then set to -1.
+ * Switching to read-write never closes *fd, it is better to use Manage_rw()
+ * for it.
+ */
+int Manage_ro(char *devname, int *fd, int readonly)
 {
 	/* switch to readonly or rw
 	 *
@@ -45,7 +53,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 	/* If this is an externally-managed array, we need to modify the
 	 * metadata_version so that mdmon doesn't undo our change.
 	 */
-	mdi = sysfs_read(fd, NULL, GET_LEVEL|GET_VERSION);
+	mdi = sysfs_read(*fd, NULL, GET_LEVEL|GET_VERSION);
 	if (mdi &&
 	    mdi->array.major_version == -1 &&
 	    is_subarray(mdi->text_version)) {
@@ -58,7 +66,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 			vers[MD_VER_BLOCKED_IDX] = '-';
 			sysfs_set_str(mdi, NULL, "metadata_version", vers);
 
-			close_fd(&fd);
+			close_fd(fd);
 			rv = sysfs_set_str(mdi, NULL, "array_state", "readonly");
 
 			if (rv < 0) {
@@ -86,21 +94,21 @@ int Manage_ro(char *devname, int fd, int readonly)
 		goto out;
 	}
 
-	if (!md_array_active(fd)) {
+	if (!md_array_active(*fd)) {
 		pr_err("%s does not appear to be active.\n", devname);
 		rv = 1;
 		goto out;
 	}
 
 	if (readonly > 0) {
-		if (ioctl(fd, STOP_ARRAY_RO, NULL)) {
+		if (ioctl(*fd, STOP_ARRAY_RO, NULL)) {
 			pr_err("failed to set readonly for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
 			goto out;
 		}
 	} else if (readonly < 0) {
-		if (ioctl(fd, RESTART_ARRAY_RW, NULL)) {
+		if (ioctl(*fd, RESTART_ARRAY_RW, NULL)) {
 			pr_err("failed to set writable for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
@@ -109,6 +117,16 @@ int Manage_ro(char *devname, int fd, int readonly)
 	}
 out:
 	sysfs_free(mdi);
+	return rv;
+}
+
+int Manage_rw(char *devname, int fd)
+{
+	int tmp = fd;
+	int rv = Manage_ro(devname, &tmp, -1);
+
+	/* read-write must not close the caller's fd */
+	assert(tmp == fd);
 	return rv;
 }
 
@@ -1072,7 +1090,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 		}
 		if (dv->disposition == 'j') {
 			pr_err("Journal added successfully, making %s read-write\n", devname);
-			if (Manage_ro(devname, fd, -1))
+			if (Manage_rw(devname, fd))
 				pr_err("Failed to make %s read-write\n", devname);
 		}
 

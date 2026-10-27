@@ -1429,7 +1429,8 @@ struct stat64;
 
 extern int add_dev(const char *name, const struct stat *stb, int flag, struct FTW *s);
 
-extern int Manage_ro(char *devname, int fd, int readonly);
+extern int Manage_ro(char *devname, int *fd, int readonly);
+extern int Manage_rw(char *devname, int fd);
 extern int Manage_run(char *devname, int fd, struct context *c);
 extern int Manage_stop(char *devname, int fd, int quiet,
 		       int will_retry);
