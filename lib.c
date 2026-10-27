@@ -184,6 +184,14 @@ char *stat2devnm(struct stat *st)
 	return devid2devnm(st->st_rdev);
 }
 
+dev_t stat2devid(struct stat *st)
+{
+	if ((S_IFMT & st->st_mode) != S_IFBLK)
+		return 0;
+
+	return st->st_rdev;
+}
+
 bool stat_is_md_dev(struct stat *st)
 {
 	if ((S_IFMT & st->st_mode) != S_IFBLK)
@@ -204,6 +212,20 @@ char *fd2devnm(int fd)
 		return stat2devnm(&stb);
 
 	return NULL;
+}
+
+/**
+ * fd2devid() Get the devid from an fd
+ * Return: devid on success, 0 on failure.
+ */
+dev_t fd2devid(int fd)
+{
+	struct stat stb;
+
+	if (fstat(fd, &stb) == 0)
+		return stat2devid(&stb);
+
+	return 0;
 }
 
 /*
