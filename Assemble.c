@@ -1830,7 +1830,7 @@ try_again:
 
 	if (st->ss->get_bitmap_type &&
 	    st->ss->get_bitmap_type(st) == BITMAP_MAJOR_LOCKLESS &&
-	    sysfs_set_str(content, NULL, "bitmap_type", "llbitmap"))
+	    sysfs_set_llbitmap(content) != MDADM_STATUS_SUCCESS)
 		goto out;
 
 	/* If we are in the middle of a reshape we may need to restore saved data
