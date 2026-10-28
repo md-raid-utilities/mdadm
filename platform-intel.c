@@ -681,6 +681,10 @@ static const struct imsm_orom *find_imsm_hba_orom(struct sys_dev *hba)
 #define RST_SATA_V_GUID \
 	EFI_GUID(0xe4dd92e0, 0xac7d, 0x11df, 0x94, 0xe2, 0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66)
 
+/* GUID entry in 'UEFI' for new Sata controller driver. */
+#define RST_SATA_V_GUID_2 \
+	EFI_GUID(0x13b39da6, 0xf647, 0x4916, 0xa8, 0x47, 0xcd, 0xbd, 0x54, 0x73, 0x28, 0x5e)
+
 /* GUID entry in 'UEFI' for sSata controller. */
 #define RST_SSATA_V_GUID \
 	EFI_GUID(0xb002be42, 0x901d, 0x4018, 0xb4, 0x1e, 0xd7, 0x04, 0xab, 0x3a, 0x0f, 0x15)
@@ -1018,6 +1022,7 @@ find_imsm_efi_orom(struct imsm_orom *orom, enum sys_dev_type controller_type)
 {
 	static imsm_orom_id_t sata_imsm_orrom_ids[] = {
 		{AHCI_PROP, RST_SATA_V_GUID},
+		{AHCI_PROP, RST_SATA_V_GUID_2},
 		{AHCI_SSATA_PROP, RST_SSATA_V_GUID},
 		{AHCI_TSATA_PROP, RST_TSATA_V_GUID},
 	};
