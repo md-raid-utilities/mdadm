@@ -184,8 +184,14 @@ do
 
 	sys=${sync_act%/md/*}
 	dev=$(devname "$sys") || continue
-	BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
-	source $tmp
+	uuid_file="$sys/md/uuid"
+	if [ -f "$uuid_file" ] ; then
+		read MD_UUID < "$uuid_file"
+	else
+		# Linux version < 5.9; fall back to mdadm
+		BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
+		source $tmp
+	fi
 	[[ "$MD_UUID" ]] || continue
 
 	fl="/var/lib/mdcheck/MD_UUID_$MD_UUID"
