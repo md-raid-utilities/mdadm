@@ -28,6 +28,7 @@ enum udev_status {
 	UDEV_STATUS_TIMEOUT
 };
 
+void udev_detect(void);
 bool udev_is_available(void);
 
 #ifndef NO_LIBUDEV
@@ -35,6 +36,7 @@ enum udev_status udev_wait_for_events(int seconds);
 #endif
 
 enum udev_status udev_block(char *devnm);
-void udev_unblock(void);
+bool udev_unblock(void);
+void udev_ready(struct mdinfo *sra);
 
 #endif
