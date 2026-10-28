@@ -30,8 +30,12 @@
 
 #include	<dirent.h>
 #include	<ctype.h>
+#include <limits.h>
 
 #define MAX_SYSFS_PATH_LEN	120
+/* retry reading sysfs entries */
+#define SYSFS_MAX_RETRIES 1
+#define SYSFS_RETRY_USEC 100
 
 struct dev_sysfs_rule {
 	struct dev_sysfs_rule *next;
@@ -48,13 +52,17 @@ struct dev_sysfs_rule {
 int load_sys(char *path, char *buf, int len)
 {
 	int fd = open(path, O_RDONLY);
-	int n;
+	int n, err;
 	if (fd < 0)
-		return -1;
+		return -errno;
 	n = read(fd, buf, len);
+	if (n < 0)
+		err = -errno;
 	close(fd);
-	if (n <0 || n >= len)
-		return -1;
+	if (n < 0)
+		return err;
+	if (n >= len)
+		return -EOVERFLOW;
 	buf[n] = 0;
 	if (n && buf[n-1] == '\n')
 		buf[n-1] = 0;
@@ -428,6 +436,9 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 	sra->devs = NULL;
 	while ((de = readdir(dir)) != NULL) {
 		char *ep;
+		int retries = SYSFS_MAX_RETRIES;
+		int rc;
+
 		if (de->d_ino == 0 ||
 		    strncmp(de->d_name, "dev-", 4) != 0)
 			continue;
@@ -437,43 +448,26 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 
 		dev = xcalloc(1, sizeof(*dev));
 
+retry:
 		/* Always get slot, major, minor */
 		strcpy(dbase, "slot");
-		if (load_sys(fname, buf, sizeof(buf))) {
-			/* hmm... unable to read 'slot' maybe the device
-			 * is going away?
-			 */
-			strcpy(dbase, "block");
-			if (readlink(fname, buf, sizeof(buf)) < 0 &&
-			    errno != ENAMETOOLONG) {
-				/* ...yup device is gone */
-				free(dev);
-				continue;
-			} else {
-				/* slot is unreadable but 'block' link
-				 * still intact... something bad is happening
-				 * so abort
-				 */
-				free(dev);
-				goto abort;
-			}
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0)
+			goto maybe_retry;
+		else
+			dev->disk.raid_disk = strtoul(buf, &ep, 10);
 
-		}
-		strcpy(dev->sys_name, de->d_name);
-		dev->sys_name[sizeof(dev->sys_name) - 1] = '\0';
-		dev->disk.raid_disk = strtoul(buf, &ep, 10);
-		if (*ep) dev->disk.raid_disk = -1;
-
-		sra->array.nr_disks++;
 		strcpy(dbase, "block/dev");
-		if (load_sys(fname, buf, sizeof(buf))) {
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0) {
 			/* assume this is a stale reference to a hot
 			 * removed device
 			 */
-			if (!(options & GET_DEVS_ALL)) {
+			if (rc == -ENOENT && !(options & GET_DEVS_ALL)) {
 				free(dev);
 				continue;
-			}
+			} else
+				goto maybe_retry;
 		} else {
 			sscanf(buf, "%d:%d", &dev->disk.major, &dev->disk.minor);
 		}
@@ -488,51 +482,103 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 			}
 		}
 
-		/* finally add this disk to the array */
-		*devp = dev;
-		devp = & dev->next;
-		dev->next = NULL;
-
 		if (options & GET_OFFSET) {
 			strcpy(dbase, "offset");
-			if (load_sys(fname, buf, sizeof(buf)))
-				goto abort;
-			dev->data_offset = strtoull(buf, NULL, 0);
+			rc = load_sys(fname, buf, sizeof(buf));
+			if (rc < 0)
+				goto maybe_retry;
+			else
+				dev->data_offset = strtoull(buf, NULL, 0);
 			strcpy(dbase, "new_offset");
-			if (load_sys(fname, buf, sizeof(buf)) == 0)
+			rc = load_sys(fname, buf, sizeof(buf));
+			if (rc < 0 && retries > 0)
+				goto maybe_retry;
+			else if (rc == 0)
 				dev->new_data_offset = strtoull(buf, NULL, 0);
 			else
 				dev->new_data_offset = dev->data_offset;
 		}
 		if (options & GET_SIZE) {
 			strcpy(dbase, "size");
-			if (load_sys(fname, buf, sizeof(buf)))
-				goto abort;
-			dev->component_size = strtoull(buf, NULL, 0) * 2;
+			rc = load_sys(fname, buf, sizeof(buf));
+			if (rc < 0)
+				goto maybe_retry;
+			else
+				dev->component_size = strtoull(buf, NULL, 0) * 2;
 		}
 		if (options & GET_STATE) {
 			dev->disk.state = 0;
 			strcpy(dbase, "state");
-			if (load_sys(fname, buf, sizeof(buf)))
-				goto abort;
+			rc = load_sys(fname, buf, sizeof(buf));
+			if (rc < 0)
+				goto maybe_retry;
 			if (strstr(buf, "faulty"))
 				dev->disk.state |= (1<<MD_DISK_FAULTY);
-			else {
-				sra->array.working_disks++;
-				if (strstr(buf, "in_sync")) {
-					dev->disk.state |= (1<<MD_DISK_SYNC);
-					sra->array.active_disks++;
-				}
-				if (dev->disk.state == 0)
-					sra->array.spare_disks++;
-			}
+			else if (strstr(buf, "in_sync"))
+				dev->disk.state |= (1<<MD_DISK_SYNC);
 		}
 		if (options & GET_ERROR) {
-			strcpy(buf, "errors");
-			if (load_sys(fname, buf, sizeof(buf)))
-				goto abort;
+			strcpy(dbase, "errors");
+			rc = load_sys(fname, buf, sizeof(buf));
+			if (rc < 0)
+				goto maybe_retry;
 			dev->errors = strtoul(buf, NULL, 0);
 		}
+
+		/* finally add this disk to the array */
+		strcpy(dev->sys_name, de->d_name);
+		dev->sys_name[sizeof(dev->sys_name) - 1] = '\0';
+		*devp = dev;
+		devp = &dev->next;
+		dev->next = NULL;
+
+		sra->array.nr_disks++;
+		if (!(dev->disk.state & (1 << MD_DISK_FAULTY))) {
+			sra->array.working_disks++;
+			if (dev->disk.state & (1 << MD_DISK_SYNC))
+				sra->array.active_disks++;
+			if (dev->disk.state == 0)
+				sra->array.spare_disks++;
+		}
+		continue;
+
+maybe_retry:
+
+		/*
+		 * hmm... unable to read some attributes, maybe the device
+		 * is going away?
+		 * The kernel removes the "block" symlink first
+		 * in hot-remove operations.
+		 */
+		strcpy(dbase, "block");
+		if (readlink(fname, buf, sizeof(buf)) < 0) {
+			if (errno == ENOENT) {
+				/* ...yup device is gone */
+				pr_err("%s: device %s has been hot-removed\n",
+				       devnm, de->d_name);
+				free(dev);
+				continue;
+			} else
+				pr_err("%s: error reading block symlink for %s: %s\n",
+				       devnm, de->d_name, strerror(errno));
+		}
+
+		if (retries--) {
+			struct timespec wait = { .tv_sec = 0,
+				.tv_nsec = 1000 * SYSFS_RETRY_USEC };
+			nanosleep(&wait, NULL);
+			goto retry;
+		}
+
+		pr_err("%s: error reading sysfs file %s: %s\n",
+		       devnm, buf, strerror(-rc));
+		/* slot is unreadable but 'block' link
+		 * still intact... something bad is happening
+		 * so abort
+		 */
+		free(dev);
+		goto abort;
+
 	}
 
 	if ((options & GET_STATE) && sra->array.raid_disks)
@@ -547,7 +593,7 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 		closedir(dir);
 	sysfs_free(sra);
 	return NULL;
-}
+	}
 
 int sysfs_attr_match(const char *attr, const char *str)
 {
