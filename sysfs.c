@@ -623,6 +623,44 @@ int sysfs_set_str(struct mdinfo *sra, struct mdinfo *dev,
 	return 0;
 }
 
+/**
+ * sysfs_set_llbitmap() - select lockless bitmap for the array.
+ * @sra: array info, sys_name must be set.
+ *
+ * Kernel returns -EINVAL if "llbitmap" doesn't match a registered bitmap
+ * type, so report missing kernel support instead of a raw sysfs error.
+ */
+mdadm_status_t sysfs_set_llbitmap(struct mdinfo *sra)
+{
+	char fname[MAX_SYSFS_PATH_LEN];
+	mdadm_status_t ret;
+	int err = 0;
+	int fd;
+
+	snprintf(fname, MAX_SYSFS_PATH_LEN, "/sys/block/%s/md/bitmap_type",
+		 sra->sys_name);
+	fd = open(fname, O_WRONLY);
+	if (fd < 0) {
+		if (errno == ENOENT)
+			pr_err("kernel does not support lockless bitmap (no md/bitmap_type)\n");
+		else
+			pr_err("cannot open %s: %s\n", fname, strerror(errno));
+		return MDADM_STATUS_ERROR;
+	}
+
+	ret = sysfs_write_descriptor(fd, "llbitmap", strlen("llbitmap"), &err);
+	close(fd);
+	if (ret == MDADM_STATUS_SUCCESS)
+		return ret;
+
+	if (err == EINVAL)
+		pr_err("kernel does not support lockless bitmap (CONFIG_MD_LLBITMAP is not enabled)\n");
+	else
+		pr_err("failed to write 'llbitmap' to '%s' (%s)\n", fname,
+		       err ? strerror(err) : "short write");
+	return MDADM_STATUS_ERROR;
+}
+
 int sysfs_set_num(struct mdinfo *sra, struct mdinfo *dev,
 		  char *name, unsigned long long val)
 {

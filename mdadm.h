@@ -733,6 +733,7 @@ extern int sysfs_attr_match(const char *attr, const char *str);
 extern int sysfs_match_word(const char *word, char **list);
 extern int sysfs_set_str(struct mdinfo *sra, struct mdinfo *dev,
 			 char *name, char *val);
+extern mdadm_status_t sysfs_set_llbitmap(struct mdinfo *sra);
 extern int sysfs_set_num(struct mdinfo *sra, struct mdinfo *dev,
 			 char *name, unsigned long long val);
 extern int sysfs_set_num_signed(struct mdinfo *sra, struct mdinfo *dev,
