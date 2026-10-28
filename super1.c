@@ -249,7 +249,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	    strncmp(sb->set_name, homehost, l) == 0)
 		printf("  (local to host %s)", homehost);
 	printf("\n");
-	if (bms->nodes > 0 &&
+	if (__le32_to_cpu(bms->nodes) > 0 &&
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("   Cluster Name : %-64s\n", bms->cluster_name);
 	atime = __le64_to_cpu(sb->ctime) & 0xFFFFFFFFFFULL;
@@ -739,7 +739,7 @@ static void detail_super1(struct supertype *st, char *homehost, char *subarray)
 	if (l > 0 && l < 32 && sb->set_name[l] == ':' &&
 	    strncmp(sb->set_name, homehost, l) == 0)
 		printf("  (local to host %s)", homehost);
-	if (bms->nodes > 0 &&
+	if (__le32_to_cpu(bms->nodes) > 0 &&
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("\n      Cluster Name : %-64s", bms->cluster_name);
 	printf("\n              UUID : ");
@@ -1250,7 +1250,8 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 		break;
 	case UOPT_NO_BITMAP:
 		sb->feature_map &= ~__cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
-		if (bms->version == BITMAP_MAJOR_CLUSTERED && !IsBitmapDirty(devname))
+		if (__le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED &&
+		    !IsBitmapDirty(devname))
 			sb->resync_offset = MaxSector;
 		break;
 	case UOPT_BBL: {
@@ -2635,12 +2636,12 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 	case NodeNumUpdate:
 		/* cluster md only supports superblock 1.2 now */
 		if (st->minor_version != 2 &&
-		    bms->version == BITMAP_MAJOR_CLUSTERED) {
+		    __le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED) {
 			pr_err("Warning: cluster md only works with superblock 1.2\n");
 			return -EINVAL;
 		}
 
-		if (bms->version == BITMAP_MAJOR_CLUSTERED) {
+		if (__le32_to_cpu(bms->version) == BITMAP_MAJOR_CLUSTERED) {
 			if (st->nodes == 1) {
 				/* the parameter for nodes is not valid */
 				pr_err("Warning: cluster-md at least needs two nodes\n");
@@ -2651,7 +2652,7 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 				 * clustered raid)
 				 */
 				break;
-			} else if (__cpu_to_le32(st->nodes) < bms->nodes) {
+			} else if ((unsigned int)st->nodes < __le32_to_cpu(bms->nodes)) {
 				/*
 				 * Since the nodes num is not increased, no
 				 * need to check the space enough or not,
