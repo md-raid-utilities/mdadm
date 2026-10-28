@@ -220,6 +220,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 		return NULL;
 	}
 	for (de = readdir(driver_dir); de; de = readdir(driver_dir)) {
+		enum sys_dev_type dev_type = type;
 		int skip = 0;
 		char *p;
 		int n;
@@ -284,7 +285,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 				list_for_each(dev->paths, dom_path) {
 					if (dom_path &&
 					    strncmp(dom_path, rp, strlen(dom_path)) == 0) {
-						type = SYS_DEV_SATA_VMD;
+						dev_type = SYS_DEV_SATA_VMD;
 						break;
 					}
 				}
@@ -336,7 +337,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 
 		list->dev_id = (__u16) dev_id;
 		list->class = (__u32) class;
-		list->type = type;
+		list->type = dev_type;
 		list->next = NULL;
 		list->paths = xmalloc(sizeof(struct list));
 		list_init(list->paths, free);

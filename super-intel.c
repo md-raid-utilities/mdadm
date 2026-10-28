@@ -7450,7 +7450,7 @@ static int __count_volumes(char *hba_path, int dpa, int verbose,
 		char *dom_path;
 
 		list_for_each(idev->paths, dom_path) {
-			if (dom_path && hba_path && (strstr(dom_path, hba_path))) {
+			if (dom_path && strcmp(dom_path, hba_path) == 0) {
 				domain_break = true;
 				break;
 			}
