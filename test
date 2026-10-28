@@ -211,6 +211,7 @@ do_help() {
 		--dev=loop|lvm|ram|disk     Use loop devices (default), LVM, RAM or disk
 		--disks=                    Provide a bunch of physical devices for test
 		--volgroup=name             LVM volume group for LVM test
+		--mdadm=executable          Use custom executable instead of system mdadm
 		setup                       Setup test environment and exit
 		cleanup                     Cleanup test environment
 		prefix                      Run tests with <prefix>
@@ -364,6 +365,9 @@ parse_args() {
 		--volgroup=* )
 			LVM_VOLGROUP=`expr "x$i" : 'x[^=]*=\(.*\)'`
 			;;
+		--mdadm=*)
+			mdadm=${1#*=}
+			;;
 		--help | -h )
 			do_help
 			exit 0
@@ -378,8 +382,20 @@ parse_args() {
 }
 
 print_warning() {
+    if [ "$mdadm" = "$(which mdadm)" ]; then
 	warn "Warning! Tests are performed on system level mdadm!\n"
-	echo "If you want to test local build, you need to install it first!"
+	echo "If you want to test local build, you need to install it first, or use --mdadm option!"
+    elif [ -x "$mdadm" ]; then
+	# Match Help[] in Readme.c
+	if ! "$mdadm" --help 2>/dev/null | grep -q '^mdadm is used for building'; then
+	    echo "Executable given with \"--mdadm=$mdadm\" doesn't look like mdadm"
+	    exit 1
+	fi
+	warn "Tests are performed with \"$mdadm\"\n"
+    else
+	echo "Executable given with \"--mdadm=$mdadm\" not found"
+	exit 1
+    fi
 }
 
 main() {
