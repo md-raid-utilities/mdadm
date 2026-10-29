@@ -45,8 +45,8 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	char chosen_name[1024];
 	int uuid[4] = {0,0,0,0};
 	struct map_ent *map = NULL;
-	mdu_array_info_t array;
-	mdu_param_t param; /* not used by syscall */
+	struct md_array_info array = {0};
+	struct mdu_param64 param = {0}; /* not used by syscall */
 
 	if (s->level == UnSet) {
 		pr_err("a RAID level is needed to Build an array.\n");
@@ -115,7 +115,7 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 
 	/* now add the devices */
 	for ((i=0), (dv = devlist) ; dv ; i++, dv=dv->next) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		unsigned long long dsize;
 		int fd;
 
@@ -140,15 +140,15 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 			disk.state |= 1<<MD_DISK_WRITEMOSTLY;
 		disk.major = major(rdev);
 		disk.minor = minor(rdev);
-		if (ioctl(mdfd, ADD_NEW_DISK, &disk)) {
+		if (md_add_new_disk(mdfd, &disk)) {
 			pr_err("ADD_NEW_DISK failed for %s: %s\n",
 			       dv->devname, strerror(errno));
 			goto abort;
 		}
 	}
 
-	if (ioctl(mdfd, RUN_ARRAY, &param)) {
-		pr_err("RUN_ARRAY failed: %s\n", strerror(errno));
+	if (md_ioctl(mdfd, MD_CTL_RUN_ARRAY, &param)) {
+		pr_err("MD_CTL_RUN_ARRAY failed: %s\n", strerror(errno));
 		if (s->chunk & (s->chunk - 1)) {
 			cont_err("Problem may be that chunk size is not a power of 2\n");
 		}
@@ -162,7 +162,13 @@ int Build(struct mddev_ident *ident, struct mddev_dev *devlist, struct shape *s,
 	return 0;
 
  abort:
-	ioctl(mdfd, STOP_ARRAY, 0);
-	close(mdfd);
+	rdev = 0;
+	if (is_mdctl_available()) {
+		rdev = fd2devid(mdfd);
+		close_fd(&mdfd);
+	}
+
+	md_ioctl_devid(mdfd, rdev, MD_CTL_STOP_ARRAY);
+	close_fd(&mdfd);
 	return 1;
 }

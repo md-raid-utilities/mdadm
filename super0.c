@@ -754,7 +754,7 @@ static int update_super0(struct supertype *st, struct mdinfo *info,
  * 8 bytes for a hash of the host leaving 8 bytes of random material.
  * We use the first 8 bytes (64bits) of the sha1 of the host name
  */
-static int init_super0(struct supertype *st, mdu_array_info_t *info,
+static int init_super0(struct supertype *st, struct md_array_info *info,
 		       struct shape *s, char *ignored_name,
 		       char *homehost, int *uuid,
 		       unsigned long long data_offset)
@@ -840,13 +840,13 @@ static int init_super0(struct supertype *st, mdu_array_info_t *info,
 struct devinfo {
 	int fd;
 	char *devname;
-	mdu_disk_info_t disk;
+	struct md_disk_info disk;
 	unsigned long long dev_size;
 	struct devinfo *next;
 };
 
 /* Add a device to the superblock being created */
-static int add_to_super0(struct supertype *st, mdu_disk_info_t *dinfo,
+static int add_to_super0(struct supertype *st, struct md_disk_info *dinfo,
 			 int fd, char *devname, unsigned long long data_offset)
 {
 	mdp_super_t *sb = st->sb;

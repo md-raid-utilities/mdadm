@@ -30,7 +30,15 @@
 
 #include <ctype.h>
 
-int Manage_ro(char *devname, int fd, int readonly)
+/*
+ * Switch the array to read-only (readonly > 0) or read-write (readonly < 0).
+ *
+ * Switching to read-only may close *fd: writing "readonly" to array_state
+ * and the control node both need zero openers. *fd is then set to -1.
+ * Switching to read-write never closes *fd, it is better to use Manage_rw()
+ * for it.
+ */
+int Manage_ro(char *devname, int *fd, int readonly)
 {
 	/* switch to readonly or rw
 	 *
@@ -45,7 +53,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 	/* If this is an externally-managed array, we need to modify the
 	 * metadata_version so that mdmon doesn't undo our change.
 	 */
-	mdi = sysfs_read(fd, NULL, GET_LEVEL|GET_VERSION);
+	mdi = sysfs_read(*fd, NULL, GET_LEVEL|GET_VERSION);
 	if (mdi &&
 	    mdi->array.major_version == -1 &&
 	    is_subarray(mdi->text_version)) {
@@ -58,7 +66,7 @@ int Manage_ro(char *devname, int fd, int readonly)
 			vers[MD_VER_BLOCKED_IDX] = '-';
 			sysfs_set_str(mdi, NULL, "metadata_version", vers);
 
-			close_fd(&fd);
+			close_fd(fd);
 			rv = sysfs_set_str(mdi, NULL, "array_state", "readonly");
 
 			if (rv < 0) {
@@ -86,21 +94,28 @@ int Manage_ro(char *devname, int fd, int readonly)
 		goto out;
 	}
 
-	if (!md_array_active(fd)) {
+	if (!md_array_active(*fd)) {
 		pr_err("%s does not appear to be active.\n", devname);
 		rv = 1;
 		goto out;
 	}
 
 	if (readonly > 0) {
-		if (ioctl(fd, STOP_ARRAY_RO, NULL)) {
+		dev_t rdev = 0;
+
+		if (is_mdctl_available()) {
+			rdev = fd2devid(*fd);
+			close_fd(fd);
+		}
+
+		if (md_ioctl_devid(*fd, rdev, MD_CTL_STOP_ARRAY, 0, MD_CTL_RO_FLAG)) {
 			pr_err("failed to set readonly for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
 			goto out;
 		}
 	} else if (readonly < 0) {
-		if (ioctl(fd, RESTART_ARRAY_RW, NULL)) {
+		if (md_ioctl(*fd, MD_CTL_RESTART_ARRAY_RW)) {
 			pr_err("failed to set writable for %s: %s\n",
 				devname, strerror(errno));
 			rv = 1;
@@ -109,6 +124,16 @@ int Manage_ro(char *devname, int fd, int readonly)
 	}
 out:
 	sysfs_free(mdi);
+	return rv;
+}
+
+int Manage_rw(char *devname, int fd)
+{
+	int tmp = fd;
+	int rv = Manage_ro(devname, &tmp, -1);
+
+	/* read-write must not close the caller's fd */
+	assert(tmp == fd);
 	return rv;
 }
 
@@ -436,18 +461,24 @@ int Manage_stop(char *devname, int fd, int verbose, int will_retry)
 	}
 done:
 
+	/*
+	 * The control node requires no openers
+	 */
+	if (is_mdctl_available())
+		close_fd(&fd);
+
 	/* As we have an O_EXCL open, any use of the device
 	 * which blocks STOP_ARRAY is probably a transient use,
 	 * so it is reasonable to retry for a while - 5 seconds.
 	 */
 	count = 25; err = 0;
-	while (count && fd >= 0 &&
-	       (err = ioctl(fd, STOP_ARRAY, NULL)) < 0 && errno == EBUSY) {
+	while (count && (is_mdctl_available() || fd >= 0) &&
+	       (err = md_ioctl_devnm(fd, devnm, MD_CTL_STOP_ARRAY)) < 0 && errno == EBUSY) {
 		err = errno;
 		sleep_for(0, MSEC_TO_NSEC(200), true);
 		count --;
 	}
-	if (fd >= 0 && err) {
+	if (err) {
 		if (verbose >= 0) {
 			pr_err("failed to stop array %s: %s\n",
 			       devname, strerror(err));
@@ -487,10 +518,10 @@ static struct mddev_dev *add_one(struct mddev_dev *dv, char *name, char disp)
 	return new;
 }
 
-static void add_faulty(struct mddev_dev *dv, int fd, char disp)
+static void add_faulty(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
-	mdu_array_info_t array;
-	mdu_disk_info_t disk;
+	struct md_array_info array;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int i;
 
@@ -513,10 +544,10 @@ static void add_faulty(struct mddev_dev *dv, int fd, char disp)
 	}
 }
 
-static void add_detached(struct mddev_dev *dv, int fd, char disp)
+static void add_detached(char *devname, struct mddev_dev *dv, int fd, char disp)
 {
-	mdu_array_info_t array;
-	mdu_disk_info_t disk;
+	struct md_array_info array;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int i;
 
@@ -549,10 +580,10 @@ static void add_detached(struct mddev_dev *dv, int fd, char disp)
 	}
 }
 
-static void add_set(struct mddev_dev *dv, int fd, char set_char)
+static void add_set(char *devname, struct mddev_dev *dv, int fd, char set_char)
 {
-	mdu_array_info_t array;
-	mdu_disk_info_t disk;
+	struct md_array_info array;
+	struct md_disk_info disk;
 	int remaining_disks;
 	int copies, set;
 	int i;
@@ -586,7 +617,7 @@ static void add_set(struct mddev_dev *dv, int fd, char set_char)
 int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		   struct supertype *dev_st, struct supertype *tst,
 		   unsigned long rdev, enum update_opt update,
-		   char *devname, int verbose, mdu_array_info_t *array)
+		   char *devname, int verbose, struct md_array_info *array)
 {
 	struct mdinfo mdi;
 	int duuid[4];
@@ -607,7 +638,7 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		 * kernel will accept it
 		 * though.
 		 */
-		mdu_disk_info_t disc;
+		struct md_disk_info disc;
 		disc.number = mdi.disk.number;
 		if (md_get_disk_info(fd, &disc) != 0 ||
 		    disc.major != 0 || disc.minor != 0)
@@ -674,7 +705,7 @@ int attempt_re_add(int fd, int tfd, struct mddev_dev *dv,
 		}
 		/* don't even try if disk is marked as faulty */
 		errno = 0;
-		if (ioctl(fd, ADD_NEW_DISK, &disc) == 0) {
+		if (md_add_new_disk(fd, &disc) == 0) {
 			if (verbose >= 0)
 				pr_err("re-added %s\n", dv->devname);
 			return 1;
@@ -702,7 +733,7 @@ skip_re_add:
  * Superblock is released here because any open fd with O_EXCL will block sysfs_add_disk().
  */
 mdadm_status_t manage_add_external(struct supertype *st, int fd, char *disk_name,
-				   mdu_disk_info_t *disc)
+				   struct md_disk_info *disc)
 {
 	mdadm_status_t rv = MDADM_STATUS_ERROR;
 	char container_devpath[MD_NAME_MAX];
@@ -785,7 +816,7 @@ out:
 }
 
 int Manage_add(int fd, int tfd, struct mddev_dev *dv,
-	       struct supertype *tst, mdu_array_info_t *array,
+	       struct supertype *tst, struct md_array_info *array,
 	       int force, int verbose, char *devname,
 	       enum update_opt update, unsigned long rdev,
 	       unsigned long long array_size, int raid_slot)
@@ -793,7 +824,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	unsigned long long ldsize;
 	struct supertype *dev_st;
 	int j;
-	mdu_disk_info_t disc;
+	struct md_disk_info disc = {0};
 	struct map_ent *map = NULL;
 	bool add_new_super = false;
 
@@ -1022,7 +1053,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 		 */
 		char *used = xcalloc(array->raid_disks, 1);
 		for (j = 0; j < tst->max_devs; j++) {
-			mdu_disk_info_t disc2;
+			struct md_disk_info disc2;
 			disc2.number = j;
 			if (md_get_disk_info(fd, &disc2))
 				continue;
@@ -1061,7 +1092,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 			goto unlock;
 	} else {
 		tst->ss->free_super(tst);
-		if (ioctl(fd, ADD_NEW_DISK, &disc)) {
+		if (md_add_new_disk(fd, &disc)) {
 			if (dv->disposition == 'j')
 				pr_err("Failed to hot add %s as journal, "
 				       "please try restart %s.\n", dv->devname, devname);
@@ -1072,7 +1103,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 		}
 		if (dv->disposition == 'j') {
 			pr_err("Journal added successfully, making %s read-write\n", devname);
-			if (Manage_ro(devname, fd, -1))
+			if (Manage_rw(devname, fd))
 				pr_err("Failed to make %s read-write\n", devname);
 		}
 
@@ -1327,7 +1358,8 @@ abort:
  *
  * Return: True if array will be operational, false otherwise.
  */
-bool is_remove_safe(mdu_array_info_t *array, const int fd, char *devname, const int verbose)
+bool is_remove_safe(struct md_array_info *array, const int fd, char *devname,
+		    const int verbose)
 {
 	dev_t devid = devnm2devid(devname + 5);
 	struct mdinfo *mdi = sysfs_read(fd, NULL, GET_DEVS | GET_DISKS | GET_STATE);
@@ -1405,7 +1437,7 @@ int Manage_subdevs(char *devname, int fd,
 		   struct mddev_dev *devlist, int verbose, int test,
 		   enum update_opt update, int force)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	unsigned long long array_size;
 	struct mddev_dev *dv;
 	int tfd = -1;
@@ -1475,7 +1507,7 @@ int Manage_subdevs(char *devname, int fd,
 					dv->devname, dv->disposition);
 				goto abort;
 			}
-			add_faulty(dv, fd, (dv->disposition == 'A' ? 'F' : 'r'));
+			add_faulty(devname, dv, fd, (dv->disposition == 'A' ? 'F' : 'r'));
 			continue;
 		}
 		if (strcmp(dv->devname, "detached") == 0) {
@@ -1484,7 +1516,7 @@ int Manage_subdevs(char *devname, int fd,
 					dv->devname, dv->disposition);
 				goto abort;
 			}
-			add_detached(dv, fd, dv->disposition);
+			add_detached(devname, dv, fd, dv->disposition);
 			continue;
 		}
 
@@ -1493,7 +1525,7 @@ int Manage_subdevs(char *devname, int fd,
 			struct mddev_dev **dp;
 
 			if (dv->disposition == 'c') {
-				rv = ioctl(fd, CLUSTERED_DISK_NACK, NULL);
+				rv = md_ioctl(fd, MD_CTL_CLUSTERED_DISK_NACK);
 				break;
 			}
 
@@ -1534,7 +1566,7 @@ int Manage_subdevs(char *devname, int fd,
 				pr_err("'%s' not meaningful with this array\n", dv->devname);
 				goto abort;
 			}
-			add_set(dv, fd, dv->devname[4]);
+			add_set(devname, dv, fd, dv->devname[4]);
 			continue;
 		}
 
@@ -1677,7 +1709,7 @@ int Manage_subdevs(char *devname, int fd,
 			if (is_fd_valid(sysfd)) {
 				rv = sysfs_set_memb_state_fd(sysfd, MEMB_STATE_FAULTY, &err);
 			} else {
-				rv = ioctl(fd, SET_DISK_FAULTY, rdev);
+				rv = md_ioctl(fd, MD_CTL_SET_DISK_FAULTY, rdev);
 				if (rv)
 					err = errno;
 			}
@@ -1740,9 +1772,15 @@ abort:
 
 int autodetect(void)
 {
-	/* Open any md device, and issue the RAID_AUTORUN ioctl */
+	/*
+	 * TODO: The kernel removed RAID_AUTORUN in 2020. Remove
+	 * --auto-detect after 2030.
+	 */
 	int rv = 1;
 	int fd = dev_open("9:0", O_RDONLY);
+
+	pr_err("--auto-detect is deprecated and probably not supported by this kernel.\n");
+
 	if (fd >= 0) {
 		if (ioctl(fd, RAID_AUTORUN, 0) == 0)
 			rv = 0;

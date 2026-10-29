@@ -179,7 +179,7 @@ else
 endif
 
 OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o udev.o \
-       Manage.o Assemble.o Build.o \
+       Manage.o Assemble.o Build.o mdctl.o \
        Create.o Detail.o Examine.o Grow.o mdmonitor.o dlink.o Kill.o Query.o \
        Incremental.o Dump.o \
        mdopen.o super0.o super1.o super-ddf.o super-intel.o bitmap.o \
@@ -194,7 +194,7 @@ SRCS =  $(patsubst %.o,%.c,$(OBJS))
 INCL = mdadm.h part.h bitmap.h
 
 MON_OBJS = mdmon.o monitor.o managemon.o uuid.o util.o maps.o mdstat.o sysfs.o config.o mapfile.o mdopen.o\
-	policy.o lib.o udev.o \
+	mdctl.o policy.o lib.o udev.o \
 	Kill.o dlink.o ReadMe.o super-intel.o \
 	super-mbr.o super-gpt.o \
 	super-ddf.o sha1.o crc32.o msg.o bitmap.o xmalloc.o \

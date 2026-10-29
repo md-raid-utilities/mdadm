@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 	struct mddev_dev *devlist = NULL;
 	struct mddev_dev **devlistend = & devlist;
 	struct mddev_dev *dv;
-	mdu_array_info_t array;
+	struct md_array_info array;
 	int devs_found = 0;
 	int grow_continue = 0;
 	struct context c = {
@@ -1444,7 +1444,8 @@ int main(int argc, char *argv[])
 				exit(1);
 		}
 	} else if (mode == MANAGE || mode == GROW || mode == INCREMENTAL) {
-		if (!md_get_array_info(mdfd, &array) && (devmode != 'c')) {
+		if (!md_get_array_info(mdfd, &array) &&
+		    (devmode != 'c')) {
 			if (array.state & (1 << MD_SB_CLUSTERED)) {
 				locked = cluster_get_dlmlock();
 				if (locked != 1)
@@ -1457,13 +1458,21 @@ int main(int argc, char *argv[])
 	case MANAGE:
 		/* readonly, add/remove, readwrite, runstop */
 		if (c.readonly > 0)
-			rv = Manage_ro(ident.devname, mdfd, c.readonly);
+			rv = Manage_ro(ident.devname, &mdfd, c.readonly);
+
+		/* Manage_ro() might have closed the md device if needed. */
+		if (!rv && mdfd < 0 && (devs_found > 1 || c.runstop)) {
+			mdfd = open_mddev(ident.devname, 1);
+			if (mdfd < 0)
+				rv = 1;
+		}
+
 		if (!rv && devs_found > 1)
 			rv = Manage_subdevs(ident.devname, mdfd,
 					    devlist->next, c.verbose,
 					    c.test, c.update, c.force);
 		if (!rv && c.readonly < 0)
-			rv = Manage_ro(ident.devname, mdfd, c.readonly);
+			rv = Manage_rw(ident.devname, mdfd);
 		if (!rv && c.runstop > 0)
 			rv = Manage_run(ident.devname, mdfd, &c);
 		if (!rv && c.runstop < 0)
@@ -1758,6 +1767,7 @@ int main(int argc, char *argv[])
 	if (locked)
 		cluster_release_dlmlock();
 	close_fd(&mdfd);
+	close_mdctl();
 	exit(rv);
 }
 
@@ -2017,13 +2027,13 @@ static int misc_list(struct mddev_dev *devlist,
 				rv |= Manage_stop(dv->devname, mdfd, c->verbose, 0);
 				break;
 			case 'o':
-				rv |= Manage_ro(dv->devname, mdfd, 1);
+				rv |= Manage_ro(dv->devname, &mdfd, 1);
 				break;
 			case 'w':
-				rv |= Manage_ro(dv->devname, mdfd, -1);
+				rv |= Manage_rw(dv->devname, mdfd);
 				break;
 			}
-			close(mdfd);
+			close_fd(&mdfd);
 		} else
 			rv |= 1;
 	}
