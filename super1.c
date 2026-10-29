@@ -2570,7 +2570,7 @@ add_internal_bitmap1(struct supertype *st,
 		bms->state = __cpu_to_le32(1 << BITMAP_FIRST_USE);
 		if (assume_clean)
 			bms->state |= __cpu_to_le32(1 << BITMAP_CLEAN);
-		bms->sectors_reserved = __le32_to_cpu(room);
+		bms->sectors_reserved = __cpu_to_le32(room);
 	}
 	*chunkp = chunk;
 	return 0;
