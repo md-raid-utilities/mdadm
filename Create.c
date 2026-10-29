@@ -1197,7 +1197,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			goto abort_locked;
 		}
 		if (s->btype == BitmapLockless &&
-		    sysfs_set_str(&info, NULL, "bitmap_type", "llbitmap") < 0)
+		    sysfs_set_llbitmap(&info) != MDADM_STATUS_SUCCESS)
 			goto abort_locked;
 	}
 

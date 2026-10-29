@@ -584,9 +584,10 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 					}
 				}
 
-				rv = sysfs_set_str(sra, NULL, "bitmap_type", "llbitmap");
-				if (rv)
+				if (sysfs_set_llbitmap(sra) != MDADM_STATUS_SUCCESS) {
+					rv = 1;
 					goto out;
+				}
 			}
 		}
 
