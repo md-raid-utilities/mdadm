@@ -1740,9 +1740,15 @@ abort:
 
 int autodetect(void)
 {
-	/* Open any md device, and issue the RAID_AUTORUN ioctl */
+	/*
+	 * TODO: The kernel removed RAID_AUTORUN in 2020. Remove
+	 * --auto-detect after 2030.
+	 */
 	int rv = 1;
 	int fd = dev_open("9:0", O_RDONLY);
+
+	pr_err("--auto-detect is deprecated and probably not supported by this kernel.\n");
+
 	if (fd >= 0) {
 		if (ioctl(fd, RAID_AUTORUN, 0) == 0)
 			rv = 0;
