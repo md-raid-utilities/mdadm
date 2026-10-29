@@ -1007,7 +1007,7 @@ static void getinfo_super1(struct supertype *st, struct mdinfo *info, char *map)
 	}
 
 	if (sb->feature_map & __le32_to_cpu(MD_FEATURE_RECOVERY_OFFSET))
-		info->recovery_start = __le32_to_cpu(sb->recovery_offset);
+		info->recovery_start = __le64_to_cpu(sb->recovery_offset);
 	else
 		info->recovery_start = MaxSector;
 
@@ -1818,7 +1818,7 @@ static int write_empty_r5l_meta_block(struct supertype *st, int fd)
 
 	crc = crc32c_le(0xffffffff, sb->set_uuid, sizeof(sb->set_uuid));
 	crc = crc32c_le(crc, (void *)mb, META_BLOCK_SIZE);
-	mb->checksum = crc;
+	mb->checksum = __cpu_to_le32(crc);
 
 	if (lseek(fd, __le64_to_cpu(sb->data_offset) * 512, 0) < 0LL) {
 		pr_err("cannot seek to offset of the meta block\n");
@@ -2888,16 +2888,18 @@ void *super1_make_v0(struct supertype *st, struct mdinfo *info, mdp_super_t *sb0
 
 	copy_uuid(sb->set_uuid, info->uuid, super1.swapuuid);
 	sprintf(sb->set_name, "%d", sb0->md_minor);
-	sb->ctime = __cpu_to_le32(info->array.ctime + 1);
+	sb->ctime = __cpu_to_le64(info->array.ctime + 1);
 	sb->level = __cpu_to_le32(info->array.level);
 	sb->layout = __cpu_to_le32(info->array.layout);
 	sb->size = __cpu_to_le64(info->component_size);
 	sb->chunksize = __cpu_to_le32(info->array.chunk_size / 512);
 	sb->raid_disks = __cpu_to_le32(info->array.raid_disks);
+
 	if (info->array.level > 0)
 		sb->data_size = sb->size;
 	else
-		sb->data_size = st->ss->avail_size(st, st->devsize / 512, 0);
+		sb->data_size = __cpu_to_le64(st->ss->avail_size(st, st->devsize / 512, 0));
+
 	sb->resync_offset = MaxSector;
 	sb->max_dev = __cpu_to_le32(MD_SB_DISKS);
 	sb->dev_number = __cpu_to_le32(info->disk.number);
