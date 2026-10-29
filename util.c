@@ -231,6 +231,7 @@ out:
 
 int md_array_valid(int fd)
 {
+	mdu_version_t v = {0};
 	struct mdinfo *sra;
 	int ret;
 
@@ -247,7 +248,7 @@ int md_array_valid(int fd)
 		 * GET_ARRAY_INFO doesn't provide access to the proper state
 		 * information, so fallback to a basic check for raid_disks != 0
 		 */
-		ret = ioctl(fd, RAID_VERSION);
+		ret = ioctl(fd, RAID_VERSION, &v);
 	}
 
 	return !ret;
