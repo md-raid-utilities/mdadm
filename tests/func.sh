@@ -96,7 +96,6 @@ cleanup() {
 		do
 			losetup -d /dev/loop$d &> /dev/null
 			rm -f /dev/disk/by-path/loop*
-			rm -f /var/tmp/mdtest$d
 		done
 	;;
 	lvm )
@@ -129,7 +128,7 @@ check_env() {
 		echo "test: please run make everything before perform testing."
 		exit 1
 	}
-	cmds=(mdadm lsblk df udevadm losetup mkfs.ext3 fsck seq)
+	 cmds=(mdadm blockdev dd lsblk df udevadm losetup mkfs.ext3 fsck seq stat)
 	for cmd in ${cmds[@]}
 	do
 		which $cmd > /dev/null || {
@@ -160,6 +159,68 @@ check_env() {
 		echo "test: skipping tests for linear, which is removed in upstream 6.8+ kernels"
 		skipping_linear="yes"
 	fi
+}
+
+# If loop devices are existing, try to reuse them first. Verify that they are correctly sized and
+# backed by mdadm test files. If they are no suitable - abort.
+#
+# If there are no loop devices, create them.
+# loop6 and loop7 intentionally share mdtest6 for multipath tests.
+setup_loop_devices() {
+	local actual_backing
+	local expected_size
+	local backing_file
+	local actual_size
+	local loop_device
+	local file_size
+	local sz
+	local d
+
+	[ "$DEVTYPE" != "loop" ] && return 0
+
+	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	do
+		sz=$size
+		[ $d -gt 7 ] && sz=$ddfsize
+		loop_device=/dev/loop$d
+		backing_file=$targetdir/mdtest$d
+		[ $d -eq 7 ] && backing_file=$targetdir/mdtest6
+		expected_size=$((sz * 1024))
+		eval dev$d=$loop_device
+		eval file$d=$backing_file
+
+		if losetup "$loop_device" > /dev/null 2>&1; then
+			actual_backing=$(losetup --noheadings --raw --output BACK-FILE "$loop_device")
+			actual_size=$(blockdev --getsize64 "$loop_device")
+			file_size=$(stat -c %s "$backing_file" 2> /dev/null)
+
+			if [ "$actual_backing" != "$backing_file" ] ||
+			   [ "$actual_size" != "$expected_size" ] ||
+			   [ "$file_size" != "$expected_size" ]; then
+				die "$loop_device is not mdadm test loop device. Remove the device manually."
+			fi
+			# make sure udev doesn't touch
+			mdadm --zero "$backing_file" 2> /dev/null
+			udevadm settle > /dev/null 2>&1
+			continue
+		fi
+
+		file_size=$(stat -c %s "$backing_file" 2> /dev/null)
+		if [ "$file_size" != "$expected_size" ]; then
+			rm -f "$backing_file"
+			if ! dd if=/dev/zero of="$backing_file" count=$sz bs=1K > /dev/null 2>&1; then
+				echo "Failed to create $backing_file."
+				return 1
+			fi
+		fi
+
+		if ! losetup "$loop_device" "$backing_file"; then
+			echo "Failed to set up $loop_device."
+			return 1
+		fi
+
+		udevadm settle > /dev/null 2>&1
+	done
 }
 
 record_system_speed_limit() {
@@ -258,26 +319,17 @@ clean_systemd_env() {
 }
 
 do_setup() {
+	check_env
+	setup_loop_devices || exit 1
+
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
 
-	check_env
 	setup_systemd_env
 	[ -d $logdir ] || mkdir -p $logdir
 
 	devlist=
-	if [ "$DEVTYPE" == "loop" ]
-	then
-		# make sure there are no loop devices remaining.
-		# udev started things can sometimes prevent them being stopped
-		# immediately
-		while grep loop /proc/partitions > /dev/null 2>&1
-		do
-			$mdadm -Ssq
-			losetup -d /dev/loop[0-9]* 2> /dev/null
-			sleep 0.2
-		done
-	elif [ "$DEVTYPE" == "disk" ]
+	if [ "$DEVTYPE" == "disk" ]
 	then
 		if [ ! -z "$disks" ]
 		then
@@ -295,24 +347,10 @@ do_setup() {
 	fi
 	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
 	do
-		sz=$size
-		[ $d -gt 7 ] && sz=$ddfsize
 		case $DEVTYPE in
-		loop)
-			[ -f $targetdir/mdtest$d ] ||
-				dd if=/dev/zero of=$targetdir/mdtest$d count=$sz bs=1K > /dev/null 2>&1
-			# make sure udev doesn't touch
-			mdadm --zero $targetdir/mdtest$d 2> /dev/null
-			if [ $d -eq 7 ]
-			then
-				losetup /dev/loop$d $targetdir/mdtest6 # for multipath use
-			else
-				losetup /dev/loop$d $targetdir/mdtest$d
-			fi
-			eval dev$d=/dev/loop$d
-			eval file$d=$targetdir/mdtest$d
-		;;
 		lvm)
+			sz=$size
+			[ $d -gt 7 ] && sz=$ddfsize
 			unset MULTIPATH
 			eval dev$d=/dev/mapper/${LVM_VOLGROUP}-mdtest$d
 			if ! lvcreate --quiet -L ${sz}K -n mdtest$d $LVM_VOLGROUP
