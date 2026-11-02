@@ -5575,14 +5575,14 @@ static int load_super_imsm(struct supertype *st, int fd, char *devname)
 	return 0;
 }
 
-static __u16 info_to_blocks_per_strip(mdu_array_info_t *info)
+static __u16 info_to_blocks_per_strip(struct md_array_info *info)
 {
 	if (info->level == 1)
 		return 128;
 	return info->chunk_size >> 9;
 }
 
-static unsigned long long info_to_blocks_per_member(mdu_array_info_t *info,
+static unsigned long long info_to_blocks_per_member(struct md_array_info *info,
 						    unsigned long long size)
 {
 	if (info->level == 1)
@@ -5679,7 +5679,7 @@ static bool imsm_is_name_allowed(struct intel_super *super, const char * const n
 	return true;
 }
 
-static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
+static int init_super_imsm_volume(struct supertype *st, struct md_array_info *info,
 				  struct shape *s, char *name,
 				  char *homehost, int *uuid,
 				  long long data_offset)
@@ -5857,7 +5857,7 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	return 1;
 }
 
-static int init_super_imsm(struct supertype *st, mdu_array_info_t *info,
+static int init_super_imsm(struct supertype *st, struct md_array_info *info,
 		           struct shape *s, char *name,
 			   char *homehost, int *uuid,
 			   unsigned long long data_offset)
@@ -5935,7 +5935,7 @@ static int drive_validate_sector_size(struct intel_super *super, struct dl *dl)
 	return 1;
 }
 
-static int add_to_super_imsm_volume(struct supertype *st, mdu_disk_info_t *dk,
+static int add_to_super_imsm_volume(struct supertype *st, struct md_disk_info *dk,
 				     int fd, char *devname)
 {
 	struct intel_super *super = st->sb;
@@ -6109,7 +6109,7 @@ int mark_spare(struct dl *disk)
 
 static int write_super_imsm_spare(struct intel_super *super, struct dl *d);
 
-static int add_to_super_imsm(struct supertype *st, mdu_disk_info_t *dk,
+static int add_to_super_imsm(struct supertype *st, struct md_disk_info *dk,
 			     int fd, char *devname,
 			     unsigned long long data_offset)
 {
@@ -6229,7 +6229,7 @@ error:
 	return MDADM_STATUS_ERROR;
 }
 
-static int remove_from_super_imsm(struct supertype *st, mdu_disk_info_t *dk)
+static int remove_from_super_imsm(struct supertype *st, struct md_disk_info *dk)
 {
 	struct intel_super *super = st->sb;
 	struct dl *dd;

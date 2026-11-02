@@ -149,7 +149,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	/* now check out all the devices and make sure we can read the
 	 * superblock */
 	for (d=0 ; d < info.array.raid_disks ; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 
 		st->ss->free_super(st);
@@ -208,7 +208,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 	}
 	close(nfd);
 
-	if (ioctl(fd, ADD_NEW_DISK, &info.disk) != 0) {
+	if (md_add_new_disk(fd, &info.disk) != 0) {
 		pr_err("Cannot add new disk to this array\n");
 		return 1;
 	}
@@ -223,7 +223,7 @@ int Grow_Add_device(char *devname, int fd, char *newdev)
 
 	nd = d;
 	for (d=0 ; d < info.array.raid_disks ; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 
 		disk.number = d;
@@ -281,7 +281,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 	 * find all the active devices, and write the bitmap block
 	 * to all devices
 	 */
-	mdu_array_info_t array;
+	struct md_array_info array = {0};
 	struct supertype *st;
 	char *subarray = NULL;
 	int major = BITMAP_MAJOR_HI;
@@ -396,7 +396,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 		if (mdi)
 			offset_setable = 1;
 		for (d = 0; d < st->max_devs; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			char *dv;
 			int fd2;
 
@@ -1873,7 +1873,7 @@ int Grow_reshape(char *devname, int fd,
 	 * reshape (e.g. raid6->raid5, raid5->raid0)
 	 *
 	 */
-	struct mdu_array_info_s array;
+	struct md_array_info array = {0};
 	int rv = 0;
 	struct supertype *st;
 	char *subarray = NULL;
@@ -2866,7 +2866,7 @@ static int impose_reshape(struct mdinfo *sra,
 			  char *devname, char *container,
 			  struct reshape *reshape)
 {
-	struct mdu_array_info_s array;
+	struct md_array_info array = {0};
 
 	sra->new_chunk = info->new_chunk;
 
@@ -2955,7 +2955,7 @@ release:
 static int impose_level(int fd, int level, char *devname, int verbose)
 {
 	char *c;
-	struct mdu_array_info_s array;
+	struct md_array_info array = {0};
 	struct mdinfo info;
 
 	if (sysfs_init(&info, fd, NULL)) {
@@ -2980,7 +2980,7 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 		/* First remove any spares so no recovery starts */
 		for (d = 0, found = 0;
 		     d < MAX_DISKS && found < array.nr_disks; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			disk.number = d;
 			if (md_get_disk_info(fd, &disk) < 0)
 				continue;
@@ -2991,14 +2991,14 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 			    disk.raid_disk < data_disks)
 				/* keep this */
 				continue;
-			ioctl(fd, HOT_REMOVE_DISK,
-			      makedev(disk.major, disk.minor));
+			md_ioctl(fd, MD_CTL_HOT_REMOVE_DISK,
+				 makedev(disk.major, disk.minor));
 		}
 		/* Now fail anything left */
 		md_get_array_info(fd, &array);
 		for (d = 0, found = 0;
 		     d < MAX_DISKS && found < array.nr_disks; d++) {
-			mdu_disk_info_t disk;
+			struct md_disk_info disk;
 			disk.number = d;
 			if (md_get_disk_info(fd, &disk) < 0)
 				continue;
@@ -3009,8 +3009,8 @@ static int impose_level(int fd, int level, char *devname, int verbose)
 			    disk.raid_disk < data_disks)
 				/* keep this */
 				continue;
-			ioctl(fd, SET_DISK_FAULTY,
-			      makedev(disk.major, disk.minor));
+			md_ioctl(fd, MD_CTL_SET_DISK_FAULTY,
+				 makedev(disk.major, disk.minor));
 			hot_remove_disk(fd, makedev(disk.major, disk.minor), 1);
 		}
 		/*
@@ -3097,7 +3097,7 @@ static int reshape_array(char *container, int fd, char *devname,
 	int odisks;
 	int delayed;
 
-	struct mdu_array_info_s array;
+	struct md_array_info array = {0};
 	char *c;
 
 	struct mddev_dev *dv;
@@ -3147,7 +3147,7 @@ static int reshape_array(char *container, int fd, char *devname,
 			info->array.raid_disks += info->delta_disks;
 		if (!restart)
 			/* Make sure the array isn't read-only */
-			ioctl(fd, RESTART_ARRAY_RW, 0);
+			md_ioctl(fd, MD_CTL_RESTART_ARRAY_RW);
 	} else
 		msg = analyse_change(devname, info, &reshape);
 	if (msg) {
@@ -4911,8 +4911,8 @@ int Grow_restart(struct supertype *st, struct mdinfo *info, int *fdlist,
 		 * matching, and allow this test to be overridden by
 		 * an environment variable.
 		 */
-		if(time_after(info->array.utime, (unsigned int)__le64_to_cpu(bsb.mtime) + 2*60*60) ||
-		   time_before(info->array.utime, (unsigned int)__le64_to_cpu(bsb.mtime) - 10*60)) {
+		if (time_after(info->array.utime, __le64_to_cpu(bsb.mtime) + 2*60*60) ||
+		    time_before(info->array.utime, __le64_to_cpu(bsb.mtime) - 10*60)) {
 			if (check_env("MDADM_GROW_ALLOW_OLD")) {
 				pr_err("accepting backup with timestamp %lu for array with timestamp %lu\n",
 					(unsigned long)__le64_to_cpu(bsb.mtime),
@@ -5175,7 +5175,7 @@ int Grow_continue_command(char *devname, int fd, struct context *c)
 		 */
 		do {
 			for (d = 0; d < MAX_DISKS; d++) {
-				mdu_disk_info_t disk;
+				struct md_disk_info disk;
 				char *dv;
 				int err;
 				disk.number = d;

@@ -269,7 +269,7 @@ static void add_disk_to_container(struct supertype *st, struct mdinfo *sd)
 	int dfd;
 	char nm[20];
 	struct metadata_update *update = NULL;
-	mdu_disk_info_t dk = {
+	struct md_disk_info dk = {
 		.number = -1,
 		.major = sd->disk.major,
 		.minor = sd->disk.minor,
@@ -302,7 +302,7 @@ static void add_disk_to_container(struct supertype *st, struct mdinfo *sd)
 static void remove_disk_from_container(struct supertype *st, struct mdinfo *sd)
 {
 	struct metadata_update *update = NULL;
-	mdu_disk_info_t dk = {
+	struct md_disk_info dk = {
 		.number = -1,
 		.major = sd->disk.major,
 		.minor = sd->disk.minor,

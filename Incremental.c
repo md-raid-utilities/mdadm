@@ -312,9 +312,17 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		dinfo.disk.major = major(rdev);
 		dinfo.disk.minor = minor(rdev);
 		if (add_disk(mdfd, st, &info, &dinfo) != 0) {
+			dev_t rd = 0;
+
 			pr_err("failed to add %s to new array %s: %s.\n",
 				devname, chosen_name, strerror(errno));
-			ioctl(mdfd, STOP_ARRAY, 0);
+
+			if (is_mdctl_available()) {
+				rd = fd2devid(mdfd);
+				close_fd(&mdfd);
+			}
+
+			md_ioctl_devid(mdfd, rd, MD_CTL_STOP_ARRAY);
 			rv = 2;
 			goto out_unlock;
 		}
@@ -322,11 +330,18 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 					      GET_OFFSET | GET_SIZE));
 
 		if (!sra || !sra->devs || sra->devs->disk.raid_disk >= 0) {
+			dev_t rd = 0;
+
 			/* It really should be 'none' - must be old buggy
 			 * kernel, and mdadm -I may not be able to complete.
 			 * So reject it.
 			 */
-			ioctl(mdfd, STOP_ARRAY, NULL);
+			if (is_mdctl_available()) {
+				rd = fd2devid(mdfd);
+				close_fd(&mdfd);
+			}
+
+			md_ioctl_devid(mdfd, rd, MD_CTL_STOP_ARRAY, NULL);
 			pr_err("You have an old buggy kernel which cannot support\n      --incremental reliably.  Aborting.\n");
 			rv = 2;
 			goto out_unlock;
@@ -592,7 +607,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 
 		if ((sra == NULL || active_disks >= info.array.working_disks) &&
 		    trustworthy != FOREIGN)
-			rv = ioctl(mdfd, RUN_ARRAY, NULL);
+			rv = md_ioctl(mdfd, MD_CTL_RUN_ARRAY);
 		else
 			rv = sysfs_set_str(sra, NULL,
 					   "array_state", "read-auto");

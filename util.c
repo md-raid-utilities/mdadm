@@ -231,6 +231,7 @@ out:
 
 int md_array_valid(int fd)
 {
+	mdu_version_t v = {0};
 	struct mdinfo *sra;
 	int ret;
 
@@ -247,7 +248,7 @@ int md_array_valid(int fd)
 		 * GET_ARRAY_INFO doesn't provide access to the proper state
 		 * information, so fallback to a basic check for raid_disks != 0
 		 */
-		ret = ioctl(fd, RAID_VERSION);
+		ret = ioctl(fd, RAID_VERSION, &v);
 	}
 
 	return !ret;
@@ -256,7 +257,7 @@ int md_array_valid(int fd)
 int md_array_active(int fd)
 {
 	struct mdinfo *sra;
-	struct mdu_array_info_s array;
+	struct md_array_info array;
 	int ret = 0;
 
 	sra = sysfs_read(fd, NULL, GET_ARRAY_STATE);
@@ -287,25 +288,53 @@ int md_array_is_active(struct mdinfo *info)
  * Get array info from the kernel. Longer term we want to deprecate the
  * ioctl and get it from sysfs.
  */
-int md_get_array_info(int fd, struct mdu_array_info_s *array)
+int md_get_array_info(int fd, struct md_array_info *uarray)
 {
-	return ioctl(fd, GET_ARRAY_INFO, array);
+	int rv;
+	struct mdu_array_info64 karray;
+
+	rv = md_ioctl(fd, MD_CTL_GET_ARRAY_INFO, &karray);
+	if (!rv)
+		array_info_from_kernel(uarray, &karray);
+
+	return rv;
 }
 
 /*
  * Set array info
  */
-int md_set_array_info(int fd, struct mdu_array_info_s *array)
+int md_set_array_info(int fd, struct md_array_info *uarray)
 {
-	return ioctl(fd, SET_ARRAY_INFO, array);
+	struct mdu_array_info64 karray;
+
+	array_info_to_kernel(&karray, uarray);
+	return md_ioctl(fd, MD_CTL_SET_ARRAY_INFO, &karray);
 }
 
 /*
  * Get disk info from the kernel.
  */
-int md_get_disk_info(int fd, struct mdu_disk_info_s *disk)
+int md_get_disk_info(int fd, struct md_disk_info *udisk)
 {
-	return ioctl(fd, GET_DISK_INFO, disk);
+	int rv;
+	struct mdu_disk_info64 kdisk = {.number = udisk->number};
+
+	rv = md_ioctl(fd, MD_CTL_GET_DISK_INFO, &kdisk);
+	if (!rv)
+		disk_info_from_kernel(udisk, &kdisk);
+
+	return rv;
+}
+
+/*
+ * Add a disk to the array.
+ */
+int md_add_new_disk(int fd, struct md_disk_info *udisk)
+{
+	struct mdu_disk_info64 kdisk;
+
+	disk_info_to_kernel(&kdisk, udisk);
+	return md_ioctl(fd, MD_CTL_ADD_NEW_DISK, &kdisk);
 }
 
 int get_linux_version(void)
@@ -1173,7 +1202,7 @@ struct superswitch *superlist[] =
 
 struct supertype *super_by_fd(int fd, char **subarrayp)
 {
-	mdu_array_info_t array;
+	struct md_array_info array;
 	int vers;
 	int minor;
 	struct supertype *st = NULL;
@@ -1759,7 +1788,7 @@ int add_disk(int mdfd, struct supertype *st,
 			}
 		}
 	} else
-		rv = ioctl(mdfd, ADD_NEW_DISK, &info->disk);
+		rv = md_add_new_disk(mdfd, &info->disk);
 	return rv;
 }
 
@@ -1772,8 +1801,8 @@ int remove_disk(int mdfd, struct supertype *st,
 	if (st->ss->external)
 		rv = sysfs_set_str(sra, info, "slot", STR_COMMON_NONE);
 	else
-		rv = ioctl(mdfd, HOT_REMOVE_DISK, makedev(info->disk.major,
-							  info->disk.minor));
+		rv = md_ioctl(mdfd, MD_CTL_HOT_REMOVE_DISK,
+			      makedev(info->disk.major, info->disk.minor));
 	return rv;
 }
 
@@ -1787,7 +1816,7 @@ int hot_remove_disk(int mdfd, unsigned long dev, int force)
 	 * In this case, it can be helpful to wait a little while,
 	 * up to 5 seconds if 'force' is set, or 50 msec if not.
 	 */
-	while ((ret = ioctl(mdfd, HOT_REMOVE_DISK, dev)) == -1 &&
+	while ((ret = md_ioctl(mdfd, MD_CTL_HOT_REMOVE_DISK, dev)) == -1 &&
 	       errno == EBUSY &&
 	       cnt-- > 0)
 		sleep_for(0, MSEC_TO_NSEC(10), true);
@@ -1821,7 +1850,7 @@ int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
 	 * This varies between externally managed arrays
 	 * and older kernels
 	 */
-	mdu_array_info_t inf;
+	struct md_array_info inf;
 	int rv;
 
 	if (st->ss->external)

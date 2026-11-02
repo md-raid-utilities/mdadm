@@ -81,8 +81,8 @@ int Detail(char *dev, struct context *c)
 	 * Print out details for an md array
 	 */
 	int fd = open(dev, O_RDONLY);
-	mdu_array_info_t array;
-	mdu_disk_info_t *disks = NULL;
+	struct md_array_info array;
+	struct md_disk_info *disks = NULL;
 	int next;
 	int d;
 	time_t atime;
@@ -175,7 +175,7 @@ int Detail(char *dev, struct context *c)
 		for (d = 0, subdev = sra ? sra->devs : NULL;
 		     d < max_disks || subdev;
 		     subdev ? (void)(subdev = subdev->next) : (void)(d++)){
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		char *dv;
 		int fd2;
 		int err;
@@ -324,7 +324,7 @@ int Detail(char *dev, struct context *c)
 		goto out;
 	}
 
-	disks = xmalloc(max_disks * 2 * sizeof(mdu_disk_info_t));
+	disks = xmalloc(max_disks * 2 * sizeof(struct md_disk_info));
 	for (d = 0; d < max_disks * 2; d++) {
 		disks[d].state = (1 << MD_DISK_REMOVED);
 		disks[d].major = disks[d].minor = 0;
@@ -340,7 +340,7 @@ int Detail(char *dev, struct context *c)
 			disks[next - 1].number = -1;
 		}
 	} else for (d = 0; d < max_disks; d++) {
-		mdu_disk_info_t disk;
+		struct md_disk_info disk;
 		disk.number = d;
 		if (md_get_disk_info(fd, &disk) < 0) {
 			if (d < array.raid_disks)
@@ -410,7 +410,7 @@ int Detail(char *dev, struct context *c)
 		}
 
 		/* Only try GET_BITMAP_FILE for 0.90.01 and later */
-		if (ioctl(fd, GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
+		if (md_ioctl(fd, MD_CTL_GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
 			printf(" bitmap=%s", bmf.pathname);
 		}
 	} else {
@@ -485,7 +485,7 @@ int Detail(char *dev, struct context *c)
 			       array.not_persistent ? "not " : "");
 		printf("\n");
 		/* Only try GET_BITMAP_FILE for 0.90.01 and later */
-		if (ioctl(fd, GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
+		if (md_ioctl(fd, MD_CTL_GET_BITMAP_FILE, &bmf) == 0 && bmf.pathname[0]) {
 			printf("     Intent Bitmap : %s\n", bmf.pathname);
 			printf("\n");
 		} else if (array.state & (1<<MD_SB_CLUSTERED))
@@ -520,7 +520,7 @@ int Detail(char *dev, struct context *c)
 				if (array.state & (1<<MD_SB_CLUSTERED)) {
 					for (d = 0; d < max_disks * 2; d++) {
 						char *dv;
-						mdu_disk_info_t disk = disks[d];
+						struct md_disk_info disk = disks[d];
 
 						/* only check first valid disk in cluster env */
 						if ((disk.state & (MD_DISK_SYNC | MD_DISK_ACTIVE))
@@ -715,7 +715,7 @@ int Detail(char *dev, struct context *c)
 
 	for (d = 0; d < max_disks * 2; d++) {
 		char *dv;
-		mdu_disk_info_t disk = disks[d];
+		struct md_disk_info disk = disks[d];
 
 		if (d >= array.raid_disks * 2 &&
 		    disk.major == 0 && disk.minor == 0)

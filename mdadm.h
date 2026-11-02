@@ -202,6 +202,11 @@ static inline void __put_unaligned32(__u32 val, void *p)
 	ptr->x = val;
 }
 
+static inline void *u64_to_ptr(__u64 x)
+{
+	return (void *)(uintptr_t)(x);
+}
+
 /*
   * Check at compile time that something is of a particular type.
   * Always evaluates to 1 so you may use it easily in comparisons.
@@ -221,9 +226,9 @@ static inline void __put_unaligned32(__u32 val, void *p)
 */
 
 #define time_after(a,b)	\
-        (typecheck(unsigned int, a) && \
-         typecheck(unsigned int, b) && \
-         ((int)((b) - (a)) < 0))
+	(typecheck(unsigned long long, a) && \
+	 typecheck(unsigned long long, b) && \
+	 ((long long)((b) - (a)) < 0))
 
 #define time_before(a,b)        time_after(b,a)
 
@@ -267,10 +272,40 @@ struct md_bb {
 	struct md_bb_entry *entries;
 };
 
+struct md_array_info {
+	int	major_version;
+	int	minor_version;
+	int	patch_version;
+	int	level;
+	__u64	ctime;
+	__s64	size;
+	int	nr_disks;
+	int	raid_disks;
+	int	md_minor;
+	int	not_persistent;
+	__u64	utime;
+	int	state;
+	int	active_disks;
+	int	working_disks;
+	int	failed_disks;
+	int	spare_disks;
+	int	journal_disks;
+	int	layout;
+	int	chunk_size;
+};
+
+struct md_disk_info {
+	int	number;
+	int	major;
+	int	minor;
+	int	raid_disk;
+	int	state;
+};
+
 /* general information that might be extracted from a superblock */
 struct mdinfo {
-	mdu_array_info_t	array;
-	mdu_disk_info_t		disk;
+	struct md_array_info	array;
+	struct md_disk_info	disk;
 	__u64			events;
 	int			uuid[4];
 	char			name[33];
@@ -1022,7 +1057,7 @@ extern struct superswitch {
 	 * Also used to zero metadata prior to writing it to invalidate old
 	 * metadata.
 	 */
-	int (*init_super)(struct supertype *st, mdu_array_info_t *info,
+	int (*init_super)(struct supertype *st, struct md_array_info *info,
 			  struct shape *s, char *name,
 			  char *homehost, int *uuid,
 			  unsigned long long data_offset);
@@ -1030,13 +1065,13 @@ extern struct superswitch {
 	/* update the metadata to include new device, either at create or
 	 * when hot-adding a spare.
 	 */
-	int (*add_to_super)(struct supertype *st, mdu_disk_info_t *dinfo,
+	int (*add_to_super)(struct supertype *st, struct md_disk_info *dinfo,
 			    int fd, char *devname,
 			    unsigned long long data_offset);
 	/* update the metadata to delete a device,
 	 * when hot-removing.
 	 */
-	int (*remove_from_super)(struct supertype *st, mdu_disk_info_t *dinfo);
+	int (*remove_from_super)(struct supertype *st, struct md_disk_info *dinfo);
 
 	/* Write metadata to one device when fixing problems or adding
 	 * a new device.
@@ -1429,7 +1464,8 @@ struct stat64;
 
 extern int add_dev(const char *name, const struct stat *stb, int flag, struct FTW *s);
 
-extern int Manage_ro(char *devname, int fd, int readonly);
+extern int Manage_ro(char *devname, int *fd, int readonly);
+extern int Manage_rw(char *devname, int fd);
 extern int Manage_run(char *devname, int fd, struct context *c);
 extern int Manage_stop(char *devname, int fd, int quiet,
 		       int will_retry);
@@ -1517,9 +1553,10 @@ extern int Restore_metadata(char *dev, char *dir, struct context *c,
 int md_array_valid(int fd);
 int md_array_active(int fd);
 int md_array_is_active(struct mdinfo *info);
-int md_get_array_info(int fd, struct mdu_array_info_s *array);
-int md_set_array_info(int fd, struct mdu_array_info_s *array);
-int md_get_disk_info(int fd, struct mdu_disk_info_s *disk);
+int md_get_array_info(int fd, struct md_array_info *array);
+int md_set_array_info(int fd, struct md_array_info *array);
+int md_get_disk_info(int fd, struct md_disk_info *udisk);
+int md_add_new_disk(int fd, struct md_disk_info *udisk);
 extern int get_linux_version(void);
 extern int mdadm_version(char *version);
 extern unsigned long long parse_size(char *size);
@@ -1685,11 +1722,13 @@ void abort_reshape(struct mdinfo *sra);
 
 void *super1_make_v0(struct supertype *st, struct mdinfo *info, mdp_super_t *sb0);
 
+extern dev_t stat2devid(struct stat *st);
 extern char *stat2kname(struct stat *st);
 extern char *fd2kname(int fd);
 extern char *stat2devnm(struct stat *st);
 bool stat_is_md_dev(struct stat *st);
 extern char *fd2devnm(int fd);
+extern dev_t fd2devid(int fd);
 
 extern int in_initrd(void);
 
@@ -1738,6 +1777,46 @@ extern void sleep_for(unsigned int sec, long nsec, bool wake_after_interrupt);
 extern bool is_directory(const char *path);
 extern bool is_file(const char *path);
 extern int s_gethostname(char *buf, int buf_len);
+
+extern void array_info_from_kernel(struct md_array_info *uarray,
+				   struct mdu_array_info64 *karray);
+extern void array_info_to_kernel(struct mdu_array_info64 *karray,
+				 struct md_array_info *uarray);
+extern void disk_info_from_kernel(struct md_disk_info *udisk,
+				  struct mdu_disk_info64 *kdisk);
+extern void disk_info_to_kernel(struct mdu_disk_info64 *kdisk,
+				struct md_disk_info *udisk);
+extern int md_do_ioctl(int fd, char *uuid, dev_t dev, char *name,
+		       unsigned long cmd, __u64 arg, __u32 flags);
+extern bool is_mdctl_available(void);
+extern void close_mdctl(void);
+extern int open_mdctl(void);
+
+#define __md_ioctl2(fd, uuid, devid, dnm, cmd, arg, flag)		\
+	md_do_ioctl(fd, uuid, devid, dnm, cmd, (uintptr_t)(arg), flag)
+
+#define __md_ioctl1(fd, uuid, devid, dnm, cmd, arg)	\
+	__md_ioctl2(fd, uuid, devid, dnm, cmd, arg, 0)
+
+#define __md_ioctl0(fd, uuid, devid, dnm, cmd)		\
+	__md_ioctl2(fd, uuid, devid, dnm, cmd, 0, 0)
+
+#define __md_ioctl(a, b, c, d, ...) __md_ioctl ## d
+
+#define _md_ioctl(fd, uuid, devid, dnm, cmd, params...)			\
+	__md_ioctl(0, ##params, 2, 1, 0)(fd, uuid, devid, dnm, cmd, ##params)
+
+#define md_ioctl_devid(fd, devid, cmd, params...)	\
+	_md_ioctl(fd, NULL, devid, NULL, cmd, ##params)
+
+#define md_ioctl_uuid(fd, uuid, cmd, params...)		\
+	_md_ioctl(fd, uuid, 0, NULL, cmd, ##params)
+
+#define md_ioctl_devnm(fd, dnm, cmd, params...)		\
+	_md_ioctl(fd, NULL, 0, dnm, cmd, ##params)
+
+#define md_ioctl(fd, cmd, params...)			\
+	md_ioctl_devid(fd, fd2devid(fd), cmd, ##params)
 
 #define _ROUND_UP(val, base)	(((val) + (base) - 1) & ~(base - 1))
 #define ROUND_UP(val, base)	_ROUND_UP(val, (typeof(val))(base))

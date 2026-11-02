@@ -1183,7 +1183,7 @@ static int start_array(int mdfd,
 			rv = sysfs_set_str(content, NULL,
 					   "array_state", "readonly");
 		} else
-			rv = ioctl(mdfd, RUN_ARRAY, NULL);
+			rv = md_ioctl(mdfd, MD_CTL_RUN_ARRAY);
 		reopen_mddev(mdfd); /* drop O_EXCL */
 		if (rv == 0) {
 			sysfs_rules_apply(mddev, content, st);
@@ -1258,7 +1258,8 @@ static int start_array(int mdfd,
 			}
 			return 0;
 		}
-		pr_err("failed to RUN_ARRAY %s: %s\n", mddev, strerror(errno));
+		pr_err("failed to MD_CTL_RUN_ARRAY %s: %s\n",
+		       mddev, strerror(errno));
 		if (errno == 524 /* ENOTSUP */ &&
 		    content->array.level == 0 && content->array.layout == 0)
 			cont_err("Please use --update=layout-original or --update=layout-alternate\n");
@@ -1909,8 +1910,16 @@ try_again:
 			 clean, avail, start_partial_ok,
 			 pre_exist != NULL,
 			 was_forced);
-	if (rv == 1 && !pre_exist)
-		ioctl(mdfd, STOP_ARRAY, NULL);
+	if (rv == 1 && !pre_exist) {
+		dev_t rd = 0;
+
+		if (is_mdctl_available()) {
+			rd = fd2devid(mdfd);
+			close_fd(&mdfd);
+		}
+
+		md_ioctl_devid(mdfd, rd, MD_CTL_STOP_ARRAY);
+	}
 	free(devices);
 	free(avail);
 out:

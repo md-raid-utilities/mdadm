@@ -1503,7 +1503,7 @@ static int update_super1(struct supertype *st, struct mdinfo *info,
 	return rv;
 }
 
-static int init_super1(struct supertype *st, mdu_array_info_t *info,
+static int init_super1(struct supertype *st, struct md_array_info *info,
 		       struct shape *s, char *name, char *homehost,
 		       int *uuid, unsigned long long data_offset)
 {
@@ -1603,12 +1603,12 @@ struct devinfo {
 	char *devname;
 	long long data_offset;
 	unsigned long long dev_size;
-	mdu_disk_info_t disk;
+	struct md_disk_info disk;
 	struct devinfo *next;
 };
 
 /* Add a device to the superblock being created */
-static int add_to_super1(struct supertype *st, mdu_disk_info_t *dk,
+static int add_to_super1(struct supertype *st, struct md_disk_info *dk,
 			 int fd, char *devname, unsigned long long data_offset)
 {
 	struct mdp_superblock_1 *sb = st->sb;

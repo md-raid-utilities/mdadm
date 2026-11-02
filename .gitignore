@@ -17,3 +17,7 @@
 /mdassemble.static
 /mdmon.O2
 /raid6check
+/cscope.in.out
+/cscope.out
+/cscope.po.out
+/._*
