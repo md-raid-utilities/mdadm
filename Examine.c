@@ -206,13 +206,18 @@ int Examine(struct mddev_dev *devlist,
 int ExamineBadblocks(char *devname, int brief, struct supertype *forcest)
 {
 	int fd = dev_open(devname, O_RDONLY);
-	struct supertype *st = forcest;
+	struct supertype *st = NULL;
 	int err = 1;
 
 	if (fd < 0) {
 		pr_err("cannot open %s: %s\n", devname, strerror(errno));
 		return 1;
 	}
+	/* forcest is owned by the caller (main() for "-e") and freed by it,
+	 * so only work on, and free, a private copy, like Examine() does.
+	 */
+	if (forcest)
+		st = dup_super(forcest);
 	if (!st)
 		st = guess_super(fd);
 	if (!st) {
