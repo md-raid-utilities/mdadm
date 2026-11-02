@@ -484,9 +484,11 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		if (st->ss->load_container)
 			rv = st->ss->load_container(st, mdfd, NULL);
 		close(mdfd);
+		mdfd = -1;
 		udev_unblock();
 		sysfs_uevent(sra, "change");
 		sysfs_free(sra);
+		sra = NULL;
 		if (!rv)
 			rv = Incremental_container(st, chosen_name, c, NULL);
 		map_unlock(&map);
@@ -494,10 +496,7 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		 * so that it can eg. try to rebuild degraded array */
 		if (st->ss->external)
 			ping_monitor(devnm);
-		udev_unblock();
-		st->ss->free_super(st);
-		free(st);
-		return rv;
+		goto out;
 	}
 
 	/* We have added something to the array, so need to re-read the
