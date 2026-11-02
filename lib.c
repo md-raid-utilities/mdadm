@@ -29,6 +29,18 @@
 #include	<ctype.h>
 #include	<limits.h>
 
+/* Fixed-width signed type is used because short size is not guaranteed to be 16 bits. */
+int16_t le16_to_cpu_s(__le16 value)
+{
+	return (int16_t)__le16_to_cpu(value);
+}
+
+/* Fixed-width signed type is used because int size is not guaranteed to be 32 bits. */
+int32_t le32_to_cpu_s(__le32 value)
+{
+	return (int32_t)__le32_to_cpu(value);
+}
+
 /**
  * is_string_lq() - Check if string length with NULL byte is lower or equal to requested.
  * @str: string to check.
