@@ -660,6 +660,23 @@ int sysfs_uevent(struct mdinfo *sra, char *event)
 	return 0;
 }
 
+/* Send an event for a block device, including a partition. */
+int sysfs_uevent_dev(dev_t dev, const char *event)
+{
+	char fname[MAX_SYSFS_PATH_LEN];
+	int fd, rv;
+
+	snprintf(fname, sizeof(fname), "/sys/dev/block/%u:%u/uevent",
+		 major(dev), minor(dev));
+	fd = open(fname, O_WRONLY);
+	if (fd < 0)
+		return -1;
+
+	rv = write_attr(event, fd) ? -1 : 0;
+	close(fd);
+	return rv;
+}
+
 int sysfs_attribute_available(struct mdinfo *sra, struct mdinfo *dev, char *name)
 {
 	char fname[MAX_SYSFS_PATH_LEN];

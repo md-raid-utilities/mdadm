@@ -738,6 +738,7 @@ extern int sysfs_set_num(struct mdinfo *sra, struct mdinfo *dev,
 extern int sysfs_set_num_signed(struct mdinfo *sra, struct mdinfo *dev,
 				char *name, long long val);
 extern int sysfs_uevent(struct mdinfo *sra, char *event);
+extern int sysfs_uevent_dev(dev_t dev, const char *event);
 extern int sysfs_get_fd(struct mdinfo *sra, struct mdinfo *dev,
 			char *name);
 extern int sysfs_fd_get_ll(int fd, unsigned long long *val);

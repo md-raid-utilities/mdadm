@@ -1091,6 +1091,9 @@ static int array_try_spare(char *devname, int *dfdp, struct dev_policy *pol,
 		sysfs_free(chosen);
 	}
 	map_unlock(&map);
+	/* Ensure udev recognizes the newly added spare as a RAID member. */
+	if (rv == 0 && sysfs_uevent_dev(rdev, "change") < 0 && verbose >= 0)
+		pr_err("failed to send change event for %s\n", devname);
 	return rv;
 }
 
