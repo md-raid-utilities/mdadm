@@ -142,6 +142,14 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		return rv;
 	}
 
+	/* The caller owns the supertype it passes (main() allocates one for
+	 * "-e" and frees it at exit), so from here on work on a private
+	 * copy instead, like Examine() does with forcest, and only free
+	 * what we own.
+	 */
+	if (st)
+		st = dup_super(st);
+
 	/* 1/ Check if device is permitted by mdadm.conf */
 
 	for (;devlist; devlist = devlist->next)
@@ -193,7 +201,6 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		rv = try_spare(devname, &dfd, policy,
 			       have_target ? &target_array : NULL,
 			       st, c->verbose);
-		free(st);
 		goto out;
 	}
 	close (dfd); dfd = -1;
@@ -488,6 +495,8 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		if (st->ss->external)
 			ping_monitor(devnm);
 		udev_unblock();
+		st->ss->free_super(st);
+		free(st);
 		return rv;
 	}
 
@@ -648,6 +657,10 @@ out:
 	if (sra) {
 		sysfs_uevent(sra, "change");
 		sysfs_free(sra);
+	}
+	if (st) {
+		st->ss->free_super(st);
+		free(st);
 	}
 	return rv;
 out_unlock:
