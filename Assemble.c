@@ -1439,7 +1439,7 @@ try_again:
 	 * we ignore them and try again
 	 */
 	if (!st && ident->st)
-		st = ident->st;
+		st = dup_super(ident->st);
 	if (c->verbose>0)
 		pr_err("looking for devices for %s\n",
 		       mddev ? mddev : "further assembly");
