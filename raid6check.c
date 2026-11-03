@@ -25,6 +25,7 @@
 #include "mdadm.h"
 #include "xmalloc.h"
 #include <stdint.h>
+#include <aio.h>
 #include <sys/mman.h>
 
 #define CHECK_PAGE_BITS (12)
@@ -360,6 +361,10 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 	int *results = xmalloc(chunk_size * sizeof(int));
 	sighandler_t *sig = xmalloc(3 * sizeof(sighandler_t));
 
+	/* one read per member device, all submitted in one go */
+	struct aiocb *cb = xcalloc(raid_disks, sizeof(*cb));
+	struct aiocb **cbs = xmalloc(raid_disks * sizeof(*cbs));
+
 	int i, j;
 	int diskP, diskQ, diskD;
 	int err = 0;
@@ -393,6 +398,14 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 
 	memset(zero, 0, chunk_size);
 
+	for (i = 0 ; i < raid_disks ; i++) {
+		cb[i].aio_fildes = source[i];
+		cb[i].aio_buf = stripe_buf + i * device_span;
+		cb[i].aio_lio_opcode = LIO_READ;
+		cb[i].aio_sigevent.sigev_notify = SIGEV_NONE;
+		cbs[i] = &cb[i];
+	}
+
 	while (length > 0) {
 		unsigned long long batchcnt = min(batchf, length);
 		size_t batch_bytes = batchcnt * chunk_size;
@@ -404,32 +417,35 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 				unlock_all_stripes(info, sig);
 			goto exitCheck;
 		}
+
 		for (i = 0 ; i < raid_disks ; i++) {
-			ssize_t read_done = 0;
-			off_t seek_res = lseek(source[i], offsets[i] + start * chunk_size,
-						   SEEK_SET);
-			if (seek_res < 0) {
-				fprintf(stderr, "lseek to source %d failed\n", i);
+			cb[i].aio_nbytes = batch_bytes;
+			cb[i].aio_offset = offsets[i] + start * chunk_size;
+		}
+		/* EIO only means some request failed; aio_return() finds which */
+		if (lio_listio(LIO_WAIT, cbs, raid_disks, NULL) < 0 && errno != EIO) {
+			fprintf(stderr, "Failed to submit reads, aborting\n");
+			for (i = 0 ; i < raid_disks ; i++)
+				aio_suspend((const struct aiocb **)&cbs[i], 1, NULL);
+			unlock_all_stripes(info, sig);
+			err = -1;
+			goto exitCheck;
+		}
+		for (i = 0 ; i < raid_disks ; i++) {
+			ssize_t done = aio_return(&cb[i]);
+
+			/* Handle short reads. Just use pread.  */
+			while (done >= 0 && done < (ssize_t)batch_bytes) {
+				ssize_t r = pread(source[i], stripe_buf + i * device_span + done,
+						  batch_bytes - done, cb[i].aio_offset + done);
+				done = r > 0 ? done + r : -1;
+			}
+			if (done < 0) {
+				fprintf(stderr,
+					"Failed read complete chunk disk %d, aborting\n", i);
 				unlock_all_stripes(info, sig);
 				err = -1;
 				goto exitCheck;
-			}
-			while (read_done < (ssize_t)batch_bytes) {
-				ssize_t read_res = read(source[i],
-							stripe_buf + i * device_span + read_done,
-							batch_bytes - read_done);
-				if (read_res < 0 && errno == EINTR)
-					continue;
-
-				if (read_res <= 0) {
-					fprintf(stderr, "Failed to read complete chunk disk %d, "
-						"aborting\n", i);
-					unlock_all_stripes(info, sig);
-					err = -1;
-					goto exitCheck;
-				} else {
-					read_done += read_res;
-				}
 			}
 		}
 
@@ -557,6 +573,8 @@ exitCheck:
 	free(q);
 	free(results);
 	free(sig);
+	free(cb);
+	free(cbs);
 
 	return err;
 }
