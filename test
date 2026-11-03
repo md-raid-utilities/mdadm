@@ -207,7 +207,7 @@ do_help() {
 		--loop=N                    Run tests N times (0 to run forever)
 		--skip-broken               Skip tests that are known to be broken
 		--skip-always-broken        Skip tests that are known to always fail
-		--skip-bigcase              Skip tests that need time than 200 seconds
+		--skip-bigcase              Skip selected cases taking over 60 seconds
 		--dev=loop|lvm|ram|disk     Use loop devices (default), LVM, RAM or disk
 		--disks=                    Provide a bunch of physical devices for test
 		--volgroup=name             LVM volume group for LVM test

@@ -11,8 +11,6 @@ on:
       - 'test'
       - '.github/workflows/mdadm-test.yml'
   pull_request:
-    branches:
-      - test_on_pr
     paths:
       - '*.c'
       - '*.h'
@@ -55,9 +53,10 @@ jobs:
       - name: Run tests
         id: run_tests
         run: >-
-          sudo ./test --skip-broken --no-error
+          sudo ./test --skip-broken
           --disable-integrity --disable-multipath --disable-linear
           --keep-going
+          ${{ github.event_name == 'pull_request' && '--skip-bigcase' || '' }}
         continue-on-error: true
 
       - name: Collect logs of failed tests

@@ -1,9 +1,66 @@
+# Tests taking more than 60 seconds; used by --skip-bigcase.
+# Reference kernel: 6.12.0-124.8.1.el10_1.x86_64, using loop devices.
+# Durations are observations, not timeouts, and depend on the environment.
+# Retain historical timings for tests disabled in the reference run.
 casename:seconds
+00readonly:89
+01r1fail:94
+# Historical measurement; integrity was disabled in the reference run.
 01raid6integ:1732
-01replace:396
-07layouts:836
-11spare-migration:1140
-12imsm-r0_2d-grow-r0_5d:218
-13imsm-r0_r0_2d-grow-r0_r0_4d:218
-13imsm-r0_r0_2d-grow-r0_r0_5d:246
-19raid6check:268
+01replace:440
+02r1add:115
+02r5grow:113
+05r1-failfast:71
+05r1-re-add:78
+07changelevelintr:61
+07changelevels:687
+07layouts:842
+07reshape5intr:183
+09imsm-assemble:64
+09imsm-create-fail-rebuild:68
+10ddf-assemble-missing:69
+10ddf-create:89
+10ddf-fail-readd:71
+10ddf-fail-readd-readonly:71
+10ddf-fail-stop-readd:78
+10ddf-fail-twice:126
+10ddf-fail-two-spares:130
+10ddf-sudden-degraded:66
+11spare-migration:986
+12imsm-r0_2d-grow-r0_3d:165
+12imsm-r0_2d-grow-r0_4d:192
+12imsm-r0_2d-grow-r0_5d:219
+12imsm-r0_3d-grow-r0_4d:165
+12imsm-r5_3d-grow-r5_4d:125
+12imsm-r5_3d-grow-r5_5d:172
+13imsm-r0_r0_2d-grow-r0_r0_4d:206
+13imsm-r0_r0_2d-grow-r0_r0_5d:233
+13imsm-r0_r0_3d-grow-r0_r0_4d:178
+13imsm-r0_r5_3d-grow-r0_r5_4d:159
+13imsm-r0_r5_3d-grow-r0_r5_5d:186
+13imsm-r5_r0_3d-grow-r5_r0_4d:153
+13imsm-r5_r0_3d-grow-r5_r0_5d:200
+14imsm-r0_3d-r5_3d-migrate-r5_4d-r5_4d:118
+14imsm-r0_3d_no_spares-migrate-r5_3d:82
+14imsm-r0_r0_2d-takeover-r10_4d:110
+14imsm-r10_4d-grow-r10_5d:90
+14imsm-r10_r5_4d-takeover-r0_2d:70
+14imsm-r1_2d-grow-r1_3d:90
+14imsm-r1_2d-takeover-r0_2d:63
+14imsm-r5_3d-grow-r5_5d-no-spares:62
+14imsm-r5_3d-migrate-r4_3d:63
+15imsm-r0_3d_64k-migrate-r0_3d_256k:95
+15imsm-r5_3d_4k-migrate-r5_3d_256k:75
+15imsm-r5_3d_64k-migrate-r5_3d_256k:75
+15imsm-r5_6d_4k-migrate-r5_6d_256k:76
+15imsm-r5_r0_3d_64k-migrate-r5_r0_3d_256k:115
+16imsm-r0_3d-migrate-r5_4d:115
+16imsm-r0_5d-migrate-r5_6d:115
+16imsm-r5_3d-migrate-r0_3d:63
+16imsm-r5_5d-migrate-r0_5d:62
+18imsm-r0_2d-takeover-r10_4d:149
+18imsm-r10_4d-takeover-r0_2d:96
+18imsm-r1_2d-takeover-r0_1d:95
+19raid6check:202
+# Minimum configured workload duration; the reference run failed early.
+24raid456deadlock:120
