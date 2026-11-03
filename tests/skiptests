@@ -61,6 +61,8 @@ casename:seconds
 18imsm-r0_2d-takeover-r10_4d:149
 18imsm-r10_4d-takeover-r0_2d:96
 18imsm-r1_2d-takeover-r0_1d:95
+19raid6auto-repair:191
 19raid6check:202
+19raid6repair:2092
 # Minimum configured workload duration; the reference run failed early.
 24raid456deadlock:120
