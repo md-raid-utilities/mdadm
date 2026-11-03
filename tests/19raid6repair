@@ -1,3 +1,15 @@
+[ -x "$dir/raid6check" ] ||
+    die "raid6check is missing or not executable: $dir/raid6check"
+
+run_raid6check()
+{
+    local status=0
+
+    raid6check_output=$("$dir/raid6check" "$@" 2>&1) || status=$?
+    printf '%s\n' "$raid6check_output"
+    [ "$status" -eq 0 ] || die "raid6check failed with status $status"
+}
+
 number_of_disks=4
 chunksize_in_kib=512
 chunksize_in_b=$[chunksize_in_kib*1024]
@@ -37,13 +49,17 @@ do
 	    blockdev --flushbufs $device_with_error; sync
 	    echo 3 > /proc/sys/vm/drop_caches
 
-	    $dir/raid6check $md0 0 0 2>&1 | grep -qs "Error" || { echo should detect errors; exit 2; }
+	    run_raid6check "$md0" 0 0
+	    grep -qs '^Error detected at stripe ' <<< "$raid6check_output" ||
+	        { echo should detect errors; exit 2; }
 
-	    $dir/raid6check $md0 repair $repair_params > /dev/null || { echo repair failed; exit 2; }
+	    run_raid6check "$md0" repair $repair_params
 	    blockdev --flushbufs $md0 $devs; sync
 	    echo 3 > /proc/sys/vm/drop_caches
 
-	    $dir/raid6check $md0 0 0 2>&1 | grep -qs "Error" && { echo errors detected; exit 2; }
+	    run_raid6check "$md0" 0 0
+	    grep -qs '^Error detected at stripe ' <<< "$raid6check_output" &&
+	        { echo errors detected; exit 2; }
 	    cmp -s -n $array_data_size_in_b $md0 /tmp/RandFile || { echo cmp failed ; exit 2; }
 
 	    mdadm -S $md0
