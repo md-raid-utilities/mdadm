@@ -142,17 +142,23 @@ static void llbitmap_count_states(int fd, bitmap_info_t *info,
 	chunks = (info->sb.sync_size + info->sb.chunksize - 1) /
 		 info->sb.chunksize;
 
+	/*
+	 * The state array starts LLBITMAP_DATA_OFFSET bytes in. If the
+	 * first read did not reach it, the file/device ends there; a
+	 * further read() would resume at the wrong offset.
+	 */
+	if (n < LLBITMAP_DATA_OFFSET)
+		goto out;
+
 	while (read_chunks < chunks) {
 		unsigned long long remaining = chunks - read_chunks;
 		unsigned long long i;
 
 		if (skip >= n) {
-			if (n < LLBITMAP_DATA_OFFSET)
-				break;
 			n = read(fd, buf, 8192);
-			skip = 0;
 			if (n <= 0)
 				break;
+			skip = 0;
 		}
 		if (remaining > (unsigned long long)(n - skip))
 			remaining = n - skip;
@@ -168,7 +174,7 @@ static void llbitmap_count_states(int fd, bitmap_info_t *info,
 		read_chunks += remaining;
 		skip = n;
 	}
-
+out:
 	if (read_chunks < chunks)
 		pr_err("WARNING: bitmap file is not large enough for array size %llu!\n\n",
 			(unsigned long long)info->sb.sync_size);
