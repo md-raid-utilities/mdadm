@@ -524,6 +524,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	int container_fd = -1;
 	int need_mdmon = 0;
 	unsigned long long bitmapsize;
+	bool array_ready = false;
 	struct mdinfo info;
 	int did_default = 0;
 	int do_default_layout = 0;
@@ -1247,12 +1248,10 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 	map_unlock(&map);
 
 	if (is_container(s->level)) {
-		/* No need to start.  But we should signal udev to
-		 * create links */
-		sysfs_uevent(&info, "change");
+		/* No need to start, the uevent below is enough */
 		if (c->verbose >= 0)
 			pr_err("container %s prepared.\n", chosen_name);
-		wait_for(chosen_name, mdfd);
+		array_ready = true;
 	} else if (c->runstop == 1 || subdevs >= s->raiddisks) {
 		if (st->ss->external) {
 			int err;
@@ -1327,21 +1326,22 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 			ping_monitor(st->container_devnm);
 			close(container_fd);
 		}
-		wait_for(chosen_name, mdfd);
+		array_ready = true;
 	} else {
 		pr_err("not starting array - not enough devices.\n");
 	}
+	udev_ready(&info);
+	if (array_ready)
+		wait_for(chosen_name, mdfd);
 	close(mdfd);
-	udev_unblock();
-	sysfs_uevent(&info, "change");
 	dev_policy_free(custom_pols);
 
 	return 0;
 
  abort:
-	udev_unblock();
 	map_lock(&map);
  abort_locked:
+	udev_unblock();
 	map_remove(&map, fd2devnm(mdfd));
 	map_unlock(&map);
 

@@ -29,6 +29,7 @@
 #include "mapfile.h"
 #include "mdstat.h"
 #include "md_p.h"
+#include "udev.h"
 #include "xmalloc.h"
 
 #include <ctype.h>
@@ -181,6 +182,7 @@ int main(int argc, char *argv[])
 	int locked = 0;
 
 	srandom(time(0) ^ getpid());
+	udev_detect();
 
 	if (get_linux_version() < 2006032) {
 		pr_err("This version of mdadm does not support kernels older than 2.6.32\n");

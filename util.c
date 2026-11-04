@@ -921,21 +921,76 @@ int get_data_disks(int level, int layout, int raid_disks)
 	return data_disks;
 }
 
+static int partname2devid(const char *devnm, char path[PATH_MAX], char buf[20])
+{
+	bool digit_at_end = false;
+	char *disk = NULL;
+	int fd = -1, rc = -1;
+	int n = strlen(devnm);
+
+	/* strip trailing digits */
+	while (--n >= 0 && isdigit(devnm[n]))
+		digit_at_end = true;
+
+	/* if there are no trailing digits, it's not a partition */
+	if (n < 0 || !digit_at_end)
+		return 0;
+
+	disk = malloc(n + 2);
+	if (disk == NULL)
+		return 0;
+
+	memcpy(disk, devnm, n + 1);
+	disk[n + 1] = '\0';
+
+	/* try "sda/sda1" pattern */
+	snprintf(path, PATH_MAX, "/sys/block/%s/%s/dev", disk, devnm);
+	fd = open(path, O_RDONLY);
+	if (fd >= 0) {
+		rc = read(fd, buf, 20);
+		goto out;
+	}
+
+	/* if devnm doesn't match "loop1p2" pattern, give up */
+	if (n <= 1 || disk[n] != 'p' || !isdigit(disk[n - 1]))
+		goto out;
+
+	/* try "loop1/loop1p2" pattern */
+	disk[n] = '\0';
+	snprintf(path, PATH_MAX, "/sys/block/%s/%s/dev", disk, devnm);
+	fd = open(path, O_RDONLY);
+	if (fd >= 0)
+		rc = read(fd, buf, 20);
+
+out:
+	if (rc > 0)
+		buf[rc < 20 ? rc : 19] = 0;
+	if (fd != -1)
+		close(fd);
+	if (disk != NULL)
+		free(disk);
+	return rc;
+}
+
 dev_t devnm2devid(char *devnm)
 {
 	/* First look in /sys/block/$DEVNM/dev for %d:%d
+	 * Then check if it's a partition in /sys/block/$DISK/$DEVNM/dev
 	 * If that fails, try parsing out a number
 	 */
 	char path[PATH_MAX];
+	char buf[20];
 	char *ep;
 	int fd;
-	int mjr,mnr;
+	int n, mjr, mnr;
+
+	if (devnm == NULL || *devnm == '\0')
+		return 0;
 
 	snprintf(path, sizeof(path), "/sys/block/%s/dev", devnm);
 	fd = open(path, O_RDONLY);
 	if (fd >= 0) {
-		char buf[20];
-		int n = read(fd, buf, sizeof(buf));
+		n = read(fd, buf, sizeof(buf));
 		close(fd);
 		if (n > 0)
 			buf[n] = 0;
@@ -953,6 +1008,10 @@ dev_t devnm2devid(char *devnm)
 	    (mnr = strtoul(devnm+2, &ep, 10)) >= 0 &&
 	    ep > devnm && *ep == 0)
 		return makedev(MD_MAJOR, mnr);
+
+	n = partname2devid(devnm, path, buf);
+	if (n > 0 && sscanf(buf, "%d:%d\n", &mjr, &mnr) == 2)
+		return makedev(mjr, mnr);
 
 	return 0;
 }

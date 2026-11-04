@@ -32,11 +32,29 @@
 #endif
 
 static char *unblock_path;
+static bool udev_running;
 
 /*
- * udev_is_available() - Checks for udev in the system.
+ * udev_detect() - Detects udev in the system and remembers the result.
  *
  * Function looks whether udev directories are available and MDADM_NO_UDEV env defined.
+ * Long running code, like Monitor, may call it again to refresh the result.
+ */
+void udev_detect(void)
+{
+	struct stat stb;
+
+	if (stat("/dev/.udev", &stb) != 0 &&
+	    stat("/run/udev", &stb) != 0) {
+		udev_running = false;
+		return;
+	}
+
+	udev_running = check_env("MDADM_NO_UDEV") != 1;
+}
+
+/*
+ * udev_is_available() - Tells whether udev was available on the last udev_detect().
  *
  * Return:
  * true if udev is available,
@@ -44,14 +62,7 @@ static char *unblock_path;
  */
 bool udev_is_available(void)
 {
-	struct stat stb;
-
-	if (stat("/dev/.udev", &stb) != 0 &&
-	    stat("/run/udev", &stb) != 0)
-		return false;
-	if (check_env("MDADM_NO_UDEV") == 1)
-		return false;
-	return true;
+	return udev_running;
 }
 
 #ifndef NO_LIBUDEV
@@ -76,15 +87,9 @@ static void udev_release(void)
  * Return:
  * UDEV_STATUS_SUCCESS on success
  * UDEV_STATUS_ERROR on error
- * UDEV_STATUS_ERROR_NO_UDEV when udev not available
  */
 static enum udev_status udev_initialize(void)
 {
-	if (!udev_is_available()) {
-		pr_err("No udev.\n");
-		return UDEV_STATUS_ERROR_NO_UDEV;
-	}
-
 	udev = udev_new();
 	if (!udev) {
 		pr_err("Cannot initialize udev.\n");
@@ -122,6 +127,7 @@ static enum udev_status udev_initialize(void)
  * UDEV_STATUS_SUCCESS on detected event
  * UDEV_STATUS_TIMEOUT on timeout
  * UDEV_STATUS_ERROR on error
+ * UDEV_STATUS_ERROR_NO_UDEV when udev is not running, there are no events to wait for
  */
 enum udev_status udev_wait_for_events(int seconds)
 {
@@ -129,6 +135,9 @@ enum udev_status udev_wait_for_events(int seconds)
 	fd_set readfds;
 	struct timeval tv;
 	int ret;
+
+	if (!udev_is_available())
+		return UDEV_STATUS_ERROR_NO_UDEV;
 
 	if (!udev || !udev_monitor) {
 		ret = udev_initialize();
@@ -166,16 +175,21 @@ enum udev_status udev_wait_for_events(int seconds)
  *
  * When array is created, we don't want udev to examine it immediately.
  * Function creates /run/mdadm/creating-mdXXX and expects that udev rule
- * will notice it and act accordingly.
+ * will notice it and act accordingly. Nothing to block if udev is not running.
  *
  * Return:
- * UDEV_STATUS_SUCCESS when successfully blocked udev
+ * UDEV_STATUS_SUCCESS when udev blocked or not running
  * UDEV_STATUS_ERROR on error
  */
 enum udev_status udev_block(char *devnm)
 {
 	int fd;
-	char *path = xcalloc(1, BUFSIZ);
+	char *path;
+
+	if (!udev_is_available())
+		return UDEV_STATUS_SUCCESS;
+
+	path = xcalloc(1, BUFSIZ);
 
 	snprintf(path, BUFSIZ, "/run/mdadm/creating-%s", devnm);
 
@@ -194,11 +208,31 @@ enum udev_status udev_block(char *devnm)
 
 /*
  * udev_unblock() - Unblock udev.
+ *
+ * Does nothing if udev was not blocked, so it is safe on any cleanup path.
+ *
+ * Return: true if udev was blocked, false otherwise.
  */
-void udev_unblock(void)
+bool udev_unblock(void)
 {
-	if (unblock_path)
-		unlink(unblock_path);
+	if (!unblock_path)
+		return false;
+
+	unlink(unblock_path);
 	free(unblock_path);
 	unblock_path = NULL;
+	return true;
+}
+
+/*
+ * udev_ready() - Unblock udev and signal that the device is ready.
+ *
+ * The uevent belongs to the unblocking, it tells udev to look at the device
+ * it was kept away from. Call sysfs_uevent() directly to refresh udev state
+ * for any other reason.
+ */
+void udev_ready(struct mdinfo *sra)
+{
+	if (udev_unblock())
+		sysfs_uevent(sra, "change");
 }
