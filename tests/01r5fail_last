@@ -7,8 +7,8 @@ else
     SEP=p
 fi
 
-mdadm -CR $md0 -l5 -n3 --assume-clean $dev4 $dev5 $dev6
-mdadm $md0 --fail $dev4
+mdadm -CR $md0 -l5 -n3 --assume-clean $dev4 $dev5 $dev6 || die "Cannot create $md0"
+mdadm $md0 --fail $dev4 || die "Cannot fail array member"
 check state _UU
 mdadm $md0 --fail $dev5
 [[ $? = 1 ]] || die "mdadm should return 1"
@@ -16,19 +16,19 @@ check state _UU
 
 read _st < /sys/block/md0/md/array_state
 [[ "$_st" = clean ]] || die "array state of $md0 is \"$_st\", should be \"clean\""
-mdadm -S "$md0"
+mdadm -S "$md0" || die "Cannot stop $md0"
 
 for d in $dev0 $dev1 $dev2; do
-    sfdisk $d <<EOF
+    sfdisk "$d" <<EOF || die "Cannot partition $d"
 label:gpt
 2048,,L
 EOF
-    partx -a $d
+    partx -a "$d" || die "Cannot add partitions on $d"
 done
-udevadm settle
+udevadm settle || die "Cannot settle udev events"
 
-mdadm -CR $md0 -l5 -n3 --assume-clean ${dev0}${SEP}1 ${dev1}${SEP}1 ${dev2}${SEP}1
-mdadm $md0 --fail ${dev0}${SEP}1
+mdadm -CR $md0 -l5 -n3 --assume-clean ${dev0}${SEP}1 ${dev1}${SEP}1 ${dev2}${SEP}1 || die "Cannot create $md0"
+mdadm $md0 --fail ${dev0}${SEP}1 || die "Cannot fail array member"
 check state _UU
 mdadm $md0 --fail ${dev2}${SEP}1
 [[ $? = 1 ]] || die "mdadm should return 1"
@@ -37,4 +37,4 @@ check state _UU
 read _st < /sys/block/md0/md/array_state
 [[ "$_st" = clean ]] || die "array state of $md0 is \"$_st\", should be \"clean\""
 
-mdadm -S $md0
+cleanup_partitioned_array "$md0" "$SEP" "$dev0" "$dev1" "$dev2"
