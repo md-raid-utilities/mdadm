@@ -52,6 +52,21 @@ static int add_device(const char *dev, char ***p_devices,
 }
 
 /**
+ * is_bitmap_lockless() - check if array uses lockless bitmap.
+ * @st: supertype with a member superblock loaded, may be NULL.
+ *
+ * Read the bitmap version from the on-disk metadata rather than sysfs,
+ * because md/bitmap_type is not populated for inactive arrays.
+ */
+static bool is_bitmap_lockless(struct supertype *st)
+{
+	if (!st || !st->sb || !st->ss->get_bitmap_type)
+		return false;
+
+	return st->ss->get_bitmap_type(st) == BITMAP_MAJOR_LOCKLESS;
+}
+
+/**
  * detail_fname_from_uuid() - generate uuid string with special super1 handling.
  * @mp: map entry to parse.
  * @buf: buf to write.
@@ -490,6 +505,8 @@ int Detail(char *dev, struct context *c)
 			printf("\n");
 		} else if (array.state & (1<<MD_SB_CLUSTERED))
 			printf("     Intent Bitmap : Internal(Clustered)\n\n");
+		else if (is_bitmap_lockless(st))
+			printf("     Intent Bitmap : Internal(Lockless)\n\n");
 		else if (array.state & (1<<MD_SB_BITMAP_PRESENT))
 			printf("     Intent Bitmap : Internal\n\n");
 		atime = array.utime;
