@@ -1,14 +1,5 @@
-[ -x "$dir/raid6check" ] ||
+[[ -x "$dir/raid6check" ]] ||
     die "raid6check is missing or not executable: $dir/raid6check"
-
-run_raid6check()
-{
-    local status=0
-
-    raid6check_output=$("$dir/raid6check" "$@" 2>&1) || status=$?
-    printf '%s\n' "$raid6check_output"
-    [ "$status" -eq 0 ] || die "raid6check failed with status $status"
-}
 
 number_of_disks=4
 chunksize_in_kib=512
