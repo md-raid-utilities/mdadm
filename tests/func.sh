@@ -507,3 +507,26 @@ run_raid6check() {
 	printf '%s\n' "$raid6check_output"
 	[[ "$status" -eq 0 ]] || die "raid6check failed with status $status"
 }
+
+# Arguments: array device, partition separator, component disks.
+cleanup_partitioned_array() {
+	local array="$1"
+	local separator="$2"
+	local disk
+
+	shift 2
+	mdadm -S "$array" || die "Cannot stop $array"
+
+	# Clear member metadata before removing partition mappings.
+	for disk in "$@"; do
+		mdadm --zero-superblock "${disk}${separator}1" ||
+			die "Cannot clear metadata on ${disk}${separator}1"
+	done
+
+	# Wait for udev to finish probing members before removing their partitions.
+	udevadm settle || die "Cannot settle udev events"
+	for disk in "$@"; do
+		partx --verbose -d "$disk" || die "Cannot remove partitions on $disk"
+	done
+	udevadm settle || die "Cannot settle udev events"
+}
