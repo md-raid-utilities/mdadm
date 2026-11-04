@@ -497,3 +497,13 @@ rotest() {
 	dev=$1
 	fsck -fn $dev >&2
 }
+
+# A completed check may report corruption and still return zero.
+# Tests inspect raid6check_output; nonzero status indicates a helper failure.
+run_raid6check() {
+	local status=0
+
+	raid6check_output=$("$dir/raid6check" "$@" 2>&1) || status=$?
+	printf '%s\n' "$raid6check_output"
+	[[ "$status" -eq 0 ]] || die "raid6check failed with status $status"
+}
