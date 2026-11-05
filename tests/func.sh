@@ -134,7 +134,9 @@ check_env() {
 		echo "test: please run make everything before perform testing."
 		exit 1
 	}
-	 cmds=(mdadm blockdev dd lsblk df udevadm losetup mkfs.ext3 fsck seq stat)
+	cmds=(mdadm blockdev dd lsblk df udevadm losetup mkfs.ext3 fsck seq stat)
+	[ "$DEVTYPE" == "ram" ] && cmds+=(modprobe)
+
 	for cmd in ${cmds[@]}
 	do
 		which $cmd > /dev/null || {
@@ -227,6 +229,40 @@ setup_loop_devices() {
 
 		udevadm settle > /dev/null 2>&1
 	done
+}
+
+setup_ram_devices() {
+	local expected_size=$((ddfsize * 1024))
+	local actual_size
+	local ram_device
+	local d
+
+	[ "$DEVTYPE" != "ram" ] && return 0
+
+	modprobe brd rd_nr=14 rd_size=$ddfsize || {
+		echo "Failed to load brd module for RAM devices."
+		return 1
+	}
+	udevadm settle > /dev/null 2>&1
+
+	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	do
+		ram_device=/dev/ram$d
+		[ -b "$ram_device" ] || {
+			echo "$ram_device is not available."
+			return 1
+		}
+		if ! actual_size=$(blockdev --getsize64 "$ram_device"); then
+			echo "Failed to get size of $ram_device."
+			return 1
+		fi
+		if [ "$actual_size" != "$expected_size" ]; then
+			echo "$ram_device has wrong size: $((actual_size / 1024)) KiB, expected $ddfsize KiB."
+			return 1
+		fi
+	done
+	# brd uses one size for all devices; use it for size checks.
+	set_test_sizes $(($(cat /sys/class/block/ram0/size) / 2))
 }
 
 record_system_speed_limit() {
@@ -327,6 +363,7 @@ clean_systemd_env() {
 do_setup() {
 	check_env
 	setup_loop_devices || exit 1
+	setup_ram_devices || exit 1
 
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
