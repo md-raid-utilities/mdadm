@@ -146,8 +146,9 @@ do_test() {
 			fi
 		fi
 
+		echo "Preparing $_script (cleanup log: $logdir/cleanup-$_basename.log)"
 		rm -f $targetdir/stderr
-		do_clean
+		( set -x; do_clean ) > "$logdir/cleanup-$_basename.log" 2>&1
 		# source script in a subshell, so it has access to our
 		# namespace, but cannot change it.
 		control_system_speed_limit
