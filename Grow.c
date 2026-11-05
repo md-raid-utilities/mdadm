@@ -445,6 +445,7 @@ int Grow_addbitmap(char *devname, int fd, struct context *c, struct shape *s)
 			if (sysfs_init(mdi, fd, NULL)) {
 				pr_err("failed to initialize sysfs.\n");
 				free(mdi);
+				return 1;
 			}
 			rv = sysfs_set_num_signed(mdi, NULL, "bitmap/location",
 						  mdi->bitmap_offset);
