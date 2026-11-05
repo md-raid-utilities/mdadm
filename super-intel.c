@@ -5798,7 +5798,11 @@ static int init_super_imsm_volume(struct supertype *st, mdu_array_info_t *info,
 	vol->dirty = !info->state;
 	set_vol_curr_migr_unit(dev, 0);
 	map = get_imsm_map(dev, MAP_0);
-	set_pba_of_lba0(map, super->create_offset);
+
+	if (data_offset == INVALID_SECTORS)
+		data_offset = 0;
+	set_pba_of_lba0(map, super->create_offset + data_offset);
+
 	map->blocks_per_strip = __cpu_to_le16(info_to_blocks_per_strip(info));
 	map->failed_disk_num = ~0;
 	if (info->level > IMSM_T_RAID0)
@@ -5874,8 +5878,8 @@ static int init_super_imsm(struct supertype *st, mdu_array_info_t *info,
 	struct imsm_super *mpb;
 	size_t mpb_size;
 
-	if (data_offset != INVALID_SECTORS) {
-		pr_err("data-offset not supported by imsm\n");
+	if (data_offset == VARIABLE_OFFSET) {
+		pr_err("imsm does not support variable data offset\n");
 		return 0;
 	}
 
@@ -7550,6 +7554,17 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
 		pr_err("RAID geometry validation failed. Cannot proceed with the action(s).\n");
 		return 0;
 	}
+
+	if (data_offset != INVALID_SECTORS && mpb->num_raid_devs > 0) {
+		/* Volume offset is requested. This is supported only for first volume */
+		pr_vrb("Data offset is supported only for first volume\n");
+		return 0;
+	} else if (data_offset == INVALID_SECTORS) {
+		/* Act like there is no offset for calculations */
+		data_offset = 0;
+	}
+	/* VARIABLE_OFFSET is rejected in init_super_imsm_volume */
+
 	if (!dev) {
 		/* General test:  make sure there is space for
 		 * 'raiddisks' device extents of size 'size' at a given
@@ -7644,10 +7659,9 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
 				dev);
 		return 0;
 	}
-	if (maxsize < size) {
-		if (verbose)
-			pr_err("%s not enough space (%llu < %llu)\n",
-				dev, maxsize, size);
+	if (maxsize < (data_offset + size)) {
+		pr_vrb("%s: not enough space for volume with offset %llu, and size %llu\n"
+			"The max space is %llu\n", dev, data_offset, size, maxsize);
 		return 0;
 	}
 
@@ -7656,14 +7670,12 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
 	if (mpb->num_raid_devs > 0 && size && size != maxsize)
 		pr_err("attempting to create a second volume with size less then remaining space.\n");
 
-	if (maxsize < size || maxsize == 0) {
-		if (verbose) {
-			if (maxsize == 0)
-				pr_err("no free space left on device. Aborting...\n");
-			else
-				pr_err("not enough space to create volume of given size (%llu < %llu). Aborting...\n",
-						maxsize, size);
-		}
+	if (maxsize < (data_offset + size) || maxsize == 0) {
+		if (maxsize == 0)
+			pr_vrb("no free space left on device. Aborting...\n");
+		else
+			pr_vrb("%s: not enough space for volume with offset %llu, and size %llu\n"
+				"The max space is %llu\n", dev, data_offset, size, maxsize);
 		return 0;
 	}
 
@@ -7699,6 +7711,7 @@ static int validate_geometry_imsm_volume(struct supertype *st, int level,
 static imsm_status_t imsm_get_free_size(struct intel_super *super,
 					const int raiddisks,
 					unsigned long long size,
+					unsigned long long data_offset,
 					const int chunk,
 					unsigned long long *freesize,
 					bool expanding)
@@ -7710,7 +7723,7 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
 	int cnt = 0;
 	int used = 0;
 	unsigned long long maxsize;
-	unsigned long long minsize = size;
+	unsigned long long minsize = size + data_offset;
 
 	if (minsize == 0)
 		minsize = chunk * 2;
@@ -7772,6 +7785,7 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
  * @super: &intel_super pointer, not NULL.
  * @raiddisks: number of raid disks.
  * @size: requested size, could be 0 (means max size).
+ * @data_offset: data offset in sectors, or INVALID_SECTORS.
  * @chunk: requested chunk.
  * @freesize: pointer for returned size value.
  *
@@ -7788,7 +7802,9 @@ static imsm_status_t imsm_get_free_size(struct intel_super *super,
  */
 static imsm_status_t autolayout_imsm(struct intel_super *super,
 				     const int raiddisks,
-				     unsigned long long size, const int chunk,
+				     unsigned long long size,
+				     unsigned long long data_offset,
+				     const int chunk,
 				     unsigned long long *freesize)
 {
 	int curr_slot = 0;
@@ -7796,7 +7812,16 @@ static imsm_status_t autolayout_imsm(struct intel_super *super,
 	int vol_cnt = super->anchor->num_raid_devs;
 	imsm_status_t rv;
 
-	rv = imsm_get_free_size(super, raiddisks, size, chunk, freesize, false);
+	if (data_offset != INVALID_SECTORS && vol_cnt > 0) {
+		/* Volume offset is requested. This is supported only for first volume */
+		pr_err("Data offset is supported only for first volume\n");
+		return IMSM_STATUS_ERROR;
+	} else if (data_offset == INVALID_SECTORS) {
+		/* Act like there is no offset for calculations */
+		data_offset = 0;
+	}
+
+	rv = imsm_get_free_size(super, raiddisks, size, data_offset, chunk, freesize, false);
 	if (rv != IMSM_STATUS_OK)
 		return IMSM_STATUS_ERROR;
 
@@ -7885,14 +7910,14 @@ static int validate_geometry_imsm(struct supertype *st, int level, int layout,
 		}
 
 		if (freesize) {
-			rv = autolayout_imsm(super, raiddisks, size, *chunk, freesize);
+			rv = autolayout_imsm(super, raiddisks, size, data_offset, *chunk, freesize);
 				if (rv != IMSM_STATUS_OK)
 					return 0;
 		}
 
 		return 1;
 	}
-	if (st->sb) {
+	if (super) {
 		/* creating in a given container */
 		return validate_geometry_imsm_volume(st, level, layout,
 						     raiddisks, chunk, size,
@@ -11978,7 +12003,8 @@ static imsm_status_t imsm_analyze_expand(struct supertype *st,
 	}
 	current_size = array->custom_array_size / data_disks;
 
-	rv = imsm_get_free_size(super, dev->vol.map->num_members, 0, chunk_kib, &free_size, true);
+	rv = imsm_get_free_size(super, dev->vol.map->num_members, 0, 0, chunk_kib,
+				&free_size, true);
 	if (rv != IMSM_STATUS_OK) {
 		pr_err("imsm: Cannot find free space for expand.\n");
 		return IMSM_STATUS_ERROR;
