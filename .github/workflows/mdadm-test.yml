@@ -53,13 +53,34 @@ jobs:
       - name: Run tests
         id: run_tests
         run: >-
-          sudo ./test --skip-broken
+          sudo timeout --signal=TERM --kill-after=30s
+          ${{ github.event_name == 'pull_request' && '30m' || '300m' }}
+          ./test --skip-broken
           --disable-integrity --disable-multipath --disable-linear
           --keep-going
           ${{ github.event_name == 'pull_request' && '--skip-bigcase' || '' }}
         continue-on-error: true
 
-      - name: Collect logs of failed tests
+      - name: Collect test diagnostics
+        if: always() && steps.run_tests.outcome != 'success'
+        run: |
+          sudo mkdir -p /mnt/tmp
+          sudo cp /mnt/tmp/log /mnt/tmp/current-test.log || true
+          sudo cp /mnt/tmp/stderr /mnt/tmp/current-stderr.log || true
+          sudo timeout --kill-after=5s 20s bash -c '
+            exec > /mnt/tmp/test-diagnostics.log 2>&1
+            date -u
+            ps -eo pid,ppid,stat,wchan:32,args
+            cat /proc/mdstat
+            for f in /sys/block/md*/md/array_state /sys/block/md*/md/sync_action /sys/block/md*/md/sync_completed; do
+              echo "$f"
+              cat "$f"
+            done
+            dmesg
+          ' || true
+
+      - name: Collect test logs
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: "mdadm-failed-test-logs"
