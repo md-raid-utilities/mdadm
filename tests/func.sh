@@ -1,24 +1,30 @@
 #!/bin/bash
 
-# We test mdadm on loop-back block devices.
-# dir for storing files should be settable by command line maybe
-size=20000
-# super0, round down to multiple of 64 and substract 64
-mdsize0=19904
-# super00 is nested, subtract 128
-mdsize00=19840
-# super1.0 round down to multiple of 2, subtract 8
-mdsize1=19992
-mdsize1a=19988
-mdsize12=19988
-# super1.2 for linear: round to multiple of 2, subtract 4
-mdsize1_l=19996
-mdsize2_l=19996
-# subtract another 4 for bitmaps
-mdsize1b=19988
-mdsize11=19992
-mdsize11a=19456
-mdsize12=19988
+set_test_sizes() {
+	size=$1
+	# super0, round down to multiple of 64 and substract 64
+	mdsize0=$((size / 64 * 64 - 64))
+
+	# super00 is nested, subtract 128
+	mdsize00=$((mdsize0 - 64))
+
+	# super1.0 round down to multiple of 2, subtract 8
+	mdsize1=$((size / 2 * 2 - 8))
+	mdsize1a=$((mdsize1 - 4))
+
+	mdsize12=$mdsize1a
+
+	# super1.2 for linear: round down to multiple of 2, subtract 4
+	mdsize1_l=$((size / 2 * 2 - 4))
+	mdsize2_l=$mdsize1_l
+
+	# subtract another 4 for bitmaps
+	mdsize1b=$((mdsize1 - 4))
+	mdsize11=$mdsize1
+	mdsize11a=$((mdsize1a / 1024 * 1024))
+}
+
+set_test_sizes 20000
 
 # ddf needs bigger devices as 32Meg is reserved!
 ddfsize=65536
