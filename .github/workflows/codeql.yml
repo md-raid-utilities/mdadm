@@ -33,6 +33,7 @@ jobs:
         with:
           languages: c-cpp
           build-mode: manual
+          queries: security-and-quality
 
       - name: Build mdadm
         run: make -j"$(nproc)"
