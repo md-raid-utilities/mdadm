@@ -2215,9 +2215,9 @@ static void examine_super_imsm(struct supertype *st, char *homehost)
 	const char *creation_time_str = "Unknown";
 	struct imsm_super *mpb = super->anchor;
 	char str[MAX_SIGNATURE_LENGTH];
+	char timebuf[CTIME_BUF_SIZE];
 	time_t creation_time;
 	struct mdinfo info;
-	char timebuf[32];
 	struct dl *dl;
 	char nbuf[64];
 	__u32 sum;
@@ -2231,8 +2231,8 @@ static void examine_super_imsm(struct supertype *st, char *homehost)
 	printf("         Family : %08x\n", __le32_to_cpu(mpb->family_num));
 	printf("     Generation : %08x\n", __le32_to_cpu(mpb->generation_num));
 	creation_time = __le64_to_cpu(mpb->creation_time);
-	if (creation_time && ctime_r(&creation_time, timebuf))
-		creation_time_str = timebuf;
+	if (creation_time)
+		creation_time_str = format_timestamp(creation_time, timebuf);
 	printf("  Creation Time : %.24s\n", creation_time_str);
 
 	printf("     Attributes : %08x (%s)\n", mpb->attributes,

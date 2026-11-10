@@ -81,9 +81,9 @@ static void super0_swap_endian(struct mdp_superblock_s *sb)
 static void examine_super0(struct supertype *st, char *homehost)
 {
 	unsigned long expected_csum = 0;
+	char timebuf[CTIME_BUF_SIZE];
 	mdp_super_t *sb = st->sb;
 	int delta_extra = 0;
-	char timebuf[32];
 	time_t atime;
 	char *c;
 	int d;
@@ -112,8 +112,7 @@ static void examine_super0(struct supertype *st, char *homehost)
 		printf("           Eedk : not persistent\n");
 
 	atime = sb->ctime;
-	printf("  Creation Time : %.24s\n",
-	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+	printf("  Creation Time : %.24s\n", format_timestamp(atime, timebuf));
 	c = map_num(pers, sb->level);
 	printf("     Raid Level : %s\n", c?c:"-unknown-");
 	if ((int)sb->level > 0) {
@@ -185,8 +184,7 @@ static void examine_super0(struct supertype *st, char *homehost)
 		printf("\n");
 	}
 	atime = sb->utime;
-	printf("    Update Time : %.24s\n",
-	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+	printf("    Update Time : %.24s\n", format_timestamp(atime, timebuf));
 	printf("          State : %s\n",
 	       (sb->state&(1 << MD_SB_CLEAN)) ? "clean":"active");
 	/* recovery_cp is a legacy name, from before sync actions got split */

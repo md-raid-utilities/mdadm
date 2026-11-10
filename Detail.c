@@ -97,6 +97,7 @@ int Detail(char *dev, struct context *c)
 	 */
 	int max_devices = 0, n_devices = 0;
 	mdu_disk_info_t *disks = NULL;
+	char timebuf[CTIME_BUF_SIZE];
 	int fd = open(dev, O_RDONLY);
 	struct supertype *st = NULL;
 	int max_disks = MD_SB_DISKS; /* just a default */
@@ -110,7 +111,6 @@ int Detail(char *dev, struct context *c)
 	struct mdinfo *subdev;
 	int is_container = 0;
 	char *member = NULL;
-	char timebuf[32];
 	int avail_disks = 0;
 	char *avail = NULL;
 	struct stat stb;
@@ -485,8 +485,7 @@ int Detail(char *dev, struct context *c)
 
 		atime = array.ctime;
 		if (atime)
-			printf("     Creation Time : %.24s\n",
-			       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+			printf("     Creation Time : %.24s\n", format_timestamp(atime, timebuf));
 		if (is_container)
 			str = "container";
 		if (str)
@@ -538,8 +537,7 @@ int Detail(char *dev, struct context *c)
 			printf("     Intent Bitmap : Internal\n\n");
 		atime = array.utime;
 		if (atime)
-			printf("       Update Time : %.24s\n",
-			       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+			printf("       Update Time : %.24s\n", format_timestamp(atime, timebuf));
 		if (array.raid_disks) {
 			static char *sync_action[] = {
 				", recovering",  ", resyncing",

@@ -254,6 +254,9 @@ static inline void __put_unaligned32(__u32 val, void *p)
  */
 #define MD_NAME_MAX 32
 
+/* ctime_r() requires a buffer of at least 26 bytes. */
+#define CTIME_BUF_SIZE 26
+
 extern const char Name[];
 
 struct md_bb_entry {
@@ -1623,6 +1626,7 @@ extern int assemble_container_content(struct supertype *st, int mdfd,
 				      struct mdinfo *content,
 				      struct context *c,
 				      char *chosen_name, int *result);
+extern const char *format_timestamp(time_t timestamp, char buf[CTIME_BUF_SIZE]);
 #define	INCR_NO		1
 #define	INCR_UNSAFE	2
 #define	INCR_ALREADY	4
