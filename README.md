@@ -36,7 +36,6 @@ components:
 - mdmon;
 - raid6check;
 - swap_super;
-- test_stripe;
 - systemd services ( see systemd/);
 - udev rules;
 - manual pages (including md.man)
