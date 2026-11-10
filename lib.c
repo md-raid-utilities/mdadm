@@ -59,6 +59,27 @@ bool is_string_lq(const char * const str, size_t max_len)
 	return false;
 }
 
+/**
+ * format_timestamp() - Format local time without a trailing newline.
+ * @timestamp: time to format.
+ * @buf: caller-provided buffer of at least CTIME_BUF_SIZE bytes.
+ *
+ * Return: @buf on success, or "Unknown" if conversion fails.
+ */
+const char *format_timestamp(time_t timestamp, char buf[CTIME_BUF_SIZE])
+{
+	char *newline;
+
+	if (!ctime_r(&timestamp, buf))
+		return "Unknown";
+
+	newline = strchr(buf, '\n');
+	if (newline)
+		*newline = '\0';
+
+	return buf;
+}
+
 bool is_dev_alive(char *path)
 {
 	if (!path)

@@ -214,10 +214,10 @@ static void examine_super1(struct supertype *st, char *homehost)
 	int l = homehost ? strlen(homehost) : 0;
 	unsigned int expected_csum = 0;
 	unsigned long long sb_offset;
+	char timebuf[CTIME_BUF_SIZE];
 	int inconsistent = 0;
 	int delta_extra = 0;
 	struct mdinfo info;
-	char timebuf[32];
 	unsigned int d;
 	time_t atime;
 	int layout;
@@ -254,8 +254,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	    (__le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET))
 		printf("   Cluster Name : %-64s\n", bms->cluster_name);
 	atime = __le64_to_cpu(sb->ctime) & 0xFFFFFFFFFFULL;
-	printf("  Creation Time : %.24s\n",
-	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+	printf("  Creation Time : %.24s\n", format_timestamp(atime, timebuf));
 	c=map_num(pers, __le32_to_cpu(sb->level));
 	printf("     Raid Level : %s\n", c?c:"-unknown-");
 	printf("   Raid Devices : %d\n", __le32_to_cpu(sb->raid_disks));
@@ -388,8 +387,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	}
 
 	atime = __le64_to_cpu(sb->utime) & 0xFFFFFFFFFFULL;
-	printf("    Update Time : %.24s\n",
-	       ctime_r(&atime, timebuf) ? timebuf : "Unknown");
+	printf("    Update Time : %.24s\n", format_timestamp(atime, timebuf));
 
 	if (sb->bblog_size && sb->bblog_offset) {
 		printf("  Bad Block Log : %d entries available at offset %ld sectors",
