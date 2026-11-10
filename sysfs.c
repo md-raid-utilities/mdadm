@@ -23,13 +23,13 @@
  *    Email: <neilb@suse.de>
  */
 
-#include	"mdadm.h"
-#include	"md_common.h"
-#include	"dlink.h"
-#include	"xmalloc.h"
+#include "mdadm.h"
+#include "md_common.h"
+#include "dlink.h"
+#include "xmalloc.h"
 
-#include	<dirent.h>
-#include	<ctype.h>
+#include <dirent.h>
+#include <ctype.h>
 #include <limits.h>
 
 #define MAX_SYSFS_PATH_LEN	120
