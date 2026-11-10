@@ -224,9 +224,9 @@ check_rundir:
 		echo "***** or set CHECK_RUN_DIR=0"; exit 1; \
 	fi
 
-everything: all swap_super test_stripe raid6check \
+everything: all swap_super raid6check \
 	mdadm.Os mdadm.O2 man
-everything-test: all swap_super test_stripe \
+everything-test: all swap_super \
 	mdadm.Os mdadm.O2 man
 
 %.o: %.c
@@ -250,9 +250,6 @@ mdmon.O2 : $(MON_SRCS) $(INCL) mdmon.h
 mdmon : $(MON_OBJS) | check_rundir
 	$(CC) $(CFLAGS) $(LDFLAGS) $(MON_LDFLAGS) -o mdmon $(MON_OBJS) $(LDLIBS)
 msg.o: msg.c msg.h
-
-test_stripe : restripe.c xmalloc.o mdadm.h
-	$(CC) $(CFLAGS) $(CXFLAGS) $(LDFLAGS) -o test_stripe xmalloc.o  -DMAIN restripe.c
 
 raid6check : raid6check.o mdadm.h $(CHECK_OBJS)
 	$(CC) $(CXFLAGS) $(LDFLAGS) -o raid6check raid6check.o $(CHECK_OBJS)
@@ -339,14 +336,14 @@ uninstall:
 	rm -f $(DESTDIR)$(SYSTEMD_DIR)-shutdown/mdadm.shutdown
 	rm -f $(DESTDIR)$(MISCDIR)/mdcheck
 
-test: mdadm mdmon test_stripe swap_super raid6check
+test: mdadm mdmon swap_super raid6check
 	@echo "Please run './test' as root"
 
 clean :
 	rm -f mdadm mdmon $(OBJS) $(MON_OBJS) $(STATICOBJS) core *.man \
 	mdadm.static *.orig *.porig *.rej *.alt merge_file_* \
 	mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
-	test_stripe raid6check raid6check.o mdmon mdadm.8
+	raid6check raid6check.o mdmon mdadm.8
 	rm -rf cov-int
 
 dist : clean
