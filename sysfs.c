@@ -285,6 +285,134 @@ out:
 	return retval;
 }
 
+/*
+ * The kernel removes the "block" symlink first in hot-remove operations.
+ * Return 1 if the symlink is gone, 0 otherwise.
+ */
+static int sysfs_verify_gone(const char *mdname, const char *rdname)
+{
+	char fname[PATH_MAX], buf[PATH_MAX];
+	int rc;
+
+	rc = snprintf(fname, sizeof(fname),
+		      "/sys/block/%s/md/%s/block", mdname, rdname);
+	if (rc < 0 || (unsigned long)rc >= sizeof(fname))
+		return 0;
+
+	if (readlink(fname, buf, sizeof(buf)) >= 0)
+		return 0;
+	if (errno == ENOENT) {
+		pr_err("%s: device %s has been hot-removed\n",
+		       mdname, rdname);
+		return 1;
+	}
+	pr_err("%s: error reading block symlink for %s: %s\n",
+	       mdname, rdname, strerror(errno));
+	return 0;
+}
+
+/*
+ * Read the sysfs attributes of a single rdev.
+ * @fname: buffer holding the sysfs path of the rdev directory
+ * @dbase: pointer into @fname after the trailing '/' of the rdev directory
+ * @last_try: true if no more retries will be done after this call
+ * @attr: set to the name of the attribute that failed to be read
+ *
+ * Return: 0 on success, 1 if the rdev should be skipped (stale reference
+ * to a removed device, or device offline), negative error code if some
+ * attribute couldn't be read.
+ */
+static int sysfs_read_rdev(struct mdinfo *dev, char *fname, char *dbase,
+			   unsigned long options, bool last_try,
+			   const char **attr)
+{
+	char buf[PATH_MAX];
+	char *ep;
+	int rc;
+
+	/* Always get slot, major, minor */
+	*attr = "slot";
+	strcpy(dbase, *attr);
+	rc = load_sys(fname, buf, sizeof(buf));
+	if (rc < 0)
+		return rc;
+	dev->disk.raid_disk = strtoul(buf, &ep, 10);
+	/*
+	 * The "slot" attribute may contain "none" or "journal"
+	 * In this case, the disk has no slot assigned.
+	 */
+	if (*ep)
+		dev->disk.raid_disk = -1;
+
+	*attr = "block/dev";
+	strcpy(dbase, *attr);
+	rc = load_sys(fname, buf, sizeof(buf));
+	/* assume this is a stale reference to a hot removed device */
+	if (rc == -ENOENT && !(options & GET_DEVS_ALL))
+		return 1;
+	if (rc < 0)
+		return rc;
+	if (sscanf(buf, "%d:%d", &dev->disk.major, &dev->disk.minor) != 2)
+		return -EINVAL;
+
+	if (!(options & GET_DEVS_ALL)) {
+		/* special case check for block devices that can go 'offline' */
+		strcpy(dbase, "block/device/state");
+		if (load_sys(fname, buf, sizeof(buf)) == 0 &&
+		    strncmp(buf, "offline", 7) == 0)
+			return 1;
+	}
+
+	if (options & GET_OFFSET) {
+		*attr = "offset";
+		strcpy(dbase, *attr);
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0)
+			return rc;
+		dev->data_offset = strtoull(buf, NULL, 0);
+
+		*attr = "new_offset";
+		strcpy(dbase, *attr);
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0 && !last_try)
+			return rc;
+		else if (rc == 0)
+			dev->new_data_offset = strtoull(buf, NULL, 0);
+		else
+			dev->new_data_offset = dev->data_offset;
+	}
+	if (options & GET_SIZE) {
+		*attr = "size";
+		strcpy(dbase, *attr);
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0)
+			return rc;
+		dev->component_size = strtoull(buf, NULL, 0) * 2;
+	}
+	if (options & GET_STATE) {
+		dev->disk.state = 0;
+		*attr = "state";
+		strcpy(dbase, *attr);
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0)
+			return rc;
+		if (strstr(buf, "faulty"))
+			dev->disk.state |= (1<<MD_DISK_FAULTY);
+		else if (strstr(buf, "in_sync"))
+			dev->disk.state |= (1<<MD_DISK_SYNC);
+	}
+	if (options & GET_ERROR) {
+		*attr = "errors";
+		strcpy(dbase, *attr);
+		rc = load_sys(fname, buf, sizeof(buf));
+		if (rc < 0)
+			return rc;
+		dev->errors = strtoul(buf, NULL, 0);
+	}
+
+	return 0;
+}
+
 /* If fd >= 0, get the array it is open on, else use devnm. */
 struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 {
@@ -449,7 +577,10 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 	devp = &sra->devs;
 	sra->devs = NULL;
 	while ((de = readdir(dir)) != NULL) {
-		char *ep;
+		const struct timespec wait = {
+			.tv_sec = 0,
+			.tv_nsec = 1000 * SYSFS_RETRY_USEC
+		};
 		int retries = SYSFS_MAX_RETRIES;
 		int rc;
 
@@ -462,96 +593,32 @@ struct mdinfo *sysfs_read(int fd, char *devnm, unsigned long options)
 
 		dev = xcalloc(1, sizeof(*dev));
 
-retry:
-		/* Always get slot, major, minor */
-		attr = "slot";
-		strcpy(dbase, attr);
-		rc = load_sys(fname, buf, sizeof(buf));
-		if (rc < 0)
-			goto maybe_retry;
-		else {
-			dev->disk.raid_disk = strtoul(buf, &ep, 10);
+		while ((rc = sysfs_read_rdev(dev, fname, dbase, options,
+					     retries == 0, &attr)) < 0) {
 			/*
-			 * The "slot" attribute may contain "none" or "journal"
-			 * In this case, the disk has no slot assigned.
+			 * hmm... unable to read some attributes, maybe the
+			 * device is going away?
 			 */
-			if (*ep)
-				dev->disk.raid_disk = -1;
-		}
-
-		attr = "block/dev";
-		strcpy(dbase, attr);
-		rc = load_sys(fname, buf, sizeof(buf));
-		if (rc < 0) {
-			/* assume this is a stale reference to a hot
-			 * removed device
-			 */
-			if (rc == -ENOENT && !(options & GET_DEVS_ALL)) {
-				free(dev);
-				continue;
-			} else
-				goto maybe_retry;
-		} else {
-			sscanf(buf, "%d:%d", &dev->disk.major, &dev->disk.minor);
-		}
-
-		if (!(options & GET_DEVS_ALL)) {
-			/* special case check for block devices that can go 'offline' */
-			strcpy(dbase, "block/device/state");
-			if (load_sys(fname, buf, sizeof(buf)) == 0 &&
-			    strncmp(buf, "offline", 7) == 0) {
-				free(dev);
-				continue;
+			if (sysfs_verify_gone(sra->sys_name, de->d_name)) {
+				rc = 1;
+				break;
 			}
+			if (retries-- == 0) {
+				pr_err("%s: error reading sysfs attribute %s for %s: %s\n",
+				       sra->sys_name, attr, de->d_name,
+				       strerror(-rc));
+				/* attribute is unreadable but 'block' link
+				 * still intact... something bad is happening
+				 * so abort
+				 */
+				free(dev);
+				goto abort;
+			}
+			nanosleep(&wait, NULL);
 		}
-
-		if (options & GET_OFFSET) {
-			attr = "offset";
-			strcpy(dbase, attr);
-			rc = load_sys(fname, buf, sizeof(buf));
-			if (rc < 0)
-				goto maybe_retry;
-			else
-				dev->data_offset = strtoull(buf, NULL, 0);
-
-			attr = "new_offset";
-			strcpy(dbase, attr);
-			rc = load_sys(fname, buf, sizeof(buf));
-			if (rc < 0 && retries > 0)
-				goto maybe_retry;
-			else if (rc == 0)
-				dev->new_data_offset = strtoull(buf, NULL, 0);
-			else
-				dev->new_data_offset = dev->data_offset;
-		}
-		if (options & GET_SIZE) {
-			attr = "size";
-			strcpy(dbase, attr);
-			rc = load_sys(fname, buf, sizeof(buf));
-			if (rc < 0)
-				goto maybe_retry;
-			else
-				dev->component_size = strtoull(buf, NULL, 0) * 2;
-		}
-		if (options & GET_STATE) {
-			dev->disk.state = 0;
-			attr = "state";
-			strcpy(dbase, attr);
-			rc = load_sys(fname, buf, sizeof(buf));
-			if (rc < 0)
-				goto maybe_retry;
-			if (strstr(buf, "faulty"))
-				dev->disk.state |= (1<<MD_DISK_FAULTY);
-			else if (strstr(buf, "in_sync"))
-				dev->disk.state |= (1<<MD_DISK_SYNC);
-		}
-		if (options & GET_ERROR) {
-			attr = "errors";
-			strcpy(dbase, attr);
-			rc = load_sys(fname, buf, sizeof(buf));
-			if (rc < 0)
-				goto maybe_retry;
-			dev->errors = strtoul(buf, NULL, 0);
+		if (rc == 1) {
+			free(dev);
+			continue;
 		}
 
 		/* finally add this disk to the array */
@@ -569,45 +636,6 @@ retry:
 			if (dev->disk.state == 0)
 				sra->array.spare_disks++;
 		}
-		continue;
-
-maybe_retry:
-
-		/*
-		 * hmm... unable to read some attributes, maybe the device
-		 * is going away?
-		 * The kernel removes the "block" symlink first
-		 * in hot-remove operations.
-		 */
-		strcpy(dbase, "block");
-		if (readlink(fname, buf, sizeof(buf)) < 0) {
-			if (errno == ENOENT) {
-				/* ...yup device is gone */
-				pr_err("%s: device %s has been hot-removed\n",
-				       sra->sys_name, de->d_name);
-				free(dev);
-				continue;
-			} else
-				pr_err("%s: error reading block symlink for %s: %s\n",
-				       sra->sys_name, de->d_name, strerror(errno));
-		}
-
-		if (retries--) {
-			struct timespec wait = { .tv_sec = 0,
-				.tv_nsec = 1000 * SYSFS_RETRY_USEC };
-			nanosleep(&wait, NULL);
-			goto retry;
-		}
-
-		pr_err("%s: error reading sysfs attribute %s for %s: %s\n",
-		       sra->sys_name, attr, de->d_name, strerror(-rc));
-		/* slot is unreadable but 'block' link
-		 * still intact... something bad is happening
-		 * so abort
-		 */
-		free(dev);
-		goto abort;
-
 	}
 
 	if ((options & GET_STATE) && sra->array.raid_disks)
@@ -622,7 +650,7 @@ maybe_retry:
 		closedir(dir);
 	sysfs_free(sra);
 	return NULL;
-	}
+}
 
 int sysfs_attr_match(const char *attr, const char *str)
 {
