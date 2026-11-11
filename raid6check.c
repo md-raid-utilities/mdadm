@@ -25,6 +25,7 @@
 #include "mdadm.h"
 #include "xmalloc.h"
 #include <stdint.h>
+#include <aio.h>
 #include <sys/mman.h>
 
 #define CHECK_PAGE_BITS (12)
@@ -360,6 +361,10 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 	int *results = xmalloc(chunk_size * sizeof(int));
 	sighandler_t *sig = xmalloc(3 * sizeof(sighandler_t));
 
+	/* one read per member device, all submitted in one go */
+	struct aiocb *cb = xcalloc(raid_disks, sizeof(*cb));
+	struct aiocb **cbs = xmalloc(raid_disks * sizeof(*cbs));
+
 	int i, j;
 	int diskP, diskQ, diskD;
 	int err = 0;
@@ -404,32 +409,54 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 				unlock_all_stripes(info, sig);
 			goto exitCheck;
 		}
+
+		/* Avoid stale results from requests that failed to queue */
+		memset(cb, 0, raid_disks * sizeof(*cb));
 		for (i = 0 ; i < raid_disks ; i++) {
-			ssize_t read_done = 0;
-			off_t seek_res = lseek(source[i], offsets[i] + start * chunk_size,
-						   SEEK_SET);
-			if (seek_res < 0) {
-				fprintf(stderr, "lseek to source %d failed\n", i);
+			cb[i].aio_fildes = source[i];
+			cb[i].aio_buf = stripe_buf + i * device_span;
+			cb[i].aio_nbytes = batch_bytes;
+			cb[i].aio_offset = offsets[i] + start * chunk_size;
+			cb[i].aio_lio_opcode = LIO_READ;
+			cb[i].aio_sigevent.sigev_notify = SIGEV_NONE;
+			cbs[i] = &cb[i];
+		}
+		if (lio_listio(LIO_WAIT, cbs, raid_disks, NULL) < 0) {
+			if (errno == EAGAIN || errno == EINTR || errno == EIO) {
+				/* Some reads may still be in flight after EINTR */
+				for (i = 0 ; i < raid_disks ; i++)
+					while (aio_error(&cb[i]) == EINPROGRESS)
+						aio_suspend((const struct aiocb *const *)&cbs[i],
+							    1, NULL);
+			} else {
+				/* No read was even started */
+				fprintf(stderr, "Failed to submit reads, aborting\n");
 				unlock_all_stripes(info, sig);
 				err = -1;
 				goto exitCheck;
 			}
-			while (read_done < (ssize_t)batch_bytes) {
-				ssize_t read_res = read(source[i],
-							stripe_buf + i * device_span + read_done,
-							batch_bytes - read_done);
-				if (read_res < 0 && errno == EINTR)
-					continue;
+		}
 
-				if (read_res <= 0) {
+		for (i = 0 ; i < raid_disks ; i++) {
+			ssize_t done = 0;
+
+			if (aio_return(&cb[i]) == (ssize_t)batch_bytes)
+				continue;
+
+			/* Short read or failure, read it all again with pread */
+			while (done < (ssize_t)batch_bytes) {
+				ssize_t r = pread(source[i], stripe_buf + i * device_span + done,
+						  batch_bytes - done, cb[i].aio_offset + done);
+				if (r < 0 && errno == EINTR)
+					continue;
+				if (r <= 0) {
 					fprintf(stderr, "Failed to read complete chunk disk %d, "
 						"aborting\n", i);
 					unlock_all_stripes(info, sig);
 					err = -1;
 					goto exitCheck;
-				} else {
-					read_done += read_res;
 				}
+				done += r;
 			}
 		}
 
@@ -557,6 +584,8 @@ exitCheck:
 	free(q);
 	free(results);
 	free(sig);
+	free(cb);
+	free(cbs);
 
 	return err;
 }
