@@ -121,6 +121,8 @@ MDMON_DIR = $(RUN_DIR)
 FAILED_SLOTS_DIR = $(RUN_DIR)/failed-slots
 SYSTEMD_DIR=/lib/systemd/system
 LIB_DIR=/usr/libexec/mdadm
+TESTSDIR = $(MISCDIR)/testsuite
+TESTSEXECDIR = $(LIB_DIR)/testsuite
 
 COROSYNC:=$(shell $(PKG_CONFIG) --exists corosync || echo -DNO_COROSYNC)
 DLM:=$(shell $(PKG_CONFIG) --exists libdlm || echo -DNO_DLM)
@@ -328,6 +330,20 @@ install-bin: mdadm mdmon
 	$(INSTALL) -D $(STRIP) -m 755 mdadm $(DESTDIR)$(BINDIR)/mdadm
 	$(INSTALL) -D $(STRIP) -m 755 mdmon $(DESTDIR)$(BINDIR)/mdmon
 
+install-testsuite: swap_super raid6check
+	$(INSTALL) -d $(DESTDIR)$(TESTSDIR) $(DESTDIR)$(TESTSEXECDIR)
+	@for file in $$(find tests -type f | sort); do \
+	   $(ECHO) $(INSTALL) -D -m 644 $$file $(DESTDIR)$(TESTSDIR)/$$file ; \
+	   $(INSTALL) -D -m 644 $$file $(DESTDIR)$(TESTSDIR)/$$file ; \
+	done
+	$(INSTALL) -D -m 755 test $(DESTDIR)$(TESTSDIR)/test
+	$(INSTALL) -D -m 755 swap_super $(DESTDIR)$(TESTSEXECDIR)/swap_super
+	$(INSTALL) -D -m 755 raid6check $(DESTDIR)$(TESTSEXECDIR)/raid6check
+	ln -sfr $(DESTDIR)$(TESTSEXECDIR)/raid6check $(DESTDIR)$(TESTSDIR)/raid6check
+	@sed -e 's,@TESTSDIR@,$(TESTSDIR),g;s,@TESTSEXECDIR@,$(TESTSEXECDIR),g' misc/mdadm-testsuite > .install.tmp.6
+	$(INSTALL) -D -m 755 .install.tmp.6 $(DESTDIR)$(BINDIR)/mdadm-testsuite
+	@rm -f .install.tmp.6
+
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/mdadm $(DESTDIR)$(BINDIR)/mdmon
 	rm -f $(DESTDIR)$(MAN8DIR)/mdadm.8 $(DESTDIR)$(MAN8DIR)/mdmon.8 $(DESTDIR)$(MAN4DIR)/md.4 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
@@ -335,6 +351,8 @@ uninstall:
 	rm -f $(SYSTEMD_UNITS:%=$(DESTDIR)$(SYSTEMD_DIR)/%)
 	rm -f $(DESTDIR)$(SYSTEMD_DIR)-shutdown/mdadm.shutdown
 	rm -f $(DESTDIR)$(MISCDIR)/mdcheck
+	rm -f $(DESTDIR)$(BINDIR)/mdadm-testsuite
+	rm -rf $(DESTDIR)$(TESTSDIR) $(DESTDIR)$(TESTSEXECDIR)
 
 test: mdadm mdmon swap_super raid6check
 	@echo "Please run './test' as root"
