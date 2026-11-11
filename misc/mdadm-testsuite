@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# Run the installed mdadm test suite.
+# Arguments are passed to the test runner, see "mdadm-testsuite --help".
+#
+# Test cases are looked up relative to the test suite directory, so the
+# runner is started from there.
+
+cd @TESTSDIR@ || exit 1
+export dir=${dir:-@TESTSEXECDIR@}
+exec ./test "$@"
