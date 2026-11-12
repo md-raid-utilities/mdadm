@@ -252,7 +252,7 @@ mdmon : $(MON_OBJS) | check_rundir
 msg.o: msg.c msg.h
 
 raid6check : raid6check.o mdadm.h $(CHECK_OBJS)
-	$(CC) $(CXFLAGS) $(LDFLAGS) -o raid6check raid6check.o $(CHECK_OBJS)
+	$(CC) $(CXFLAGS) $(LDFLAGS) -o raid6check raid6check.o $(CHECK_OBJS) -lrt
 
 mdadm.8 : mdadm.8.in
 	sed -e 's/{DEFAULT_METADATA}/$(DEFAULT_METADATA)/g' \
