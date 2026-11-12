@@ -26,6 +26,8 @@ set_test_sizes() {
 
 set_test_sizes 20000
 
+dev_count=14
+
 # ddf needs bigger devices as 32Meg is reserved!
 ddfsize=65536
 
@@ -98,14 +100,14 @@ cleanup() {
 	$mdadm -Ssq 2> /dev/null
 	case $DEVTYPE in
 	loop )
-		for d in 0 1 2 3 4 5 6 7  8 9 10 11 12 13
+		for ((d = 0; d < dev_count; d++))
 		do
 			losetup -d /dev/loop$d &> /dev/null
 			rm -f /dev/disk/by-path/loop*
 		done
 	;;
 	lvm )
-		for d in 0 1 2 3 4 5 6 7  8 9 10 11 12 13
+		for ((d = 0; d < dev_count; d++))
 		do
 			eval "lvremove --quiet -f \$dev$d"
 		done
@@ -186,7 +188,7 @@ setup_loop_devices() {
 
 	[ "$DEVTYPE" != "loop" ] && return 0
 
-	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	for ((d = 0; d < dev_count; d++))
 	do
 		sz=$size
 		[ $d -gt 7 ] && sz=$ddfsize
@@ -239,13 +241,13 @@ setup_ram_devices() {
 
 	[ "$DEVTYPE" != "ram" ] && return 0
 
-	modprobe brd rd_nr=14 rd_size=$ddfsize || {
+	modprobe brd rd_nr=$dev_count rd_size=$ddfsize || {
 		echo "Failed to load brd module for RAM devices."
 		return 1
 	}
 	udevadm settle > /dev/null 2>&1
 
-	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	for ((d = 0; d < dev_count; d++))
 	do
 		ram_device=/dev/ram$d
 		[ -b "$ram_device" ] || {
@@ -388,7 +390,7 @@ do_setup() {
 			exit 1
 		fi
 	fi
-	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	for ((d = 0; d < dev_count; d++))
 	do
 		case $DEVTYPE in
 		lvm)
