@@ -50,7 +50,8 @@ do
        while ! (check state 'U*_U*'); do check wait; sleep 0.2; done
     done
     mdadm $md0 -a $second
-    while ! (check state 'U*'); do check wait; sleep 0.2; done
+    check_wait
+    check state 'UUUUU'
     totest="$totest $second"
   done
   mdadm -S $md0
