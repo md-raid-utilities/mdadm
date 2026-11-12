@@ -1,24 +1,30 @@
 #!/bin/bash
 
-# We test mdadm on loop-back block devices.
-# dir for storing files should be settable by command line maybe
-size=20000
-# super0, round down to multiple of 64 and substract 64
-mdsize0=19904
-# super00 is nested, subtract 128
-mdsize00=19840
-# super1.0 round down to multiple of 2, subtract 8
-mdsize1=19992
-mdsize1a=19988
-mdsize12=19988
-# super1.2 for linear: round to multiple of 2, subtract 4
-mdsize1_l=19996
-mdsize2_l=19996
-# subtract another 4 for bitmaps
-mdsize1b=19988
-mdsize11=19992
-mdsize11a=19456
-mdsize12=19988
+set_test_sizes() {
+	size=$1
+	# super0, round down to multiple of 64 and substract 64
+	mdsize0=$((size / 64 * 64 - 64))
+
+	# super00 is nested, subtract 128
+	mdsize00=$((mdsize0 - 64))
+
+	# super1.0 round down to multiple of 2, subtract 8
+	mdsize1=$((size / 2 * 2 - 8))
+	mdsize1a=$((mdsize1 - 4))
+
+	mdsize12=$mdsize1a
+
+	# super1.2 for linear: round down to multiple of 2, subtract 4
+	mdsize1_l=$((size / 2 * 2 - 4))
+	mdsize2_l=$mdsize1_l
+
+	# subtract another 4 for bitmaps
+	mdsize1b=$((mdsize1 - 4))
+	mdsize11=$mdsize1
+	mdsize11a=$((mdsize1a / 1024 * 1024))
+}
+
+set_test_sizes 20000
 
 # ddf needs bigger devices as 32Meg is reserved!
 ddfsize=65536
@@ -96,7 +102,6 @@ cleanup() {
 		do
 			losetup -d /dev/loop$d &> /dev/null
 			rm -f /dev/disk/by-path/loop*
-			rm -f /var/tmp/mdtest$d
 		done
 	;;
 	lvm )
@@ -129,7 +134,9 @@ check_env() {
 		echo "test: please run make everything before perform testing."
 		exit 1
 	}
-	cmds=(mdadm lsblk df udevadm losetup mkfs.ext3 fsck seq)
+	cmds=(mdadm blockdev dd lsblk df udevadm losetup mkfs.ext3 fsck seq stat)
+	[ "$DEVTYPE" == "ram" ] && cmds+=(modprobe)
+
 	for cmd in ${cmds[@]}
 	do
 		which $cmd > /dev/null || {
@@ -160,6 +167,102 @@ check_env() {
 		echo "test: skipping tests for linear, which is removed in upstream 6.8+ kernels"
 		skipping_linear="yes"
 	fi
+}
+
+# If loop devices are existing, try to reuse them first. Verify that they are correctly sized and
+# backed by mdadm test files. If they are no suitable - abort.
+#
+# If there are no loop devices, create them.
+# loop6 and loop7 intentionally share mdtest6 for multipath tests.
+setup_loop_devices() {
+	local actual_backing
+	local expected_size
+	local backing_file
+	local actual_size
+	local loop_device
+	local file_size
+	local sz
+	local d
+
+	[ "$DEVTYPE" != "loop" ] && return 0
+
+	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	do
+		sz=$size
+		[ $d -gt 7 ] && sz=$ddfsize
+		loop_device=/dev/loop$d
+		backing_file=$targetdir/mdtest$d
+		[ $d -eq 7 ] && backing_file=$targetdir/mdtest6
+		expected_size=$((sz * 1024))
+		eval dev$d=$loop_device
+		eval file$d=$backing_file
+
+		if losetup "$loop_device" > /dev/null 2>&1; then
+			actual_backing=$(losetup --noheadings --raw --output BACK-FILE "$loop_device")
+			actual_size=$(blockdev --getsize64 "$loop_device")
+			file_size=$(stat -c %s "$backing_file" 2> /dev/null)
+
+			if [ "$actual_backing" != "$backing_file" ] ||
+			   [ "$actual_size" != "$expected_size" ] ||
+			   [ "$file_size" != "$expected_size" ]; then
+				die "$loop_device is not mdadm test loop device. Remove the device manually."
+			fi
+			# make sure udev doesn't touch
+			mdadm --zero "$backing_file" 2> /dev/null
+			udevadm settle > /dev/null 2>&1
+			continue
+		fi
+
+		file_size=$(stat -c %s "$backing_file" 2> /dev/null)
+		if [ "$file_size" != "$expected_size" ]; then
+			rm -f "$backing_file"
+			if ! dd if=/dev/zero of="$backing_file" count=$sz bs=1K > /dev/null 2>&1; then
+				echo "Failed to create $backing_file."
+				return 1
+			fi
+		fi
+
+		if ! losetup "$loop_device" "$backing_file"; then
+			echo "Failed to set up $loop_device."
+			return 1
+		fi
+
+		udevadm settle > /dev/null 2>&1
+	done
+}
+
+setup_ram_devices() {
+	local expected_size=$((ddfsize * 1024))
+	local actual_size
+	local ram_device
+	local d
+
+	[ "$DEVTYPE" != "ram" ] && return 0
+
+	modprobe brd rd_nr=14 rd_size=$ddfsize || {
+		echo "Failed to load brd module for RAM devices."
+		return 1
+	}
+	udevadm settle > /dev/null 2>&1
+
+	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
+	do
+		ram_device=/dev/ram$d
+		[ -b "$ram_device" ] || {
+			echo "$ram_device is not available."
+			return 1
+		}
+		if ! actual_size=$(blockdev --getsize64 "$ram_device"); then
+			echo "Failed to get size of $ram_device."
+			return 1
+		fi
+		if [ "$actual_size" != "$expected_size" ]; then
+			echo "$ram_device has wrong size: $((actual_size / 1024)) KiB, expected $ddfsize KiB."
+			return 1
+		fi
+	done
+	# brd uses one size for all devices; use it for size checks.
+	set_test_sizes $(($(cat /sys/class/block/ram0/size) / 2))
 }
 
 record_system_speed_limit() {
@@ -258,26 +361,18 @@ clean_systemd_env() {
 }
 
 do_setup() {
+	check_env
+	setup_loop_devices || exit 1
+	setup_ram_devices || exit 1
+
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
 
-	check_env
 	setup_systemd_env
 	[ -d $logdir ] || mkdir -p $logdir
 
 	devlist=
-	if [ "$DEVTYPE" == "loop" ]
-	then
-		# make sure there are no loop devices remaining.
-		# udev started things can sometimes prevent them being stopped
-		# immediately
-		while grep loop /proc/partitions > /dev/null 2>&1
-		do
-			$mdadm -Ssq
-			losetup -d /dev/loop[0-9]* 2> /dev/null
-			sleep 0.2
-		done
-	elif [ "$DEVTYPE" == "disk" ]
+	if [ "$DEVTYPE" == "disk" ]
 	then
 		if [ ! -z "$disks" ]
 		then
@@ -295,24 +390,10 @@ do_setup() {
 	fi
 	for d in 0 1 2 3 4 5 6 7 8 9 10 11 12 13
 	do
-		sz=$size
-		[ $d -gt 7 ] && sz=$ddfsize
 		case $DEVTYPE in
-		loop)
-			[ -f $targetdir/mdtest$d ] ||
-				dd if=/dev/zero of=$targetdir/mdtest$d count=$sz bs=1K > /dev/null 2>&1
-			# make sure udev doesn't touch
-			mdadm --zero $targetdir/mdtest$d 2> /dev/null
-			if [ $d -eq 7 ]
-			then
-				losetup /dev/loop$d $targetdir/mdtest6 # for multipath use
-			else
-				losetup /dev/loop$d $targetdir/mdtest$d
-			fi
-			eval dev$d=/dev/loop$d
-			eval file$d=$targetdir/mdtest$d
-		;;
 		lvm)
+			sz=$size
+			[ $d -gt 7 ] && sz=$ddfsize
 			unset MULTIPATH
 			eval dev$d=/dev/mapper/${LVM_VOLGROUP}-mdtest$d
 			if ! lvcreate --quiet -L ${sz}K -n mdtest$d $LVM_VOLGROUP

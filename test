@@ -1,6 +1,21 @@
 #!/bin/bash
 #
 # run test suite for mdadm
+
+lockfile=/tmp/mdadm-test.lock
+command -v flock > /dev/null || {
+	echo "flock command not found!" >&2
+	exit 1
+}
+exec {lockfd}>"$lockfile" || {
+	echo "Cannot open test lock file: $lockfile" >&2
+	exit 1
+}
+flock -n "$lockfd" || {
+	echo "Another mdadm test instance is running." >&2
+	exit 1
+}
+
 mdadm=`which mdadm`
 targetdir="/var/tmp"
 logdir="$targetdir"
