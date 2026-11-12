@@ -95,33 +95,33 @@ int Detail(char *dev, struct context *c)
 	/*
 	 * Print out details for an md array
 	 */
-	int fd = open(dev, O_RDONLY);
-	mdu_array_info_t array;
-	mdu_disk_info_t *disks = NULL;
-	int next;
-	int d;
-	time_t atime;
-	char *str;
-	char **devices = NULL;
 	int max_devices = 0, n_devices = 0;
-	int spares = 0;
-	struct stat stb;
+	mdu_disk_info_t *disks = NULL;
+	int fd = open(dev, O_RDONLY);
 	struct supertype *st = NULL;
-	char *subarray = NULL;
 	int max_disks = MD_SB_DISKS; /* just a default */
 	struct mdinfo *info = NULL;
 	struct mdinfo *sra = NULL;
-	struct mdinfo *subdev;
-	char *member = NULL;
-	char *container = NULL;
-
 	int rv = c->test ? 4 : 1;
+	mdu_array_info_t array;
+	char *container = NULL;
+	char **devices = NULL;
+	char *subarray = NULL;
+	struct mdinfo *subdev;
+	int is_container = 0;
+	char *member = NULL;
 	int avail_disks = 0;
 	char *avail = NULL;
+	struct stat stb;
+	int spares = 0;
+	int disks_cnt;
+	char *arrayst;
+	time_t atime;
 	int external;
 	int inactive;
-	int is_container = 0;
-	char *arrayst;
+	char *str;
+	int next;
+	int d;
 
 	if (fd < 0) {
 		pr_err("cannot open %s: %s\n",
@@ -339,8 +339,33 @@ int Detail(char *dev, struct context *c)
 		goto out;
 	}
 
-	disks = xmalloc(max_disks * 2 * sizeof(mdu_disk_info_t));
-	for (d = 0; d < max_disks * 2; d++) {
+	if (array.raid_disks < 0 || array.raid_disks > MAX_DISKS) {
+		pr_err("%s reports an invalid number of devices: %d\n",
+		       dev, array.raid_disks);
+		rv = 1;
+		goto out;
+	}
+
+	/* disks[] has a pair of entries (device and replacement) for each
+	 * slot, followed by the remaining devices.  raid_disks comes from
+	 * the superblock and may exceed max_devs, so make room for every
+	 * slot and, for an inactive array, for every member.
+	 */
+	disks_cnt = max_disks * 2;
+	if (array.raid_disks * 2 > disks_cnt)
+		disks_cnt = array.raid_disks * 2;
+	if (inactive) {
+		struct mdinfo *mdi;
+		int ndevs = 0;
+
+		for (mdi = sra->devs; mdi; mdi = mdi->next)
+			ndevs++;
+		if (array.raid_disks * 2 + ndevs > disks_cnt)
+			disks_cnt = array.raid_disks * 2 + ndevs;
+	}
+
+	disks = xmalloc((size_t)disks_cnt * sizeof(mdu_disk_info_t));
+	for (d = 0; d < disks_cnt; d++) {
 		disks[d].state = (1 << MD_DISK_REMOVED);
 		disks[d].major = disks[d].minor = 0;
 		disks[d].number = -1;
@@ -375,7 +400,7 @@ int Detail(char *dev, struct context *c)
 			 (1 << MD_DISK_REMOVED) &&
 			 !(disk.state & (1 << MD_DISK_JOURNAL)))
 			disks[disk.raid_disk * 2 + 1] = disk;
-		else if (next < max_disks * 2)
+		else if (next < disks_cnt)
 			disks[next++] = disk;
 	}
 
@@ -535,7 +560,7 @@ int Detail(char *dev, struct context *c)
 			} else {
 				arrayst = "active";
 				if (array.state & (1<<MD_SB_CLUSTERED)) {
-					for (d = 0; d < max_disks * 2; d++) {
+					for (d = 0; d < disks_cnt; d++) {
 						char *dv;
 						mdu_disk_info_t disk = disks[d];
 
@@ -730,7 +755,7 @@ int Detail(char *dev, struct context *c)
 	if (c->no_devices)
 		goto skip_devices_state;
 
-	for (d = 0; d < max_disks * 2; d++) {
+	for (d = 0; d < disks_cnt; d++) {
 		char *dv;
 		mdu_disk_info_t disk = disks[d];
 
