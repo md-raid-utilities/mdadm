@@ -381,7 +381,7 @@ static char *resolve_md_path(struct supertype *st, struct mdinfo *info, char *ho
 	struct stat stb;
 	int unum = -1;
 
-	if (match && match->devname && match->devname[0] == '/') {
+	if (match && match->devname && !is_devname_ignore(match->devname)) {
 		char *path = match->devname;
 
 		if (path[0] != '/') {
