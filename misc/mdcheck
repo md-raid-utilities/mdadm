@@ -166,6 +166,33 @@ cleanup() {
     rm -f "$tmp"
 }
 
+# Read the UUID of an array at the given sysfs path. Print the UUID when
+# possible, or else the empty string.
+read_uuid_sysfs() {
+	local sys=$1
+	local metadata_version=$2
+	local uuid_file="$sys/md/uuid"
+	local uuid=''
+
+	# Avoid version-0 metadata. The kernel's representation of UUID for
+	# these can depend on host endianness, thus differing from that of
+	# mdadm.
+	if [[ ! "$metadata_version" =~ ^0 ]] ; then
+		# Kernels older than 5.9 do not provide the UUID in sysfs.
+		if [ -f "$uuid_file" ] ; then
+			# Normalize to form provided by mdadm.
+			uuid=$(< "$uuid_file" tr -d - | sed -E 's/(.{8})(.{8})(.{8})(.{8})/\1:\2:\3:\4/')
+			if [[ "$uuid" = "00000000:00000000:00000000:00000000" ]] ; then
+				# This can happen for arrays where the kernel
+				# does not know the UUID, e.g. arrays that are
+				# part of a DDF container.
+				uuid=''
+			fi
+		fi
+	fi
+	printf "%s\n" "$uuid"
+}
+
 trap 'exit 129' 2 3 15
 trap 'cleanup' 0
 
@@ -184,8 +211,20 @@ do
 
 	sys=${sync_act%/md/*}
 	dev=$(devname "$sys") || continue
-	BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
-	source $tmp
+
+	read -r metadata_version < "$sys/md/metadata_version"
+	if [[ "$metadata_version" = none ]] ; then
+		# Do not check arrays without metadata; they do not have a
+		# stable UUID, so cannot be tracked properly.
+		continue
+	fi
+
+	MD_UUID=$(read_uuid_sysfs "$sys" "$metadata_version")
+	if [[ -z "$MD_UUID" ]] ; then
+		# fall back to mdadm
+		BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
+		source $tmp
+	fi
 	[[ "$MD_UUID" ]] || continue
 
 	fl="/var/lib/mdcheck/MD_UUID_$MD_UUID"
