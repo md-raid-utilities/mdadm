@@ -27,6 +27,8 @@ set_test_sizes() {
 set_test_sizes 20000
 
 dev_count=14
+# Size of each devN device in 512-byte sectors.
+dev_sizes=()
 
 # ddf needs bigger devices as 32Meg is reserved!
 ddfsize=65536
@@ -362,6 +364,24 @@ clean_systemd_env() {
 	done
 }
 
+set_dev_sizes() {
+	local d
+	local dev
+	local dev_var
+
+	for ((d = 0; d < dev_count; d++))
+	do
+		dev_var="dev$d"
+		dev="${!dev_var}"
+		[ -z "$dev" ] && continue
+
+		if ! dev_sizes[$d]=$(blockdev --getsz "$dev"); then
+			echo "Failed to get size of $dev."
+			return 1
+		fi
+	done
+}
+
 do_setup() {
 	check_env
 	setup_loop_devices || exit 1
@@ -414,6 +434,7 @@ do_setup() {
 		eval devlist$d=\"\$devlist\"
 		#" <-- add this quote to un-confuse vim syntax highlighting
 	done
+	set_dev_sizes || exit 1
 	path0=$dev6
 	path1=$dev7
 	ulimit -c unlimited
