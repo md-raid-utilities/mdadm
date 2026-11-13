@@ -184,6 +184,14 @@ do
 
 	sys=${sync_act%/md/*}
 	dev=$(devname "$sys") || continue
+
+	read -r metadata_version < "$sys/md/metadata_version"
+	if [[ "$metadata_version" = none ]] ; then
+		# Do not check arrays without metadata; they do not have a
+		# stable UUID, so cannot be tracked properly.
+		continue
+	fi
+
 	BINDIR/mdadm --detail --export "$dev" | grep '^MD_UUID=' > $tmp || continue
 	source $tmp
 	[[ "$MD_UUID" ]] || continue
