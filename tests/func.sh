@@ -258,10 +258,11 @@ clean_systemd_env() {
 }
 
 do_setup() {
+	check_env
+
 	trap cleanup 0 1 3 15
 	trap ctrl_c 2
 
-	check_env
 	setup_systemd_env
 	[ -d $logdir ] || mkdir -p $logdir
 
