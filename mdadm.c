@@ -1084,7 +1084,7 @@ int main(int argc, char *argv[])
 		case O(ASSEMBLE,'b'): /* here we simply set the bitmap file */
 		case O(ASSEMBLE,Bitmap):
 			if (optarg && (strcmp(optarg, "internal") == 0 ||
-				       strcmp(optarg, "clustered")) == 0) {
+				       strcmp(optarg, "clustered") == 0)) {
 				pr_err("no need to specify --bitmap when assembling"
 					" arrays with internal or clustered bitmap\n");
 				continue;
