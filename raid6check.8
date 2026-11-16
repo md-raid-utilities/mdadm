@@ -13,10 +13,14 @@ Linux Software RAID
 
 .SH SYNOPSIS
 
-.BI raid6check " <raid6_device> <start_stripe> <number_of_stripes>"
+.B raid6check
+.RI [ options ]
+.I "<raid6_device> <start_stripe> <number_of_stripes>"
 .RB [ autorepair ]
 
-.BI raid6check " <raid6_device> " repair " <stripe> <failed_slot_1>"
+.B raid6check
+.RI [ options ]
+.IB "<raid6_device> " repair " <stripe> <failed_slot_1>"
 .I "<failed_slot_2>"
 
 .SH DESCRIPTION
@@ -63,11 +67,23 @@ that the two given slots are incorrect.
 
 -1 may be used to specify parity P and -2 parity Q.
 
+.SH OPTIONS
+Options must be given before the MD device.
+
+.TP
+.BI \-m " MiB/s" "\fR,\fP \-\-max\-speed=" MiB/s
+Limit the read check rate (for the whole array device) in MiB/second.
+
 .SH EXAMPLES
 
 .B "  raid6check /dev/md0 0 0"
 .br
 This will check /dev/md0 from start to end.
+
+.B "  raid6check --max-speed 100 /dev/md0 0 0"
+.br
+This will check /dev/md0 from start to end, reading at most
+100 MiB/s from its component drives.
 
 .B "  raid6check /dev/md3 0 1 autorepair"
 .br

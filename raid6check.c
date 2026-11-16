@@ -34,6 +34,11 @@
 /* Data read per iteration, to amortise the lock, seek and read calls */
 #define CHECK_BATCH_BYTES (512ULL << 20)
 
+/* Track time in 125ms windows aiming at a 2s average */
+#define NSEC_PER_SEC 1000000000ULL
+#define CHECK_THROTTLE_HZ 8
+#define CHECK_THROTTLE_LAG_NS (2 * NSEC_PER_SEC)
+
 char const Name[] = "raid6check";
 
 enum repair {
@@ -322,10 +327,19 @@ int manual_repair(int chunk_size, int syndrome_disks,
 	return 0;
 }
 
+static unsigned long long now_ns(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+}
+
 int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 		  int raid_disks, int chunk_size, int level, int layout,
 		  unsigned long long start, unsigned long long length, char *name[],
-		  enum repair repair, int failed_disk1, int failed_disk2)
+		  enum repair repair, int failed_disk1, int failed_disk2,
+		  unsigned long long max_speed)
 {
 	/* read the data and p and q blocks, and check we got them right */
 	int data_disks = raid_disks - 2;
@@ -377,9 +391,14 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 	/* Stripes are checked one at a time but read in batches. The buffer is
 	 * device major, so each device's chunks are contiguous.
 	 */
-	unsigned long long batchf = min(length, CHECK_BATCH_BYTES /
-				 ((unsigned long long)raid_disks * chunk_size));
+	unsigned long long stripe_bytes = (unsigned long long)raid_disks * chunk_size;
+	unsigned long long batchf = min(length, CHECK_BATCH_BYTES / stripe_bytes);
+	unsigned long long next_batch = now_ns();
 	size_t device_span;
+
+	/* Limit the batch count if a maximum rate is defined */
+	if (max_speed)
+		batchf = min(batchf, max(1ULL, max_speed / CHECK_THROTTLE_HZ / stripe_bytes));
 
 	while (1) {
 		device_span = batchf * chunk_size;
@@ -571,6 +590,25 @@ int check_stripes(struct mdinfo *info, int *source, unsigned long long *offsets,
 
 		length -= batchcnt;
 		start += batchcnt;
+
+		/* Slow down by sleeping a bit if batch count reduction doesn't cut it */
+		if (max_speed && length > 0) {
+			unsigned long long now = now_ns();
+			struct timespec until;
+
+			/* If we fall behind, we cap the gap to CHECK_THROTTLE_LAG_NS */
+			if (next_batch + CHECK_THROTTLE_LAG_NS < now)
+				next_batch = now - CHECK_THROTTLE_LAG_NS;
+
+			/* Calculate when we need to continue reading/processing */
+			next_batch += (double)(batchcnt * stripe_bytes) / max_speed * NSEC_PER_SEC;
+
+			until.tv_sec = next_batch / NSEC_PER_SEC;
+			until.tv_nsec = next_batch % NSEC_PER_SEC;
+			while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
+					       &until, NULL) == EINTR)
+				;
+		}
 	}
 
 exitCheck:
@@ -624,6 +662,13 @@ int main(int argc, char *argv[])
 	char *err = NULL;
 	int exit_err = 0;
 	int close_flag = 0;
+	unsigned long long max_speed = 0;
+	static const struct option options[] = {
+		{"max-speed", required_argument, NULL, 'm'},
+		{NULL, 0, NULL, 0}
+	};
+	bool bad_usage = false;
+	int opt;
 	char *prg = strrchr(argv[0], '/');
 
 	if (prg == NULL)
@@ -631,9 +676,38 @@ int main(int argc, char *argv[])
 	else
 		prg++;
 
-	if (argc < 4) {
-		fprintf(stderr, "Usage: %s md_device start_stripe length_stripes [autorepair]\n", prg);
-		fprintf(stderr, "   or: %s md_device repair stripe failed_slot_1 failed_slot_2\n", prg);
+	while ((opt = getopt_long(argc, argv, "+m:", options, NULL)) != -1) {
+		switch (opt) {
+		case 'm':
+			max_speed = getnum(optarg, &err);
+			if (err || max_speed == 0 || max_speed > 1024 * 1024) {
+				fprintf(stderr, "%s: invalid --max-speed: %s\n", prg, optarg);
+				exit_err = 1;
+				goto exitHere;
+			}
+			max_speed <<= 20;
+			break;
+		default:
+			bad_usage = true;
+			break;
+		}
+	}
+	/* Skip already parsed options */
+	argc -= optind - 1;
+	argv += optind - 1;
+
+	/* Sanity check: verify we have no more options afterwards */
+	for (i = 1; i < argc; i++) {
+		if (strncmp(argv[i], "--", 2) == 0) {
+			fprintf(stderr, "%s: options must come before md_device: %s\n",
+				prg, argv[i]);
+			bad_usage = true;
+		}
+	}
+
+	if (bad_usage || argc < 4) {
+		fprintf(stderr, "Usage: %s [--max-speed MiB/s] md_device start_stripe length_stripes [autorepair]\n", prg);
+		fprintf(stderr, "   or: %s [--max-speed MiB/s] md_device repair stripe failed_slot_1 failed_slot_2\n", prg);
 		exit_err = 1;
 		goto exitHere;
 	}
@@ -700,7 +774,7 @@ int main(int argc, char *argv[])
 	chunk_size = info->array.chunk_size;
 	layout = info->array.layout;
 	if (strcmp(argv[2], "repair") == 0) {
-		if (argc < 6) {
+		if (argc != 6) {
 			fprintf(stderr, "For repair mode, call %s md_device repair stripe failed_slot_1 failed_slot_2\n", prg);
 			exit_err = 1;
 			goto exitHere;
@@ -729,8 +803,15 @@ int main(int argc, char *argv[])
 	} else {
 		start = getnum(argv[2], &err);
 		length = getnum(argv[3], &err);
-		if (argc >= 5 && strcmp(argv[4], "autorepair") == 0)
+		if (argc >= 5) {
+			if (strcmp(argv[4], "autorepair") != 0) {
+				fprintf(stderr, "%s: Invalid mode argument \"%s\"\n", prg, argv[4]);
+				exit_err = 9;
+				goto exitHere;
+			}
+
 			repair = AUTO_REPAIR;
+		}
 	}
 
 	if (err) {
@@ -780,7 +861,8 @@ int main(int argc, char *argv[])
 
 	int rv = check_stripes(info, fds, offsets,
 			       raid_disks, chunk_size, level, layout,
-			       start, length, disk_name, repair, failed_disk1, failed_disk2);
+			       start, length, disk_name, repair, failed_disk1, failed_disk2,
+			       max_speed);
 	if (rv != 0) {
 		fprintf(stderr,	"%s: check_stripes returned %d\n", prg, rv);
 		exit_err = 7;
