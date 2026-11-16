@@ -171,12 +171,6 @@ ifndef UDEVDIR
  UDEVDIR = /lib/udev
 endif
 
-ifeq (,$(findstring s,$(firstword -$(MAKEFLAGS))))
-	ECHO=echo
-else
-	ECHO=:
-endif
-
 OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o udev.o \
        Manage.o Assemble.o Build.o \
        Create.o Detail.o Examine.o Grow.o mdmonitor.o dlink.o Kill.o Query.o \
@@ -292,19 +286,16 @@ install-udev:
 install-systemd: systemd/mdmon@.service
 	@for file in $(SYSTEMD_UNITS); \
 	do sed -e 's,BINDIR,$(BINDIR),g;s,MISCDIR,$(MISCDIR),g' systemd/$$file > .install.tmp.2 && \
-	   $(ECHO) $(INSTALL) -D -m 644 systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   $(INSTALL) -D -m 644 .install.tmp.2 $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   rm -f .install.tmp.2; \
 	done
 	@for file in mdadm.shutdown ; \
 	do sed -e 's,BINDIR,$(BINDIR),g' systemd/$$file > .install.tmp.3 && \
-	   $(ECHO) $(INSTALL) -D -m 755  systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   $(INSTALL) -D -m 755  .install.tmp.3 $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   rm -f .install.tmp.3; \
 	done
 	@for file in mdcheck ; \
 	do sed -e 's,BINDIR,$(BINDIR),g' misc/$$file > .install.tmp.4 && \
-	   $(ECHO) $(INSTALL) -D -m 755  misc/$$file $(DESTDIR)$(MISCDIR)/$$file ; \
 	   $(INSTALL) -D -m 755  .install.tmp.4 $(DESTDIR)$(MISCDIR)/$$file ; \
 	   rm -f .install.tmp.4; \
 	done
