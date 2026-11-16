@@ -285,14 +285,9 @@ install-man: mdadm.8 md.4 mdadm.conf.5 mdmon.8
 	$(INSTALL) -D -m 644 md.4 $(DESTDIR)$(MAN4DIR)/md.4
 	$(INSTALL) -D -m 644 mdadm.conf.5 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
 
-install-udev: udev-md-raid-arrays.rules udev-md-raid-assembly.rules udev-md-raid-creating.rules \
-		udev-md-clustered-confirm-device.rules 
-	@for file in $(UDEV_RULES); \
-	do sed -e 's,BINDIR,$(BINDIR),g' udev-$${file#??-} > .install.tmp.1 && \
-	   $(ECHO) $(INSTALL) -D -m 644 udev-$${file#??-} $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
-	   $(INSTALL) -D -m 644 .install.tmp.1 $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
-	   rm -f .install.tmp.1; \
-	done
+install-udev:
+	$(MAKE) -C udev install BINDIR="$(BINDIR)" DESTDIR="$(DESTDIR)" \
+		UDEVDIR="$(UDEVDIR)" INSTALL="$(INSTALL)"
 
 install-systemd: systemd/mdmon@.service
 	@for file in $(SYSTEMD_UNITS); \
@@ -332,15 +327,17 @@ install-testsuite: swap_super raid6check
 	$(INSTALL) -D -m 755 .install.tmp.6 $(DESTDIR)$(BINDIR)/mdadm-testsuite
 	@rm -f .install.tmp.6
 
-uninstall:
+uninstall: uninstall-udev
 	rm -f $(DESTDIR)$(BINDIR)/mdadm $(DESTDIR)$(BINDIR)/mdmon
 	rm -f $(DESTDIR)$(MAN8DIR)/mdadm.8 $(DESTDIR)$(MAN8DIR)/mdmon.8 $(DESTDIR)$(MAN4DIR)/md.4 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
-	rm -f $(UDEV_RULES:%=$(DESTDIR)$(UDEVDIR)/rules.d/%)
 	rm -f $(SYSTEMD_UNITS:%=$(DESTDIR)$(SYSTEMD_DIR)/%)
 	rm -f $(DESTDIR)$(SYSTEMD_DIR)-shutdown/mdadm.shutdown
 	rm -f $(DESTDIR)$(MISCDIR)/mdcheck
 	rm -f $(DESTDIR)$(BINDIR)/mdadm-testsuite
 	rm -rf $(DESTDIR)$(TESTSDIR) $(DESTDIR)$(TESTSEXECDIR)
+
+uninstall-udev:
+	$(MAKE) -C udev uninstall DESTDIR="$(DESTDIR)" UDEVDIR="$(UDEVDIR)"
 
 test: mdadm mdmon swap_super raid6check
 	@echo "Please run './test' as root"
