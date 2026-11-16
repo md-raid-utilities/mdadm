@@ -133,9 +133,6 @@ List of installation targets:
 - Run `make install-man` to install the manual pages (`mdadm.8`, `md.4`, `mdadm.conf.5`,
 `mdmon.8`).
 
-The following targets are deprecated and should not be used:
-- `install-static`
-
 # License
 
 It is released under the terms of the **GNU General Public License version 2** as published
