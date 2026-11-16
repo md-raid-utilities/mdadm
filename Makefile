@@ -148,9 +148,6 @@ endif
 
 LDFLAGS ?= -pie -Wl,-z,now,-z,noexecstack
 
-# If you want a static binary, you might uncomment these
-# LDFLAGS += -static
-# STRIP = -s
 LDLIBS = -ldl
 
 # To explicitly disable libudev, set -DNO_LIBUDEV in CXFLAGS
@@ -202,9 +199,6 @@ MON_OBJS = mdmon.o monitor.o managemon.o uuid.o util.o maps.o mdstat.o sysfs.o c
 
 MON_SRCS = $(patsubst %.o,%.c,$(MON_OBJS))
 
-STATICSRC = pwgr.c
-STATICOBJS = pwgr.o
-
 UDEV_RULES = 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.rules \
 		69-md-clustered-confirm-device.rules
 SYSTEMD_UNITS = mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
@@ -234,9 +228,6 @@ everything-test: all swap_super \
 
 mdadm : $(OBJS) | check_rundir
 	$(CC) $(CFLAGS) $(LDFLAGS) -o mdadm $(OBJS) $(LDLIBS)
-
-mdadm.static : $(OBJS) $(STATICOBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -static -o mdadm.static $(OBJS) $(STATICOBJS) $(LDLIBS)
 
 mdadm.Os : $(SRCS) $(INCL)
 	$(CC) -o mdadm.Os $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -DHAVE_STDINT_H -Os $(SRCS) $(LDLIBS)
@@ -285,9 +276,6 @@ sha1.o : sha1.c sha1.h md5.h
 	$(CC) $(CFLAGS) -DHAVE_STDINT_H -o sha1.o -c sha1.c
 
 install : install-bin install-man install-udev
-
-install-static : mdadm.static install-man
-	$(INSTALL) -D $(STRIP) -m 755 mdadm.static $(DESTDIR)$(BINDIR)/mdadm
 
 install-man: mdadm.8 md.4 mdadm.conf.5 mdmon.8
 	$(INSTALL) -D -m 644 mdadm.8 $(DESTDIR)$(MAN8DIR)/mdadm.8
@@ -340,8 +328,8 @@ test: mdadm mdmon swap_super raid6check
 	@echo "Please run './test' as root"
 
 clean :
-	rm -f mdadm mdmon $(OBJS) $(MON_OBJS) $(STATICOBJS) core *.man \
-	mdadm.static *.orig *.porig *.rej *.alt merge_file_* \
+	rm -f mdadm mdmon $(OBJS) $(MON_OBJS) core *.man \
+	*.orig *.porig *.rej *.alt merge_file_* \
 	mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
 	raid6check raid6check.o mdmon mdadm.8
 	rm -rf cov-int
