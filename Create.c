@@ -24,6 +24,7 @@
 
 #include	"mdadm.h"
 #include	"mapfile.h"
+#include	"mddev.h"
 #include	"udev.h"
 #include	"xmalloc.h"
 

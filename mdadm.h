@@ -1657,14 +1657,6 @@ extern char *get_md_name(char *devnm);
 
 extern char DefaultConfFile[];
 
-extern int create_mddev(char *dev, char *name, int trustworthy, char *chosen, int block_udev);
-/* values for 'trustworthy' */
-#define	LOCAL	1
-#define	LOCAL_ANY 10
-#define	FOREIGN	2
-#define	METADATA 3
-extern int open_mddev(char *dev, int report_errors);
-extern int is_mddev(char *dev);
 extern int open_container(int fd);
 extern int metadata_container_matches(char *metadata, char *devnm);
 extern int metadata_subdev_matches(char *metadata, char *devnm);
