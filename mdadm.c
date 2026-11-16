@@ -27,6 +27,7 @@
 
 #include "mdadm.h"
 #include "mapfile.h"
+#include "mddev.h"
 #include "mdstat.h"
 #include "md_p.h"
 #include "udev.h"

@@ -30,6 +30,7 @@
 
 #include	"mdadm.h"
 #include	"mapfile.h"
+#include	"mddev.h"
 #include	"mdstat.h"
 #include	"xmalloc.h"
 #include	"udev.h"

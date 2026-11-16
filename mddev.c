@@ -24,6 +24,7 @@
 
 #include "mdadm.h"
 #include "mapfile.h"
+#include "mddev.h"
 #include "mdstat.h"
 #include "udev.h"
 #include "md_p.h"
@@ -31,7 +32,7 @@
 
 #include <ctype.h>
 
-int create_named_array(char *devnm)
+static int create_named_array(char *devnm)
 {
 	int fd;
 	int n = -1;
@@ -57,7 +58,7 @@ int create_named_array(char *devnm)
 	return 1;
 }
 
-char *find_free_devnm(void)
+static char *find_free_devnm(void)
 {
 	static char devnm[MD_NAME_MAX];
 	int devnum;

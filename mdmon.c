@@ -64,6 +64,7 @@
 #endif
 
 #include	"mdadm.h"
+#include	"mddev.h"
 #include	"mdstat.h"
 #include	"mdmon.h"
 #include	"xmalloc.h"

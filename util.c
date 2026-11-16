@@ -24,6 +24,7 @@
 
 #include	"mdadm.h"
 #include	"md_common.h"
+#include	"mddev.h"
 #include	"md_p.h"
 #include	"xmalloc.h"
 
