@@ -679,6 +679,8 @@ static int copy_metadata1(struct supertype *st, int from, int to)
 				 * correct bitmap bytes */
 				bitmap_super_t *bms;
 				bms = (void *)buf;
+				if (bms->chunksize == 0)
+					goto err;
 				bytes = calc_bitmap_size(bms, 512);
 				if (n > bytes)
 					n =  bytes;
@@ -2272,7 +2274,8 @@ static int load_super1(struct supertype *st, int fd, char *devname)
 
 	uuid_from_super1(st, uuid);
 	if (__le32_to_cpu(bsb->magic) != BITMAP_MAGIC ||
-	    memcmp(bsb->uuid, uuid, 16) != 0)
+	    memcmp(bsb->uuid, uuid, 16) != 0 ||
+	    bsb->chunksize == 0)
 		goto no_bitmap;
 	return 0;
 
@@ -2598,7 +2601,7 @@ static int locate_bitmap1(struct supertype *st, int fd, int node_num)
 		ret = -1;
 
 	offset = __le64_to_cpu(sb->super_offset) + le32_to_cpu_s(sb->bitmap_offset);
-	if (node_num) {
+	if (node_num && ret == 0) {
 		bms = (bitmap_super_t *)(((char *)sb) + MAX_SB_SIZE);
 		bm_sectors_per_node = calc_bitmap_size(bms, 4096) >> 9;
 		offset += bm_sectors_per_node * node_num;
@@ -2677,6 +2680,10 @@ static int write_bitmap1(struct supertype *st, int fd, enum bitmap_update update
 		 * calculate the space is enough or not, first get how many
 		 * bytes for the total bitmap
 		 */
+		if (bms->chunksize == 0) {
+			pr_err("Error: Invalid bitmap\n");
+			return -EINVAL;
+		}
 		bm_space_per_node = calc_bitmap_size(bms, 4096);
 
 		total_bm_space = 512 * (__le64_to_cpu(sb->data_offset) -
