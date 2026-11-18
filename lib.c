@@ -77,11 +77,9 @@ bool is_dev_alive(char *path)
 int get_mdp_major(void)
 {
 	static int mdp_major = -1;
+	bool in_block_devices = false;
+	char line[128];
 	FILE *fl;
-	char *w;
-	int have_block = 0;
-	int have_devices = 0;
-	int last_num = -1;
 
 	if (mdp_major != -1)
 		return mdp_major;
@@ -90,15 +88,21 @@ int get_mdp_major(void)
 	if (!fl)
 		return -1;
 
-	while ((w = conf_word(fl, 1))) {
-		if (have_block && strcmp(w, "devices:") == 0)
-			have_devices = 1;
-		have_block =  (strcmp(w, "Block") == 0);
-		if (isdigit(w[0]))
-			last_num = atoi(w);
-		if (have_devices && strcmp(w, "mdp") == 0)
-			mdp_major = last_num;
-		free(w);
+	while (fgets(line, sizeof(line), fl)) {
+		char name[MD_NAME_MAX];
+		int device_major;
+
+		if (strcmp(line, "Block devices:\n") == 0) {
+			in_block_devices = true;
+			continue;
+		}
+
+		if (in_block_devices &&
+		    sscanf(line, "%d %31s", &device_major, name) == 2 &&
+		    strcmp(name, "mdp") == 0) {
+			mdp_major = device_major;
+			break;
+		}
 	}
 	fclose(fl);
 
