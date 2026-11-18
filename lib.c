@@ -158,40 +158,53 @@ char *fd2kname(int fd)
 	return NULL;
 }
 
+/**
+ * devid2devnm() - Get the kernel MD device name for a device ID.
+ * @devid: Device ID to resolve.
+ *
+ * Resolve partitions to their parent MD device. Fall back to deriving the
+ * name from the device number when sysfs is unavailable.
+ */
 char *devid2devnm(dev_t devid)
 {
-	char path[30];
-	char link[200];
 	static char devnm[32];
-	char *cp, *ep;
-	int n;
+	char link[PATH_MAX];
+	char path[64];
+	char *name;
+	char *end;
+	ssize_t len;
+	int ret;
 
-	/* Might be an extended-minor partition or a
-	 * named md device. Look at the
-	 * /sys/dev/block/%d:%d link which must look like
-	 *    ../../block/mdXXX/mdXXXpYY
-	 * or
-	 *    ...../block/md_FOO
-	 */
-	sprintf(path, "/sys/dev/block/%d:%d", major(devid), minor(devid));
-	n = readlink(path, link, sizeof(link) - 1);
-	if (n > 0) {
-		link[n] = 0;
-		cp = strstr(link, "/block/");
-		if (cp) {
-			cp += 7;
-			ep = strchr(cp, '/');
-			if (ep)
-				*ep = 0;
-			snprintf(devnm, sizeof(devnm), "%s", cp);
-			return devnm;
-		}
-	}
+	ret = snprintf(path, sizeof(path), "/sys/dev/block/%d:%d",
+		       major(devid), minor(devid));
+	if (ret < 0 || ret >= (int)sizeof(path))
+		goto fallback;
+
+	len = readlink(path, link, sizeof(link) - 1);
+	if (len <= 0 || len == (ssize_t)sizeof(link) - 1)
+		goto fallback;
+	link[len] = '\0';
+
+	name = strstr(link, "/block/");
+	if (!name)
+		goto fallback;
+	name += sizeof("/block/") - 1;
+
+	end = strchr(name, '/');
+	if (end)
+		*end = '\0';
+	if (!name[0])
+		goto fallback;
+
+	snprintf(devnm, sizeof(devnm), "%s", name);
+	return devnm;
+
+fallback:
 	if (major(devid) == MD_MAJOR)
-		sprintf(devnm,"md%d", minor(devid));
+		snprintf(devnm, sizeof(devnm), "md%d", minor(devid));
 	else if (major(devid) == (unsigned)get_mdp_major())
-		sprintf(devnm,"md_d%d",
-			(minor(devid)>>MdpMinorShift));
+		snprintf(devnm, sizeof(devnm), "md_d%d",
+			 minor(devid) >> MdpMinorShift);
 	else
 		return NULL;
 
