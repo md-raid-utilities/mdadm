@@ -203,6 +203,9 @@ SYSTEMD_UNITS = mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
 		mdcheck_continue.timer mdcheck_continue.service \
 		mdmonitor-oneshot.timer mdmonitor-oneshot.service
 
+.PHONY: all man check_rundir everything everything-test \
+	install install-static install-man install-udev install-systemd install-bin \
+	uninstall uninstall-udev test clean dist testdist
 
 all : mdadm mdmon
 man : mdadm.man md.man mdadm.conf.man mdmon.man raid6check.man
