@@ -8,11 +8,8 @@
 /mdassemble
 /mdmon
 /swap_super
-/TAGS
 /mdadm.O2
 /mdadm.Os
-/mdadm.static
 /mdassemble.auto
-/mdassemble.static
 /mdmon.O2
 /raid6check
