@@ -166,7 +166,6 @@ char *conf_word(FILE *file, int allow_key)
 	}
 	word[len] = 0;
 
-/*    printf("word is <%s>\n", word); */
 	if (!wordfound) {
 		free(word);
 		word = NULL;
@@ -200,7 +199,7 @@ char *conf_line(FILE *file)
 		free(w);
 		dl_add(list, w2);
 	}
-/*    printf("got a line\n");*/
+
 	return list;
 }
 
