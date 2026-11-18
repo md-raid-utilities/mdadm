@@ -14,6 +14,8 @@ RULES = 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.ru
 SOURCES = udev-md-raid-creating.rules udev-md-raid-arrays.rules \
 	udev-md-raid-assembly.rules udev-md-clustered-confirm-device.rules
 
+.PHONY: install uninstall
+
 install: $(SOURCES)
 	@for file in $(RULES); \
 	do sed -e 's,BINDIR,$(BINDIR),g' udev-$${file#??-} > .install.tmp && \
