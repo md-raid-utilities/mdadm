@@ -109,29 +109,35 @@ int get_mdp_major(void)
 	return mdp_major;
 }
 
+/**
+ * devid2kname() - Get kernel device name for a device ID.
+ * @devid: Device ID to resolve.
+ *
+ * Return the last component of the /sys/dev/block/MAJOR:MINOR link.
+ */
 char *devid2kname(dev_t devid)
 {
-	char path[30];
-	char link[PATH_MAX];
 	static char devnm[32];
-	char *cp;
-	int n;
+	char link[PATH_MAX];
+	char path[64];
+	ssize_t len;
+	char *name;
 
-	/* Look at the
-	 * /sys/dev/block/%d:%d link which must look like
-	 * and take the last component.
-	 */
-	sprintf(path, "/sys/dev/block/%d:%d", major(devid), minor(devid));
-	n = readlink(path, link, sizeof(link) - 1);
-	if (n > 0) {
-		link[n] = 0;
-		cp = strrchr(link, '/');
-		if (cp) {
-			snprintf(devnm, sizeof(devnm), "%s", cp + 1);
-			return devnm;
-		}
-	}
-	return NULL;
+	if (snprintf(path, sizeof(path), "/sys/dev/block/%d:%d",
+		     major(devid), minor(devid)) >= (int)sizeof(path))
+		return NULL;
+
+	len = readlink(path, link, sizeof(link) - 1);
+	if (len <= 0 || len == (ssize_t)sizeof(link) - 1)
+		return NULL;
+	link[len] = '\0';
+
+	name = strrchr(link, '/');
+	if (!name || !name[1])
+		return NULL;
+
+	snprintf(devnm, sizeof(devnm), "%s", name + 1);
+	return devnm;
 }
 
 char *stat2kname(struct stat *st)
