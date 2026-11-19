@@ -8,20 +8,21 @@ ifndef UDEVDIR
  UDEVDIR = /lib/udev
 endif
 
-RULES = 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.rules \
+UDEV_RULES = 01-md-raid-creating.rules 63-md-raid-arrays.rules 64-md-raid-assembly.rules \
 	69-md-clustered-confirm-device.rules
 
-SOURCES = udev-md-raid-creating.rules udev-md-raid-arrays.rules \
-	udev-md-raid-assembly.rules udev-md-clustered-confirm-device.rules
+.PHONY: all install uninstall clean
 
-.PHONY: install uninstall
+all: $(UDEV_RULES)
 
-install: $(SOURCES)
-	@for file in $(RULES); \
-	do sed -e 's,BINDIR,$(BINDIR),g' udev-$${file#??-} > .install.tmp && \
-	   $(INSTALL) -D -m 644 .install.tmp $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
-	   rm -f .install.tmp; \
-	done
+%.rules: %.rules.in
+	sed -e 's,BINDIR,$(BINDIR),g' $< > $@
+
+install: $(UDEV_RULES)
+	$(INSTALL) -D -m 0644 -t $(DESTDIR)$(UDEVDIR)/rules.d $^
 
 uninstall:
-	rm -f $(RULES:%=$(DESTDIR)$(UDEVDIR)/rules.d/%)
+	rm -f $(UDEV_RULES:%=$(DESTDIR)$(UDEVDIR)/rules.d/%)
+
+clean:
+	rm -f $(UDEV_RULES)
