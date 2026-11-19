@@ -130,7 +130,7 @@ int Query(char *dev)
 		       dev,
 		       info.disk.number, info.array.raid_disks,
 		       activity,
-		       map_num_s(pers, info.array.level),
+		       map_num(pers, info.array.level) ?: "-unknown-",
 		       mddev);
 		if (st->ss == &super0)
 			put_md_name(mddev);
