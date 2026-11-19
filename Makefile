@@ -205,10 +205,13 @@ SYSTEMD_UNITS = mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
 
 .PHONY: all man check_rundir everything everything-test \
 	install install-static install-man install-udev install-systemd install-bin \
-	uninstall uninstall-udev test clean dist testdist
+	uninstall uninstall-udev test clean dist testdist udev-rules
 
-all : mdadm mdmon
+all : mdadm mdmon udev-rules
 man : mdadm.man md.man mdadm.conf.man mdmon.man raid6check.man
+
+udev-rules:
+	$(MAKE) -C udev all
 
 check_rundir:
 	@if [ ! -d "$(dir $(RUN_DIR))" -a  "$(CHECK_RUN_DIR)" = 1 ]; then \
@@ -342,6 +345,7 @@ clean :
 	mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
 	raid6check raid6check.o mdmon mdadm.8
 	rm -rf cov-int
+	$(MAKE) -C udev clean
 
 dist : clean
 	./makedist
