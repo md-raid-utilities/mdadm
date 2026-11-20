@@ -1130,17 +1130,28 @@ int dev_open(char *dev, int flags)
 
 	if (!dev)
 		return -1;
-	flags |= O_DIRECT;
 
 	if (get_maj_min(dev, &major, &minor)) {
+		flags |= O_DIRECT;
 		snprintf(devname, sizeof(devname), "/dev/.tmp.md.%d:%d:%d",
 			 (int)getpid(), major, minor);
 		if (mknod(devname, S_IFBLK|0600, makedev(major, minor)) == 0) {
 			fd = open(devname, flags);
 			unlink(devname);
 		}
-	} else
+	} else {
+		struct stat stb;
+
+		/*
+		 * Only use O_DIRECT on block devices. Offline commands such as
+		 * --examine or --dump may open regular disk image files where
+		 * BLKSSZGET is unsupported and 512-byte fallback reads fail
+		 * with EINVAL on 4K-aligned filesystems/storage.
+		 */
+		if (stat(dev, &stb) == 0 && S_ISBLK(stb.st_mode))
+			flags |= O_DIRECT;
 		fd = open(dev, flags);
+	}
 	return fd;
 }
 
