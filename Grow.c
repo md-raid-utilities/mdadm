@@ -1862,7 +1862,7 @@ int Grow_reshape(char *devname, int fd,
 	 *
 	 * There are three different changes.  Each can trigger
 	 * a resync or recovery so we freeze that until we have
-	 * requested everything (if kernel supports freezing - 2.6.30).
+	 * requested everything.
 	 * The steps are:
 	 *  - change size (i.e. component_size)
 	 *  - change level
@@ -2011,7 +2011,6 @@ int Grow_reshape(char *devname, int fd,
 	/* ========= set size =============== */
 	if (s->size > 0 && (s->size == MAX_SIZE || s->size != (unsigned)array.size)) {
 		unsigned long long orig_size = get_component_size(fd) / 2;
-		unsigned long long min_csize;
 		struct mdinfo *mdi;
 		int raid0_takeover = 0;
 
@@ -2062,36 +2061,9 @@ int Grow_reshape(char *devname, int fd,
 		 * below the current used-size.  The "size" attribute
 		 * understands '0' to mean 'max'.
 		 */
-		min_csize = 0;
 		for (mdi = sra->devs; mdi; mdi = mdi->next) {
 			sysfs_set_num(sra, mdi, "size",
 				      s->size == MAX_SIZE ? 0 : s->size);
-			if (array.not_persistent == 0 &&
-			    array.major_version == 0 &&
-			    get_linux_version() < 3001000) {
-				/* Dangerous to allow size to exceed 2TB */
-				unsigned long long csize;
-				if (sysfs_get_ll(sra, mdi, "size",
-						 &csize) == 0) {
-					if (csize >= 2ULL*1024*1024*1024)
-						csize = 2ULL*1024*1024*1024;
-					if ((min_csize == 0 ||
-					     (min_csize > csize)))
-						min_csize = csize;
-				}
-			}
-		}
-		if (min_csize && s->size > min_csize) {
-			pr_err("Cannot safely make this array use more than 2TB per device on this kernel.\n");
-			rv = 1;
-			goto size_change_error;
-		}
-		if (min_csize && s->size == MAX_SIZE) {
-			/* Don't let the kernel choose a size - it will get
-			 * it wrong
-			 */
-			pr_err("Limited v0.90 array to 2TB per device\n");
-			s->size = min_csize;
 		}
 		if (st->ss->external) {
 			if (sra->array.level == 0) {
@@ -2138,7 +2110,6 @@ int Grow_reshape(char *devname, int fd,
 			md_get_array_info(fd, &array);
 		}
 
-size_change_error:
 		if (rv != 0) {
 			int err = errno;
 
@@ -2155,9 +2126,6 @@ size_change_error:
 			goto release;
 		}
 		if (s->assume_clean) {
-			/* This will fail on kernels older than 3.0 unless
-			 * a backport has been arranged.
-			 */
 			if (sra == NULL ||
 			    sysfs_set_str(sra, NULL, "resync_start", STR_COMMON_NONE) < 0)
 				pr_err("--assume-clean not supported with --grow on this kernel\n");
@@ -3639,11 +3607,6 @@ started:
 				break;
 			}
 		free_mdstat(mds);
-		if (delayed == 1 && get_linux_version() < 3007000) {
-			pr_err("Reshape is delayed, but cannot wait carefully with this kernel.\n"
-			       "       You might experience problems until other reshapes complete.\n");
-			delayed = 0;
-		}
 		if (delayed)
 			mdstat_wait(30 - (delayed-1) * 25);
 	} while (delayed);
@@ -3970,9 +3933,6 @@ int progress_reshape(struct mdinfo *info, struct reshape *reshape,
 	 * - suspend_point is maintained by progress_reshape.  For native metadata,
 	 *   child_monitor() updates it immediately before backing up a suspended
 	 *   region.
-	 *   It is an array address and it only increases in 2.6.37 and earlier.
-	 *   This makes it difficult to handle reducing reshapes with
-	 *   external metadata.
 	 *   However:  it is similar to backup_point in that it records the
 	 *     other end of a suspended region from  reshape_progress.
 	 *     it is moved to extend the region that is safe to backup and/or
@@ -4014,9 +3974,6 @@ int progress_reshape(struct mdinfo *info, struct reshape *reshape,
 			sysfs_set_num(info, NULL, "suspend_lo",
 				      info->reshape_progress);
 	} else {
-		/* Note: this won't work in 2.6.37 and before.
-		 * Something somewhere should make sure we don't need it!
-		 */
 		if (info->reshape_progress >= *suspend_point)
 			sysfs_set_num(info, NULL, "suspend_hi",
 				      info->reshape_progress);
@@ -4414,16 +4371,6 @@ static int grow_backup(struct mdinfo *sra,
 	return rv;
 }
 
-/* in 2.6.30, the value reported by sync_completed can be
- * less that it should be by one stripe.
- * This only happens when reshape hits sync_max and pauses.
- * So allow wait_backup to either extent sync_max further
- * than strictly necessary, or return before the
- * sync has got quite as far as we would really like.
- * This is what 'blocks2' is for.
- * The various caller give appropriate values so that
- * every works.
- */
 /* FIXME return value is often ignored */
 static int forget_backup(int dests, int *destfd,
 			 unsigned long long *destoffsets,

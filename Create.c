@@ -654,7 +654,7 @@ int Create(struct supertype *st, struct mddev_ident *ident, int subdevs,
 		}
 		break;
 	case LEVEL_LINEAR:
-		/* a chunksize of zero 0s perfectly valid (and preferred) since 2.6.16 */
+		/* A chunk size of zero is valid and preferred. */
 		break;
 	case 1:
 	case LEVEL_FAULTY:

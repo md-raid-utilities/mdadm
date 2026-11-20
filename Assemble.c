@@ -1318,7 +1318,7 @@ int Assemble(char *mddev, struct mddev_ident *ident,
 	 * The task of Assemble is to find a collection of
 	 * devices that should (according to their superblocks)
 	 * form an array, and to give this collection to the MD driver.
-	 * In Linux-2.4 and later, this involves submitting a
+	 * This involves submitting a
 	 * SET_ARRAY_INFO ioctl with no arg - to prepare
 	 * the array - and then submit a number of
 	 * ADD_NEW_DISK ioctls to add disks into
@@ -1336,8 +1336,6 @@ int Assemble(char *mddev, struct mddev_ident *ident,
 	 *
 	 * If mddev is set, we try to determine state of md.
 	 *   check version - must be at least 0.90.0
-	 *   check kernel version.  must be at least 2.4.
-	 *    If not, we can possibly fall back on START_ARRAY
 	 *   Try to GET_ARRAY_INFO.
 	 *     If possible, give up
 	 *     If not, try to STOP_ARRAY just to make sure
@@ -1358,14 +1356,9 @@ int Assemble(char *mddev, struct mddev_ident *ident,
 	 * While force && !enough disks
 	 *    Choose newest rejected disks, update event count
 	 *     mark clean and rewrite superblock
-	 * If recent kernel:
-	 *    SET_ARRAY_INFO
-	 *    foreach device with recent events : ADD_NEW_DISK
-	 *    if runstop == 1 || "enough" disks and runstop==0 -> RUN_ARRAY
-	 * If old kernel:
-	 *    Check the device numbers in superblock are right
-	 *    update superblock if any changes
-	 *    START_ARRAY
+	 * SET_ARRAY_INFO
+	 * foreach device with recent events : ADD_NEW_DISK
+	 * if runstop == 1 || "enough" disks and runstop==0 -> RUN_ARRAY
 	 *
 	 */
 	int rv = -1;

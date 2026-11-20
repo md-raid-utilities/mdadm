@@ -2,13 +2,8 @@
 # Confirm that raid6check handles all RAID6 layouts.
 # Try both 4 and 5 devices.
 
-layouts='ls rs la ra'
-lv=`uname -r`
-if expr $lv '>=' 2.6.30 > /dev/null
-then
-  layouts="$layouts parity-first ddf-zero-restart ddf-N-restart ddf-N-continue \
+layouts="ls rs la ra parity-first ddf-zero-restart ddf-N-restart ddf-N-continue \
 	left-asymmetric-6 right-asymmetric-6 left-symmetric-6 right-symmetric-6 parity-first-6"
-fi
 
 for layout in $layouts
 do
@@ -24,4 +19,3 @@ do
   mdadm -S $md0
  done
 done
-
