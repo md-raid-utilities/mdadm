@@ -24,58 +24,13 @@
  */
 
 /*
- * The /proc/mdstat file comes in at least 3 flavours:
- * In an unpatched 2.2 kernel (md 0.36.6):
- *  Personalities : [n raidx] ...
- *  read_ahead {not set|%d sectors}
- *  md0 : {in}active{ raidX /dev/hda...  %d blocks{ maxfault=%d}}
- *  md1 : .....
- *
- * Normally only 4 md lines, but all are listed.
- *
- * In a patched 2.2 kernel (md 0.90.0)
- *  Personalities : [raidx] ...
- *  read_ahead {not set|%d sectors}
- *  mdN : {in}active {(readonly)} raidX dev[%d]{(F)} ... %d blocks STATUS RESYNC
- *  ... Only initialised arrays listed
- *  unused devices: {dev dev ... | <none>}
- *
- * STATUS is personality dependant:
- *    linear:  %dk rounding
- *    raid0:   %dk chunks
- *    raid1:   [%d/%d] [U_U]   ( raid/working.  operational or not)
- *    raid5:   level 4/5, %dk chunk, algorithm %d [%d/%d] [U_U]
- *
- * RESYNC is  empty or:
- *    {resync|recovery}=%u%% finish=%u.%umin
- *  or
- *    resync=DELAYED
- *
- * In a 2.4 kernel (md 0.90.0/2.4)
- *  Personalities : [raidX] ...
- *  read_ahead {not set|%d sectors}
- *  mdN : {in}active {(read-only)} raidX dev[%d]{(F)} ...
- *       %d blocks STATUS
- *       RESYNC
- *  unused devices: {dev dev .. | <none>}
- *
- *  STATUS matches 0.90.0/2.2
- *  RESYNC includes [===>....],
- *          adds a space after {resync|recovery} and before and after '='
- *          adds a decimal to the recovery percent.
- *	    adds (%d/%d) resync amount  and max_blocks, before finish.
- *	    adds speed=%dK/sec after finish
- *
- *
- *
- * Out of this we want to extract:
+ * Parse /proc/mdstat to extract:
  *   list of devices, active or not
  *   pattern of failed drives (so need number of drives)
  *   percent resync complete
  *
- * As continuation is indicated by leading space, we use
- *  conf_line from config.c to read logical lines
- *
+ * Array records use leading whitespace for continuation, so conf_line()
+ * is used to read logical lines.
  */
 
 #include	"mdadm.h"
@@ -229,8 +184,6 @@ struct mdstat_ent *mdstat_read(int hold, int start)
 		int in_devs = 0;
 
 		if (strcmp(line, "Personalities") == 0)
-			continue;
-		if (strcmp(line, "read_ahead") == 0)
 			continue;
 		if (strcmp(line, "unused") == 0)
 			continue;

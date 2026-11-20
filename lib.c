@@ -77,11 +77,9 @@ bool is_dev_alive(char *path)
 int get_mdp_major(void)
 {
 	static int mdp_major = -1;
+	bool in_block_devices = false;
+	char line[128];
 	FILE *fl;
-	char *w;
-	int have_block = 0;
-	int have_devices = 0;
-	int last_num = -1;
 
 	if (mdp_major != -1)
 		return mdp_major;
@@ -90,44 +88,56 @@ int get_mdp_major(void)
 	if (!fl)
 		return -1;
 
-	while ((w = conf_word(fl, 1))) {
-		if (have_block && strcmp(w, "devices:") == 0)
-			have_devices = 1;
-		have_block =  (strcmp(w, "Block") == 0);
-		if (isdigit(w[0]))
-			last_num = atoi(w);
-		if (have_devices && strcmp(w, "mdp") == 0)
-			mdp_major = last_num;
-		free(w);
+	while (fgets(line, sizeof(line), fl)) {
+		char name[MD_NAME_MAX];
+		int device_major;
+
+		if (strcmp(line, "Block devices:\n") == 0) {
+			in_block_devices = true;
+			continue;
+		}
+
+		if (in_block_devices &&
+		    sscanf(line, "%d %31s", &device_major, name) == 2 &&
+		    strcmp(name, "mdp") == 0) {
+			mdp_major = device_major;
+			break;
+		}
 	}
 	fclose(fl);
 
 	return mdp_major;
 }
 
+/**
+ * devid2kname() - Get kernel device name for a device ID.
+ * @devid: Device ID to resolve.
+ *
+ * Return the last component of the /sys/dev/block/MAJOR:MINOR link.
+ */
 char *devid2kname(dev_t devid)
 {
-	char path[30];
-	char link[PATH_MAX];
 	static char devnm[32];
-	char *cp;
-	int n;
+	char link[PATH_MAX];
+	char path[64];
+	ssize_t len;
+	char *name;
 
-	/* Look at the
-	 * /sys/dev/block/%d:%d link which must look like
-	 * and take the last component.
-	 */
-	sprintf(path, "/sys/dev/block/%d:%d", major(devid), minor(devid));
-	n = readlink(path, link, sizeof(link) - 1);
-	if (n > 0) {
-		link[n] = 0;
-		cp = strrchr(link, '/');
-		if (cp) {
-			snprintf(devnm, sizeof(devnm), "%s", cp + 1);
-			return devnm;
-		}
-	}
-	return NULL;
+	if (snprintf(path, sizeof(path), "/sys/dev/block/%d:%d",
+		     major(devid), minor(devid)) >= (int)sizeof(path))
+		return NULL;
+
+	len = readlink(path, link, sizeof(link) - 1);
+	if (len <= 0 || len == (ssize_t)sizeof(link) - 1)
+		return NULL;
+	link[len] = '\0';
+
+	name = strrchr(link, '/');
+	if (!name || !name[1])
+		return NULL;
+
+	snprintf(devnm, sizeof(devnm), "%s", name + 1);
+	return devnm;
 }
 
 char *stat2kname(struct stat *st)
@@ -148,40 +158,53 @@ char *fd2kname(int fd)
 	return NULL;
 }
 
+/**
+ * devid2devnm() - Get the kernel MD device name for a device ID.
+ * @devid: Device ID to resolve.
+ *
+ * Resolve partitions to their parent MD device. Fall back to deriving the
+ * name from the device number when sysfs is unavailable.
+ */
 char *devid2devnm(dev_t devid)
 {
-	char path[30];
-	char link[200];
 	static char devnm[32];
-	char *cp, *ep;
-	int n;
+	char link[PATH_MAX];
+	char path[64];
+	char *name;
+	char *end;
+	ssize_t len;
+	int ret;
 
-	/* Might be an extended-minor partition or a
-	 * named md device. Look at the
-	 * /sys/dev/block/%d:%d link which must look like
-	 *    ../../block/mdXXX/mdXXXpYY
-	 * or
-	 *    ...../block/md_FOO
-	 */
-	sprintf(path, "/sys/dev/block/%d:%d", major(devid), minor(devid));
-	n = readlink(path, link, sizeof(link) - 1);
-	if (n > 0) {
-		link[n] = 0;
-		cp = strstr(link, "/block/");
-		if (cp) {
-			cp += 7;
-			ep = strchr(cp, '/');
-			if (ep)
-				*ep = 0;
-			snprintf(devnm, sizeof(devnm), "%s", cp);
-			return devnm;
-		}
-	}
+	ret = snprintf(path, sizeof(path), "/sys/dev/block/%d:%d",
+		       major(devid), minor(devid));
+	if (ret < 0 || ret >= (int)sizeof(path))
+		goto fallback;
+
+	len = readlink(path, link, sizeof(link) - 1);
+	if (len <= 0 || len == (ssize_t)sizeof(link) - 1)
+		goto fallback;
+	link[len] = '\0';
+
+	name = strstr(link, "/block/");
+	if (!name)
+		goto fallback;
+	name += sizeof("/block/") - 1;
+
+	end = strchr(name, '/');
+	if (end)
+		*end = '\0';
+	if (!name[0])
+		goto fallback;
+
+	snprintf(devnm, sizeof(devnm), "%s", name);
+	return devnm;
+
+fallback:
 	if (major(devid) == MD_MAJOR)
-		sprintf(devnm,"md%d", minor(devid));
+		snprintf(devnm, sizeof(devnm), "md%d", minor(devid));
 	else if (major(devid) == (unsigned)get_mdp_major())
-		sprintf(devnm,"md_d%d",
-			(minor(devid)>>MdpMinorShift));
+		snprintf(devnm, sizeof(devnm), "md_d%d",
+			 minor(devid) >> MdpMinorShift);
 	else
 		return NULL;
 
@@ -318,86 +341,6 @@ char *map_dev_preferred(int major, int minor, int create,
 	return preferred ? preferred : regular;
 }
 
-/* conf_word gets one word from the conf file.
- * if "allow_key", then accept words at the start of a line,
- * otherwise stop when such a word is found.
- * We assume that the file pointer is at the end of a word, so the
- * next character is a space, or a newline.  If not, it is the start of a line.
- */
-
-char *conf_word(FILE *file, int allow_key)
-{
-	int wsize = 100;
-	int len = 0;
-	int c;
-	int quote;
-	int wordfound = 0;
-	char *word = xmalloc(wsize);
-
-	while (wordfound == 0) {
-		/* at the end of a word.. */
-		c = getc(file);
-		if (c == '#')
-			while (c != EOF && c != '\n')
-				c = getc(file);
-		if (c == EOF)
-			break;
-		if (c == '\n')
-			continue;
-
-		if (c != ' ' && c != '\t' && ! allow_key) {
-			ungetc(c, file);
-			break;
-		}
-		/* looks like it is safe to get a word here, if there is one */
-		quote = 0;
-		/* first, skip any spaces */
-		while (c == ' ' || c == '\t')
-			c = getc(file);
-		if (c != EOF && c != '\n' && c != '#') {
-			/* we really have a character of a word, so start saving it */
-			while (c != EOF && c != '\n' &&
-			       (quote || (c != ' ' && c != '\t'))) {
-				wordfound = 1;
-				if (quote && c == quote)
-					quote = 0;
-				else if (quote == 0 && (c == '\'' || c == '"'))
-					quote = c;
-				else {
-					if (len == wsize-1) {
-						wsize += 100;
-						word = xrealloc(word, wsize);
-					}
-					word[len++] = c;
-				}
-				c = getc(file);
-				/* Hack for broken kernels (2.6.14-.24) that put
-				 *        "active(auto-read-only)"
-				 * in /proc/mdstat instead of
-				 *        "active (auto-read-only)"
-				 */
-				if (c == '(' && len >= 6 &&
-				    strncmp(word + len - 6, "active", 6) == 0)
-					c = ' ';
-			}
-		}
-		if (c != EOF)
-			ungetc(c, file);
-	}
-	word[len] = 0;
-
-	/* Further HACK for broken kernels.. 2.6.14-2.6.24 */
-	if (strcmp(word, "auto-read-only)") == 0)
-		strcpy(word, "(auto-read-only)");
-
-/*    printf("word is <%s>\n", word); */
-	if (!wordfound) {
-		free(word);
-		word = NULL;
-	}
-	return word;
-}
-
 void print_quoted(char *str)
 {
 	/* Printf the string with surrounding quotes
@@ -511,46 +454,6 @@ unsigned long GCD(unsigned long a, unsigned long b)
 			a -= b;
 	}
 	return a;
-}
-
-/*
- * conf_line reads one logical line from the conffile or mdstat.
- * It skips comments and continues until it finds a line that starts
- * with a non blank/comment.  This character is pushed back for the next call
- * A doubly linked list of words is returned.
- * the first word will be a keyword.  Other words will have had quotes removed.
- */
-
-char *conf_line(FILE *file)
-{
-	char *w;
-	char *list;
-
-	w = conf_word(file, 1);
-	if (w == NULL)
-		return NULL;
-
-	list = dl_strdup(w);
-	free(w);
-	dl_init(list);
-
-	while ((w = conf_word(file, 0))){
-		char *w2 = dl_strdup(w);
-		free(w);
-		dl_add(list, w2);
-	}
-/*    printf("got a line\n");*/
-	return list;
-}
-
-void free_line(char *line)
-{
-	char *w;
-	for (w = dl_next(line); w != line; w = dl_next(line)) {
-		dl_del(w);
-		dl_free(w);
-	}
-	dl_free(line);
 }
 
 /**
