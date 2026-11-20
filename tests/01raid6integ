@@ -8,13 +8,8 @@ if [ "$INTEGRITY" != "yes" ]; then
   exit 0
 fi
 
-layouts='ls rs la ra'
-lv=`uname -r`
-if expr $lv '>=' 2.6.30 > /dev/null
-then
-  layouts="$layouts parity-first ddf-zero-restart ddf-N-restart ddf-N-continue \
+layouts="ls rs la ra parity-first ddf-zero-restart ddf-N-restart ddf-N-continue \
 	left-asymmetric-6 right-asymmetric-6 left-symmetric-6 right-symmetric-6 parity-first-6"
-fi
 
 for layout in $layouts
 do

@@ -329,17 +329,13 @@ int Incremental(struct mddev_dev *devlist, struct context *c,
 		}
 		sra = sysfs_read(mdfd, NULL, (GET_DEVS | GET_STATE |
 					      GET_OFFSET | GET_SIZE));
-
-		if (!sra || !sra->devs || sra->devs->disk.raid_disk >= 0) {
-			/* It really should be 'none' - must be old buggy
-			 * kernel, and mdadm -I may not be able to complete.
-			 * So reject it.
-			 */
-			ioctl(mdfd, STOP_ARRAY, NULL);
-			pr_err("You have an old buggy kernel which cannot support\n      --incremental reliably.  Aborting.\n");
+		if (!sra || !sra->devs) {
+			pr_err("failed to read devices for new array %s\n",
+			       chosen_name);
 			rv = 2;
 			goto out_unlock;
 		}
+
 		info.array.working_disks = 1;
 		/* 6/ Make sure /var/run/mdadm.map contains this array. */
 		map_update(&map, fd2devnm(mdfd),

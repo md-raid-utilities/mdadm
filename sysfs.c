@@ -952,8 +952,7 @@ int sysfs_set_safemode(struct mdinfo *sra, unsigned long ms)
 	sec = ms / 1000;
 	msec = ms % 1000;
 
-	sprintf(delay, "%ld.%03ld\n", sec, msec);
-	/*             this '\n' ^ needed for kernels older than 2.6.28 */
+	sprintf(delay, "%ld.%03ld", sec, msec);
 	return sysfs_set_str(sra, NULL, "safe_mode_delay", delay);
 }
 
