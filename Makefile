@@ -171,12 +171,6 @@ ifndef UDEVDIR
  UDEVDIR = /lib/udev
 endif
 
-ifeq (,$(findstring s,$(firstword -$(MAKEFLAGS))))
-	ECHO=echo
-else
-	ECHO=:
-endif
-
 OBJS = mdadm.o config.o policy.o mdstat.o  ReadMe.o uuid.o util.o maps.o lib.o udev.o \
        Manage.o Assemble.o Build.o \
        Create.o Detail.o Examine.o Grow.o mdmonitor.o dlink.o Kill.o Query.o \
@@ -209,9 +203,15 @@ SYSTEMD_UNITS = mdmon@.service mdmonitor.service mdadm-last-resort@.timer \
 		mdcheck_continue.timer mdcheck_continue.service \
 		mdmonitor-oneshot.timer mdmonitor-oneshot.service
 
+.PHONY: all man check_rundir everything everything-test \
+	install install-static install-man install-udev install-systemd install-bin \
+	uninstall uninstall-udev test clean dist testdist udev-rules
 
-all : mdadm mdmon
+all : mdadm mdmon udev-rules
 man : mdadm.man md.man mdadm.conf.man mdmon.man raid6check.man
+
+udev-rules:
+	$(MAKE) -C udev all
 
 check_rundir:
 	@if [ ! -d "$(dir $(RUN_DIR))" -a  "$(CHECK_RUN_DIR)" = 1 ]; then \
@@ -285,31 +285,23 @@ install-man: mdadm.8 md.4 mdadm.conf.5 mdmon.8
 	$(INSTALL) -D -m 644 md.4 $(DESTDIR)$(MAN4DIR)/md.4
 	$(INSTALL) -D -m 644 mdadm.conf.5 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
 
-install-udev: udev-md-raid-arrays.rules udev-md-raid-assembly.rules udev-md-raid-creating.rules \
-		udev-md-clustered-confirm-device.rules 
-	@for file in $(UDEV_RULES); \
-	do sed -e 's,BINDIR,$(BINDIR),g' udev-$${file#??-} > .install.tmp.1 && \
-	   $(ECHO) $(INSTALL) -D -m 644 udev-$${file#??-} $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
-	   $(INSTALL) -D -m 644 .install.tmp.1 $(DESTDIR)$(UDEVDIR)/rules.d/$$file ; \
-	   rm -f .install.tmp.1; \
-	done
+install-udev:
+	$(MAKE) -C udev install BINDIR="$(BINDIR)" DESTDIR="$(DESTDIR)" \
+		UDEVDIR="$(UDEVDIR)" INSTALL="$(INSTALL)"
 
 install-systemd: systemd/mdmon@.service
 	@for file in $(SYSTEMD_UNITS); \
 	do sed -e 's,BINDIR,$(BINDIR),g;s,MISCDIR,$(MISCDIR),g' systemd/$$file > .install.tmp.2 && \
-	   $(ECHO) $(INSTALL) -D -m 644 systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   $(INSTALL) -D -m 644 .install.tmp.2 $(DESTDIR)$(SYSTEMD_DIR)/$$file ; \
 	   rm -f .install.tmp.2; \
 	done
 	@for file in mdadm.shutdown ; \
 	do sed -e 's,BINDIR,$(BINDIR),g' systemd/$$file > .install.tmp.3 && \
-	   $(ECHO) $(INSTALL) -D -m 755  systemd/$$file $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   $(INSTALL) -D -m 755  .install.tmp.3 $(DESTDIR)$(SYSTEMD_DIR)-shutdown/$$file ; \
 	   rm -f .install.tmp.3; \
 	done
 	@for file in mdcheck ; \
 	do sed -e 's,BINDIR,$(BINDIR),g' misc/$$file > .install.tmp.4 && \
-	   $(ECHO) $(INSTALL) -D -m 755  misc/$$file $(DESTDIR)$(MISCDIR)/$$file ; \
 	   $(INSTALL) -D -m 755  .install.tmp.4 $(DESTDIR)$(MISCDIR)/$$file ; \
 	   rm -f .install.tmp.4; \
 	done
@@ -332,15 +324,17 @@ install-testsuite: swap_super raid6check
 	$(INSTALL) -D -m 755 .install.tmp.6 $(DESTDIR)$(BINDIR)/mdadm-testsuite
 	@rm -f .install.tmp.6
 
-uninstall:
+uninstall: uninstall-udev
 	rm -f $(DESTDIR)$(BINDIR)/mdadm $(DESTDIR)$(BINDIR)/mdmon
 	rm -f $(DESTDIR)$(MAN8DIR)/mdadm.8 $(DESTDIR)$(MAN8DIR)/mdmon.8 $(DESTDIR)$(MAN4DIR)/md.4 $(DESTDIR)$(MAN5DIR)/mdadm.conf.5
-	rm -f $(UDEV_RULES:%=$(DESTDIR)$(UDEVDIR)/rules.d/%)
 	rm -f $(SYSTEMD_UNITS:%=$(DESTDIR)$(SYSTEMD_DIR)/%)
 	rm -f $(DESTDIR)$(SYSTEMD_DIR)-shutdown/mdadm.shutdown
 	rm -f $(DESTDIR)$(MISCDIR)/mdcheck
 	rm -f $(DESTDIR)$(BINDIR)/mdadm-testsuite
 	rm -rf $(DESTDIR)$(TESTSDIR) $(DESTDIR)$(TESTSEXECDIR)
+
+uninstall-udev:
+	$(MAKE) -C udev uninstall DESTDIR="$(DESTDIR)" UDEVDIR="$(UDEVDIR)"
 
 test: mdadm mdmon swap_super raid6check
 	@echo "Please run './test' as root"
@@ -351,6 +345,7 @@ clean :
 	mdadm.Os mdadm.O2 mdmon.O2 swap_super init.cpio.gz \
 	raid6check raid6check.o mdmon mdadm.8
 	rm -rf cov-int
+	$(MAKE) -C udev clean
 
 dist : clean
 	./makedist
