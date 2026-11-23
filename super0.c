@@ -1333,12 +1333,6 @@ static int validate_geometry0(struct supertype *st, int level,
 	int fd;
 	unsigned int tbmax = 4;
 
-	/* prior to linux 3.1, a but limits usable device size to 2TB.
-	 * It was introduced in 2.6.29, but we won't worry about that detail
-	 */
-	if (get_linux_version() < 3001000)
-		tbmax = 2;
-
 	if (is_container(level)) {
 		if (verbose)
 			pr_err("0.90 metadata does not support containers\n");

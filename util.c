@@ -1878,8 +1878,7 @@ int sys_hot_remove_disk(int statefd, int force)
 int set_array_info(int mdfd, struct supertype *st, struct mdinfo *info)
 {
 	/* Initialise kernel's knowledge of array.
-	 * This varies between externally managed arrays
-	 * and older kernels
+	 * This varies between externally and internally managed arrays.
 	 */
 	mdu_array_info_t inf;
 	int rv;

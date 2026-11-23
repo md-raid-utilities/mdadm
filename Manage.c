@@ -954,12 +954,7 @@ int Manage_add(int fd, int tfd, struct mddev_dev *dv,
 	/* committed to really trying this device now*/
 	remove_partitions(tfd);
 
-	/* in 2.6.17 and earlier, version-1 superblocks won't
-	 * use the number we write, but will choose a free number.
-	 * we must choose the same free number, which requires
-	 * starting at 'raid_disks' and counting up
-	 */
-	for (j = array->raid_disks; j < tst->max_devs; j++) {
+	for (j = 0; j < tst->max_devs; j++) {
 		disc.number = j;
 		if (md_get_disk_info(fd, &disc))
 			break;
@@ -1160,26 +1155,6 @@ int Manage_remove(struct supertype *tst, int fd, struct mddev_dev *dv,
 		err = sys_hot_remove_disk(sysfd, force);
 	} else {
 		err = hot_remove_disk(fd, rdev, force);
-		if (err && errno == ENODEV) {
-			/* Old kernels rejected this if no personality
-			 * is registered */
-			struct mdinfo *sra = sysfs_read(fd, NULL, GET_DEVS);
-			struct mdinfo *dev = NULL;
-
-			if (!sra) {
-				err = -1;
-			} else {
-				for (dev = sra->devs; dev ; dev = dev->next)
-					if (dev->disk.major == (int)major(rdev) &&
-					    dev->disk.minor == (int)minor(rdev))
-						break;
-
-				if (dev)
-					err = sysfs_set_str(sra, dev,
-						    "state", "remove");
-				sysfs_free(sra);
-			}
-		}
 	}
 	if (err) {
 		pr_err("hot remove failed for %s: %s\n",	dv->devname,
@@ -1618,7 +1593,7 @@ int Manage_subdevs(char *devname, int fd,
 			if (dv->disposition == 'F')
 				/* Need to remove first */
 				hot_remove_disk(fd, rdev, force);
-			/* Make sure it isn't in use (in 2.6 or later) */
+			/* Make sure it isn't in use. */
 			tfd = dev_open(dv->devname, O_RDONLY|O_EXCL);
 			if (tfd >= 0) {
 				/* We know no-one else is using it.  We'll
