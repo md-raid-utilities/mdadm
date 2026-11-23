@@ -763,12 +763,13 @@ struct list *copy_paths(const struct list *src)
 static struct intel_hba * alloc_intel_hba(struct sys_dev *device)
 {
 	struct intel_hba *result = xmalloc(sizeof(*result));
+	char *p1;
 
 	result->type = device->type;
 	result->paths = copy_paths(device->paths);
 	result->next = NULL;
 
-	char *p1 = (char *)(list_head(result->paths)->item);
+	p1 = (char *)(list_head(result->paths)->item);
 
 	result->pci_id = strrchr(p1, '/');
 	if (p1 && result->pci_id != NULL)
@@ -780,24 +781,13 @@ static struct intel_hba * alloc_intel_hba(struct sys_dev *device)
 static struct intel_hba * find_intel_hba(struct intel_hba *hba, struct sys_dev *device)
 {
 	struct intel_hba *result;
-	struct node *dev_head = device->paths ? list_head(device->paths) : NULL;
-	char *p2 = dev_head ? (char *)dev_head->item : NULL;
-	bool paths_are_same = true;
+	/* first path identifies the controller, the rest are extra VMD domains */
+	char *dev_path = list_head(device->paths)->item;
 
 	for (result = hba; result; result = result->next) {
-		char *p1;
+		char *hba_path = list_head(result->paths)->item;
 
-		list_for_each(result->paths, p1) {
-			if (p1 == NULL && p2 == NULL)
-				continue;
-			if (p1 == NULL || p2 == NULL || (strcmp(p1, p2) != 0)) {
-				paths_are_same = false;
-				break;
-			}
-		}
-		if (list_is_empty(result->paths) && p2 != NULL)
-			paths_are_same = false;
-		if (result->type == device->type && paths_are_same)
+		if (result->type == device->type && strcmp(hba_path, dev_path) == 0)
 			break;
 	}
 	return result;
@@ -841,7 +831,7 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 {
 	struct sys_dev *list, *elem;
 	char *disk_path;
-	bool domain_skip = false;
+	bool found = false;
 
 	if ((list = find_intel_devices()) == NULL)
 		return 0;
@@ -859,11 +849,11 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 
 		list_for_each(elem->paths, dom_path) {
 			if (is_path_attached_to_hba(disk_path, dom_path)) {
-				domain_skip = true;
+				found = true;
 				break;
 			}
 		}
-		if (domain_skip)
+		if (found)
 			break;
 	}
 
@@ -7498,10 +7488,7 @@ static int __count_volumes(char *hba_path, int dpa, int verbose,
 				return 0;
 			do  {
 				found = 0;
-				count += count_volumes_list(devlist,
-								NULL,
-								verbose,
-								&found);
+				count += count_volumes_list(devlist, NULL, verbose, &found);
 				dprintf("found %d count: %d\n", found, count);
 			} while (found);
 

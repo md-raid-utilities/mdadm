@@ -87,7 +87,7 @@ static bool imsm_orom_support_raid_disks_count_raid10(const int raid_disks)
 
 static char *VMD_DOMAINS[DOMAIN_COUNT] = {
 	[DOMAIN] = "domain",
-	[DOMAIN1] = "domain1"
+	[DOMAIN1] = "domain1",
 };
 
 struct imsm_level_ops imsm_level_ops[] = {
@@ -122,11 +122,11 @@ static void free_sys_dev(struct sys_dev **list)
  * @buf: return buffer, must be PATH_MAX.
  * @domain: Domain from VMD_DOMAINS.
  *
- * Each VMD device represents one domain and each VMD device adds separate PCI bus.
+ * A VMD device may expose multiple domains and each domain adds a separate PCI bus.
  * IMSM must know VMD domains, therefore it needs to determine and follow buses.
  *
  */
-mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, int domain)
+mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, enum vmd_domains domain)
 {
 	char tmp[PATH_MAX];
 	struct dirent *ent;
@@ -159,8 +159,6 @@ mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, int domain)
 
 		/**
 		 * Pci bus must have form pciXXXXX:XX, where X is a digit i.e pci10000:00.
-		 * We do not check digits here, it is sysfs so it should be safe to check
-		 * length and ':' position only.
 		 */
 		if (strncmp(ent->d_name, pci, strlen(pci)) != 0)
 			continue;
@@ -168,7 +166,7 @@ mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, int domain)
 		if (ent->d_name[8] != ':' || ent->d_name[11] != 0)
 			continue;
 
-		if (ent->d_name[10] != (domain + '0'))
+		if (ent->d_name[10] != (char)('0' + domain))
 			continue;
 		break;
 	}
@@ -181,6 +179,23 @@ mdadm_status_t vmd_find_pci_bus(char *vmd_path, char *buf, int domain)
 	snprintf(buf, PATH_MAX, "%s/%s", vmd_path, ent->d_name);
 	closedir(vmd_dir);
 	return MDADM_STATUS_SUCCESS;
+}
+
+static void get_all_domains(struct list *paths, char *vmd_path, const char *bus,
+			    const char *driver, char *d_name)
+{
+	char path[PATH_MAX];
+	char *p;
+
+	for (int i = 1; i < DOMAIN_COUNT; i++) {
+		if (vmd_find_pci_bus(vmd_path, path, i))
+			continue;
+		p = realpath(path, NULL);
+		if (!p)
+			continue;
+
+		list_append(paths, p);
+	}
 }
 
 struct sys_dev *find_driver_devices(const char *bus, const char *driver)
@@ -258,8 +273,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 				char *dom_path;
 
 				list_for_each(dev->paths, dom_path) {
-					if (dom_path &&
-					    strncmp(dom_path, rp, strlen(dom_path)) == 0) {
+					if (strncmp(dom_path, rp, strlen(dom_path)) == 0) {
 						skip = 1;
 						break;
 					}
@@ -283,8 +297,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 				char *dom_path;
 
 				list_for_each(dev->paths, dom_path) {
-					if (dom_path &&
-					    strncmp(dom_path, rp, strlen(dom_path)) == 0) {
+					if (strncmp(dom_path, rp, strlen(dom_path)) == 0) {
 						dev_type = SYS_DEV_SATA_VMD;
 						break;
 					}
@@ -348,7 +361,7 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 			list->pci_id++;
 
 		if (type == SYS_DEV_VMD)
-			fill_additional_domains(list->paths, vmd_path, bus, driver, de->d_name);
+			get_all_domains(list->paths, vmd_path, bus, driver, de->d_name);
 	}
 	closedir(driver_dir);
 
@@ -361,23 +374,6 @@ struct sys_dev *find_driver_devices(const char *bus, const char *driver)
 	}
 
 	return head;
-}
-
-void fill_additional_domains(struct list *paths, char *vmd_path, const char *bus,
-			     const char *driver, char *d_name)
-{
-	char path[PATH_MAX];
-	char *p;
-
-	for (int i = 1; i < DOMAIN_COUNT; i++) {
-		if (vmd_find_pci_bus(vmd_path, path, i))
-			continue;
-		p = realpath(path, NULL);
-		if (!p)
-			continue;
-
-		list_append(paths, p);
-	}
 }
 
 static struct sys_dev *intel_devices=NULL;
@@ -1453,7 +1449,7 @@ char *vmd_domain_to_controller(struct sys_dev *hba, char *buf)
 {
 	char path[PATH_MAX];
 	struct dirent *ent;
-	int domain = 0;
+	enum vmd_domains domain = 0;
 	DIR *dir;
 
 	if (!hba)
