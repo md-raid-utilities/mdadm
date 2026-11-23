@@ -106,6 +106,113 @@ char *keywords[] = {
 	[LTEnd]    = NULL
 };
 
+/* conf_word gets one word from the conf file.
+ * if "allow_key", then accept words at the start of a line,
+ * otherwise stop when such a word is found.
+ * We assume that the file pointer is at the end of a word, so the
+ * next character is a space, or a newline.  If not, it is the start of a line.
+ */
+
+char *conf_word(FILE *file, int allow_key)
+{
+	int wsize = 100;
+	int len = 0;
+	int c;
+	int quote;
+	int wordfound = 0;
+	char *word = xmalloc(wsize);
+
+	while (wordfound == 0) {
+		/* at the end of a word.. */
+		c = getc(file);
+		if (c == '#')
+			while (c != EOF && c != '\n')
+				c = getc(file);
+		if (c == EOF)
+			break;
+		if (c == '\n')
+			continue;
+
+		if (c != ' ' && c != '\t' && ! allow_key) {
+			ungetc(c, file);
+			break;
+		}
+		/* looks like it is safe to get a word here, if there is one */
+		quote = 0;
+		/* first, skip any spaces */
+		while (c == ' ' || c == '\t')
+			c = getc(file);
+		if (c != EOF && c != '\n' && c != '#') {
+			/* we really have a character of a word, so start saving it */
+			while (c != EOF && c != '\n' &&
+			       (quote || (c != ' ' && c != '\t'))) {
+				wordfound = 1;
+				if (quote && c == quote)
+					quote = 0;
+				else if (quote == 0 && (c == '\'' || c == '"'))
+					quote = c;
+				else {
+					if (len == wsize-1) {
+						wsize += 100;
+						word = xrealloc(word, wsize);
+					}
+					word[len++] = c;
+				}
+				c = getc(file);
+			}
+		}
+		if (c != EOF)
+			ungetc(c, file);
+	}
+	word[len] = 0;
+
+	if (!wordfound) {
+		free(word);
+		word = NULL;
+	}
+	return word;
+}
+
+/*
+ * conf_line reads one logical line from the conffile or mdstat.
+ * It skips comments and continues until it finds a line that starts
+ * with a non blank/comment.  This character is pushed back for the next call
+ * A doubly linked list of words is returned.
+ * the first word will be a keyword.  Other words will have had quotes removed.
+ */
+
+char *conf_line(FILE *file)
+{
+	char *w;
+	char *list;
+
+	w = conf_word(file, 1);
+	if (w == NULL)
+		return NULL;
+
+	list = dl_strdup(w);
+	free(w);
+	dl_init(list);
+
+	while ((w = conf_word(file, 0))){
+		char *w2 = dl_strdup(w);
+		free(w);
+		dl_add(list, w2);
+	}
+
+	return list;
+}
+
+void free_line(char *line)
+{
+	char *w;
+	for (w = dl_next(line); w != line; w = dl_next(line)) {
+		dl_del(w);
+		dl_free(w);
+	}
+	dl_free(line);
+}
+
 /*
  * match_keyword returns an index into the keywords array, or -1 for no match
  * case is ignored, and at least three characters must be given
