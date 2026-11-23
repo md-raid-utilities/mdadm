@@ -455,7 +455,7 @@ struct intel_dev {
 
 struct intel_hba {
 	enum sys_dev_type type;
-	char *path;
+	struct list *paths;
 	char *pci_id;
 	struct intel_hba *next;
 };
@@ -741,14 +741,38 @@ const char *get_sys_dev_type(enum sys_dev_type type)
 	return _sys_dev_type[type];
 }
 
+struct list *copy_paths(const struct list *src)
+{
+	if (src == NULL)
+		return NULL;
+
+	struct list *dst = xmalloc(sizeof(struct list));
+
+	list_init(dst, free);
+
+	char *path;
+
+	list_for_each(src, path) {
+		if (path)
+			list_append(dst, xstrdup(path));
+	}
+
+	return dst;
+}
+
 static struct intel_hba * alloc_intel_hba(struct sys_dev *device)
 {
 	struct intel_hba *result = xmalloc(sizeof(*result));
+	char *p1;
 
 	result->type = device->type;
-	result->path = xstrdup(device->path);
+	result->paths = copy_paths(device->paths);
 	result->next = NULL;
-	if (result->path && (result->pci_id = strrchr(result->path, '/')) != NULL)
+
+	p1 = (char *)(list_head(result->paths)->item);
+
+	result->pci_id = strrchr(p1, '/');
+	if (p1 && result->pci_id != NULL)
 		result->pci_id++;
 
 	return result;
@@ -757,9 +781,13 @@ static struct intel_hba * alloc_intel_hba(struct sys_dev *device)
 static struct intel_hba * find_intel_hba(struct intel_hba *hba, struct sys_dev *device)
 {
 	struct intel_hba *result;
+	/* first path identifies the controller, the rest are extra VMD domains */
+	char *dev_path = list_head(device->paths)->item;
 
 	for (result = hba; result; result = result->next) {
-		if (result->type == device->type && strcmp(result->path, device->path) == 0)
+		char *hba_path = list_head(result->paths)->item;
+
+		if (result->type == device->type && strcmp(hba_path, dev_path) == 0)
 			break;
 	}
 	return result;
@@ -803,6 +831,7 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 {
 	struct sys_dev *list, *elem;
 	char *disk_path;
+	bool found = false;
 
 	if ((list = find_intel_devices()) == NULL)
 		return 0;
@@ -815,9 +844,18 @@ static struct sys_dev* find_disk_attached_hba(int fd, const char *devname)
 	if (!disk_path)
 		return 0;
 
-	for (elem = list; elem; elem = elem->next)
-		if (is_path_attached_to_hba(disk_path, elem->path))
+	for (elem = list; elem; elem = elem->next) {
+		char *dom_path;
+
+		list_for_each(elem->paths, dom_path) {
+			if (is_path_attached_to_hba(disk_path, dom_path)) {
+				found = true;
+				break;
+			}
+		}
+		if (found)
 			break;
+	}
 
 	if (disk_path != devname)
 		free(disk_path);
@@ -2406,7 +2444,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, i
 	/* dump an unsorted list of devices attached to AHCI Intel storage
 	 * controller, as well as non-connected ports
 	 */
-	int hba_len = strlen(hba->path) + 1;
+	int hba_len = strlen((char *)list_head(hba->paths)->item) + 1;
 	struct dirent *ent;
 	DIR *dir;
 	char *path = NULL;
@@ -2442,7 +2480,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, i
 		path = devt_to_devpath(makedev(major, minor), 1, NULL);
 		if (!path)
 			continue;
-		if (!is_path_attached_to_hba(path, hba->path)) {
+		if (!is_path_attached_to_hba(path, (char *)list_head(hba->paths)->item)) {
 			free(path);
 			path = NULL;
 			continue;
@@ -2567,7 +2605,7 @@ static int ahci_enumerate_ports(struct sys_dev *hba, unsigned long port_count, i
 	return err;
 }
 
-static int print_nvme_info(struct sys_dev *hba)
+static int print_nvme_info(struct sys_dev *hba, char *dom_path)
 {
 	struct dirent *ent;
 	DIR *dir;
@@ -2593,7 +2631,7 @@ static int print_nvme_info(struct sys_dev *hba)
 		    !diskfd_to_devpath(fd, 1, cntrl_path))
 			goto skip;
 
-		if (!is_path_attached_to_hba(cntrl_path, hba->path))
+		if (!is_path_attached_to_hba(cntrl_path, dom_path))
 			goto skip;
 
 		if (!imsm_is_nvme_namespace_supported(fd, 0))
@@ -2849,7 +2887,9 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 		print_found_intel_controllers(list);
 
 	for (hba = list; hba; hba = hba->next) {
-		if (controller_path && (compare_paths(hba->path, controller_path) != 0))
+		char *dom_path = (char *)list_head(hba->paths)->item;
+
+		if (controller_path && (compare_paths(dom_path, controller_path) != 0))
 			continue;
 		if (!find_imsm_capability(hba)) {
 			char buf[PATH_MAX];
@@ -2857,7 +2897,7 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 			pr_err("imsm capabilities not found for controller: %s (type %s)\n",
 				  hba->type == SYS_DEV_VMD || hba->type == SYS_DEV_SATA_VMD ?
 				  vmd_domain_to_controller(hba, buf) :
-				  hba->path, get_sys_dev_type(hba->type));
+				  dom_path, get_sys_dev_type(hba->type));
 			continue;
 		}
 		result = 0;
@@ -2884,7 +2924,12 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 					       vmd_domain_to_controller(hba, buf),
 					       get_sys_dev_type(hba->type));
 
-				print_nvme_info(hba);
+				char *dom_path;
+
+				list_for_each(hba->paths, dom_path) {
+					printf("         Domain : %s\n", dom_path);
+					print_nvme_info(hba, dom_path);
+				}
 			}
 			printf("\n");
 			continue;
@@ -2895,10 +2940,11 @@ static int detail_platform_imsm(int verbose, int enumerate_only, char *controlle
 			if (!hba)
 				continue;
 
+			char *dom_path = (char *)list_head(hba->paths)->item;
 			printf(" I/O Controller : %s (%s)\n",
-				hba->path, get_sys_dev_type(hba->type));
+				dom_path, get_sys_dev_type(hba->type));
 			if (hba->type == SYS_DEV_SATA || hba->type == SYS_DEV_SATA_VMD) {
-				host_base = ahci_get_port_count(hba->path, &port_count);
+				host_base = ahci_get_port_count(dom_path, &port_count);
 				if (ahci_enumerate_ports(hba, port_count, host_base, verbose)) {
 					if (verbose > 0)
 						pr_err("failed to enumerate ports on %s controller at %s.\n",
@@ -2927,13 +2973,15 @@ static int export_detail_platform_imsm(int verbose, char *controller_path)
 	}
 
 	for (hba = list; hba; hba = hba->next) {
-		if (controller_path && (compare_paths(hba->path,controller_path) != 0))
+		char *dom_path = (char *)list_head(hba->paths)->item;
+
+		if (controller_path && (compare_paths(dom_path, controller_path) != 0))
 			continue;
 		if (!find_imsm_capability(hba) && verbose > 0) {
 			char buf[PATH_MAX];
 			pr_err("IMSM_DETAIL_PLATFORM_ERROR=NO_IMSM_CAPABLE_DEVICE_UNDER_%s\n",
 				hba->type == SYS_DEV_VMD || hba->type == SYS_DEV_SATA_VMD ?
-				vmd_domain_to_controller(hba, buf) : hba->path);
+				vmd_domain_to_controller(hba, buf) : dom_path);
 		}
 		else
 			result = 0;
@@ -4814,8 +4862,10 @@ static void __free_imsm(struct intel_super *super, int free_disks)
 	free_devlist(super);
 	elem = super->hba;
 	while (elem) {
-		if (elem->path)
-			free((void *)elem->path);
+		if (elem->paths) {
+			list_erase(elem->paths);
+			free(elem->paths);
+		}
 		next = elem->next;
 		free(elem);
 		elem = next;
@@ -7405,12 +7455,21 @@ static int __count_volumes(char *hba_path, int dpa, int verbose,
 	int count = 0;
 	const struct orom_entry *entry;
 	struct devid_list *dv, *devid_list;
+	bool domain_break = false;
 
 	if (!hba_path)
 		return 0;
 
 	for (idev = intel_devices; idev; idev = idev->next) {
-		if (strstr(idev->path, hba_path))
+		char *dom_path;
+
+		list_for_each(idev->paths, dom_path) {
+			if (dom_path && strcmp(dom_path, hba_path) == 0) {
+				domain_break = true;
+				break;
+			}
+		}
+		if (domain_break)
 			break;
 	}
 
@@ -7434,37 +7493,39 @@ static int __count_volumes(char *hba_path, int dpa, int verbose,
 		else
 			device = device_by_id(dv->devid);
 
-		if (device)
-			hpath = device->path;
-		else
+		if (!device)
 			return 0;
 
-		devlist = get_devices(hpath);
-		/* if no intel devices return zero volumes */
-		if (devlist == NULL)
-			return 0;
+		char *dom_path;
 
-		count += active_arrays_by_format("imsm", hpath, &devlist, dpa,
-						 verbose);
-		dprintf("path: %s active arrays: %d\n", hpath, count);
-		if (devlist == NULL)
-			return 0;
-		do  {
-			found = 0;
-			count += count_volumes_list(devlist,
-							NULL,
-							verbose,
-							&found);
-			dprintf("found %d count: %d\n", found, count);
-		} while (found);
+		list_for_each(device->paths, dom_path) {
+			hpath = dom_path;
 
-		dprintf("path: %s total number of volumes: %d\n", hpath, count);
+			devlist = get_devices(hpath);
+			/* if no intel devices return zero volumes */
+			if (devlist == NULL)
+				return 0;
 
-		while (devlist) {
-			struct md_list *dv = devlist;
-			devlist = devlist->next;
-			free(dv->devname);
-			free(dv);
+			count += active_arrays_by_format("imsm", hpath, &devlist, dpa, verbose);
+			dprintf("path: %s active arrays: %d\n", hpath, count);
+			if (devlist == NULL)
+				return 0;
+			do  {
+				found = 0;
+				count += count_volumes_list(devlist, NULL, verbose, &found);
+				dprintf("found %d count: %d\n", found, count);
+			} while (found);
+
+			dprintf("path: %s total number of volumes: %d\n", hpath, count);
+
+			while (devlist) {
+				struct md_list *dv = devlist;
+
+				devlist = devlist->next;
+
+				free(dv->devname);
+				free(dv);
+			}
 		}
 	}
 	return count;
@@ -7479,13 +7540,16 @@ static int count_volumes(struct intel_hba *hba, int dpa, int verbose)
 		int count = 0;
 
 		for (dev = find_intel_devices(); dev; dev = dev->next) {
-			if (dev->type == SYS_DEV_VMD)
-				count += __count_volumes(dev->path, dpa,
-							 verbose, 1);
+			if (dev->type == SYS_DEV_VMD) {
+				char *dom_path;
+
+				list_for_each(dev->paths, dom_path)
+					count += __count_volumes(dom_path, dpa, verbose, 1);
+			}
 		}
 		return count;
 	}
-	return __count_volumes(hba->path, dpa, verbose, 0);
+	return __count_volumes((char *)list_head(hba->paths)->item, dpa, verbose, 0);
 }
 
 static int imsm_default_chunk(const struct imsm_orom *orom)
@@ -10873,17 +10937,27 @@ int validate_container_imsm(struct mdinfo *info)
 	if (check_no_platform())
 		return 0;
 
+	bool domain_break;
 	struct sys_dev *idev;
 	struct sys_dev *hba = NULL;
 	struct sys_dev *intel_devices = find_intel_devices();
 	char *dev_path = devt_to_devpath(makedev(info->disk.major,
 						 info->disk.minor), 1, NULL);
 
+	domain_break = false;
 	for (idev = intel_devices; idev; idev = idev->next) {
-		if (dev_path && strstr(dev_path, idev->path)) {
-			hba = idev;
-			break;
+		char *dom_path;
+
+		list_for_each(idev->paths, dom_path) {
+			if (dev_path && dom_path &&
+				strstr(dev_path, dom_path)) {
+				hba = idev;
+				domain_break = true;
+				break;
+			}
 		}
+		if (domain_break)
+			break;
 	}
 	if (dev_path)
 		free(dev_path);
@@ -10901,12 +10975,21 @@ int validate_container_imsm(struct mdinfo *info)
 		dev_path = devt_to_devpath(makedev(dev->disk.major,
 						   dev->disk.minor), 1, NULL);
 
+		domain_break = false;
 		struct sys_dev *hba2 = NULL;
 		for (idev = intel_devices; idev; idev = idev->next) {
-			if (dev_path && strstr(dev_path, idev->path)) {
-				hba2 = idev;
-				break;
+			char *dom_path;
+
+			list_for_each(idev->paths, dom_path) {
+				if (dev_path && dom_path &&
+					strstr(dev_path, dom_path)) {
+					hba2 = idev;
+					domain_break = true;
+					break;
+				}
 			}
+			if (domain_break)
+				break;
 		}
 		if (dev_path)
 			free(dev_path);
