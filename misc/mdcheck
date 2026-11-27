@@ -294,7 +294,9 @@ fi
 log "running until '$(date --date @"$endtime")'"
 printf "@%d\n" "$endtime" > "$endtime_file"
 
-while [ `date +%s` -lt $endtime ]
+loop_interval=220 # seconds
+
+while :
 do
 	any=
 	for i in `eval echo {1..$cnt}`
@@ -325,7 +327,19 @@ do
 		log "all devices finished; terminating"
 		exit 0;
 	fi
-	sleep 220 &
+
+	remaining=$((endtime - "$(date +%s)"))
+	if [ "$remaining" -le 0 ]
+	then
+		# out of time
+		break
+	elif [ "$remaining" -lt "$loop_interval" ]
+	then
+		# almost out of time; short sleep
+		sleep "$remaining" &
+	else
+		sleep "$loop_interval"
+	fi
 	wait $!
 done
 
