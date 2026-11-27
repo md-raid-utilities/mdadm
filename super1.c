@@ -213,6 +213,7 @@ static void examine_super1(struct supertype *st, char *homehost)
 	bitmap_super_t *bms = (bitmap_super_t *)(((char *)sb) + MAX_SB_SIZE);
 	time_t atime;
 	unsigned int d;
+	unsigned int num_slots;
 	int role;
 	int delta_extra = 0;
 	int i;
@@ -455,7 +456,10 @@ static void examine_super1(struct supertype *st, char *homehost)
 		printf("Active device %d\n", role);
 
 	printf("   Array State : ");
-	for (d = 0; d < __le32_to_cpu(sb->raid_disks) + delta_extra; d++) {
+	num_slots = __le32_to_cpu(sb->raid_disks) + delta_extra;
+	if (num_slots > MD_DISK_ROLE_MAX)
+		num_slots = MD_DISK_ROLE_MAX;
+	for (d = 0; d < num_slots; d++) {
 		int cnt = 0;
 		unsigned int i;
 		for (i = 0; i < __le32_to_cpu(sb->max_dev); i++) {
