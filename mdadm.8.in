@@ -1489,6 +1489,14 @@ where possible.
 Subsequent devices that are re\-added will be re\-added without
 the 'failfast' flag set.
 
+.TP
+.BR \-o ", " \-\-readonly
+mark array as readonly.
+
+.TP
+.B \-\-force
+Allow a device which is larger than the array to be added.
+
 .P
 Each of these options requires that the first device listed is the array
 to be acted upon, and the remainder are component devices to be added,
