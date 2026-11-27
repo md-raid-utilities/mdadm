@@ -434,6 +434,8 @@ char Help_manage[] =
 "\n"
 "Options that are valid with management mode are:\n"
 "  --add         -a   : hotadd subsequent devices to the array\n"
+"  --add-spare        : add subsequent devices as spares without re-adding\n"
+"  --add-journal      : add a journal device to a RAID4/5/6 array\n"
 "  --re-add           : subsequent devices are re-added if there were\n"
 "                     : recent members of the array\n"
 "  --remove      -r   : remove subsequent devices, which must not be active\n"
@@ -443,10 +445,17 @@ char Help_manage[] =
 "                     : replacement completes, device will be marked faulty\n"
 "  --with             : Indicate which spare a previous '--replace' should\n"
 "                     : prefer to use\n"
+"  --write-mostly -W  : set the write-mostly flag on subsequent devices\n"
+"  --readwrite   -w   : clear the write-mostly flag on subsequent devices\n"
+"  --failfast         : set the failfast flag on subsequent devices\n"
+"  --nofailfast       : clear the failfast flag on subsequent devices\n"
+"  --cluster-confirm  : confirm that a device added by a cluster node exists\n"
 "  --run         -R   : start a partially built array\n"
 "  --stop        -S   : deactivate array, releasing all resources\n"
 "  --readonly    -o   : mark array as readonly\n"
-"  --readwrite   -w   : mark array as readwrite\n"
+"  --force            : add a device which is larger than the array\n"
+"  --update=     -U   : update the superblock of a device added with --re-add\n"
+"  --test        -t   : exit 2 if no changes were made to the array\n"
 ;
 
 char Help_misc[] =
