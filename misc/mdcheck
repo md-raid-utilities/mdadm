@@ -67,7 +67,8 @@ devname() {
 }
 
 usage() {
-    echo >&2 'Usage: mdcheck [mode] [options]
+    cat >&2 <<EOF
+Usage: mdcheck [mode] [options]
 
 Mode:
 	--help		print this help
@@ -78,7 +79,16 @@ Mode:
 Options:
 	--duration <time-offset>
 			set the amount of time to run the checks for
-			(<time-offset> must be understood by "date --date")'
+			(<time-offset> must be understood by "date --date")
+
+Note that the specified duration will be ignored if a previously-interrupted
+run would have finished within the specified duration. This allows mdcheck to
+be restarted without extending the initial duration. To override this behavior,
+remove the file:
+$endtime_file
+The --restart option removes this file automatically.
+EOF
+
 }
 
 set_mode() {
@@ -91,6 +101,7 @@ set_mode() {
     MODE=$1
 }
 
+endtime_file=/var/lib/mdcheck/endtime
 args=$(getopt -o "" -l help,continue,start,restart,duration: -n mdcheck -- "$@")
 rv=$?
 if [ $rv -ne 0 ]; then
@@ -129,7 +140,7 @@ shift
 case $MODE in
     --restart)
 	    log 'Re-enabling array checks for previously finished arrays'
-	    rm -f /var/lib/mdcheck/Checked_*
+	    rm -f /var/lib/mdcheck/Checked_* "$endtime_file"
 	    exit 0
 	    ;;
     "")
@@ -201,6 +212,30 @@ trap 'cleanup' 0
 mkdir -p /var/lib/mdcheck
 find /var/lib/mdcheck -name "MD_UUID*" -type f -mtime +180 -exec rm {} \;
 
+# if we are using a duration, check for originally-specified endtime
+if [ -n "$endtime" ] && [ -f "$endtime_file" ]
+then
+	read -r file_endtime < "$endtime_file"
+	# Try to handle a previously-stored entime sanely.
+	# Use the file endtime if it:
+	# * parses ok
+	# * is earlier than endtime from specified --duration
+	if
+		prev_endtime=$(date +%s --date "$file_endtime") && \
+		[ "$prev_endtime" -lt "$endtime" ]
+	then
+		log "ignoring --duration in favor of endtime file: '$endtime_file'"
+		log "to override, remove '$endtime_file' and restart mdcheck"
+		if [ "$prev_endtime" -lt "$(date +%s)" ]
+		then
+			log "previous run would have stopped by now; exiting"
+		        rm -f "$endtime_file"
+			exit 0
+		fi
+		endtime=$prev_endtime
+	fi
+fi
+
 # Now look at each md device.
 for sync_act in /sys/block/*/md/sync_action
 do
@@ -257,6 +292,7 @@ then
 fi
 
 log "running until '$(date --date @"$endtime")'"
+printf "@%d\n" "$endtime" > "$endtime_file"
 
 while [ `date +%s` -lt $endtime ]
 do
@@ -285,6 +321,7 @@ do
 	# When the check action can be finished in mdcheck_start.service,
 	# it doesn't need mdcheck_continue anymore.
 	if [ -z "$any" ]; then
+		rm -f "$endtime_file"
 		log "all devices finished; terminating"
 		exit 0;
 	fi
@@ -292,4 +329,5 @@ do
 	wait $!
 done
 
+rm -f "$endtime_file"
 log "ran until specified '$dur'; terminating"
